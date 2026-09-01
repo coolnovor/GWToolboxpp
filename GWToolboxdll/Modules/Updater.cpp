@@ -59,7 +59,10 @@ namespace {
 
     GWToolboxRelease* GetLatestRelease(GWToolboxRelease* release)
     {
+<<<<<<< HEAD
         // 获取发布列表
+=======
+>>>>>>> master
         std::string response;
         unsigned int tries = 0;
         const auto url = "https://api.github.com/repos/gwdevhub/GWToolboxpp/releases";
@@ -112,14 +115,22 @@ namespace {
     {
         int written = 0;
         if (latest_release.version == current_release.version && latest_release.size != current_release.size) {
+<<<<<<< HEAD
             // 版本匹配，但文件大小不同
             written = snprintf(update_available_text, sizeof(update_available_text) - 1, "GWToolbox++ 版本 %s（%.2f KB）可用！您当前版本为 %s（%.2f KB）",
+=======
+            written = snprintf(update_available_text, sizeof(update_available_text) - 1, "GWToolbox++ version %s (%.2f kb) is available! You have %s (%.2f kb)",
+>>>>>>> master
                                latest_release.version.c_str(), latest_release.size > 0 ? latest_release.size / 1024.f : 0.f,
                                current_release.version.c_str(), current_release.size > 0 ? current_release.size / 1024.f : 0.f);
         }
         else {
+<<<<<<< HEAD
             // 版本不匹配
             written = snprintf(update_available_text, sizeof(update_available_text) - 1, "GWToolbox++ 版本 %s 可用！您当前版本为 %s", latest_release.version.c_str(), current_release.version.c_str());
+=======
+            written = snprintf(update_available_text, sizeof(update_available_text) - 1, "GWToolbox++ version %s is available! You have %s", latest_release.version.c_str(), current_release.version.c_str());
+>>>>>>> master
         }
         ASSERT(written > 0);
         return update_available_text;
@@ -146,7 +157,10 @@ namespace {
         }
         Log::Log("dll 文件名为 %s\n", dllfile);
 
+<<<<<<< HEAD
         // 从路径中获取 dll 名称
+=======
+>>>>>>> master
         const std::wstring dll_path(dllfile);
         std::wstring dll_name;
         wchar_t sep = '/';
@@ -186,9 +200,12 @@ namespace {
             });
     }
 
+<<<<<<< HEAD
     // 在新鲜更新的版本首次运行时显示一次。一个真诚、人性化的请求——
     // 工具箱因注入 Gw.exe 而被标记为误报，而一个活跃且星标众多的 GitHub
     // 项目在杀毒软件厂商看来更可信，随着时间的推移，这意味着每个人的误报更少。
+=======
+>>>>>>> master
     void DrawStarRequest()
     {
         if (!show_star_request) {
@@ -220,7 +237,15 @@ namespace {
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
+<<<<<<< HEAD
             if (ImGui::Button("在 GitHub 上给我们星标###gwtoolbox_open_star", ImVec2(200.0f * ImGui::FontScale(), 0))) {
+=======
+            if (ImGui::Checkbox("I've already starred###gwtoolbox_has_starred", &settings.has_starred)) {
+                show_star_request = false;
+            }
+            ImGui::Spacing();
+            if (ImGui::Button("Star us on GitHub###gwtoolbox_open_star", ImVec2(200.0f * ImGui::FontScale(), 0))) {
+>>>>>>> master
                 ShellExecute(nullptr, "open", "https://github.com/gwdevhub/GWToolboxpp", nullptr, nullptr, SW_SHOWNORMAL);
                 show_star_request = false;
             }
@@ -243,7 +268,10 @@ const std::string& Updater::GetServerVersion()
 
 const GWToolboxRelease* Updater::GetCurrentVersionInfo(GWToolboxRelease* out)
 {
+<<<<<<< HEAD
     // 服务器和客户端版本匹配
+=======
+>>>>>>> master
     wchar_t path[MAX_PATH];
     if (GetModuleFileNameW(GWToolbox::GetDLLModule(), path, _countof(path)) == 0) {
         return nullptr;
@@ -275,11 +303,14 @@ void Updater::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
     settings.update_mode = Mode::DontCheckForUpdates;
     settings.update_release_type = ReleaseType::Beta;
 #else
+<<<<<<< HEAD
     // 如果上次运行的版本与此版本不同，则工具箱刚刚被更新
     //（应用内或手动）—— 显示一次性星标请求。下面的 SaveSettings 会重写
     // dllversion，因此直到下次更新前不会再次触发。
+=======
+>>>>>>> master
     std::string previous_version;
-    if (doc.Get(Name(), "dllversion", previous_version) && !previous_version.empty() && previous_version != GWTOOLBOXDLL_VERSION) {
+    if (doc.Get(Name(), "dllversion", previous_version) && !previous_version.empty() && previous_version != GWTOOLBOXDLL_VERSION && !settings.has_starred) {
         show_star_request = true;
     }
 #endif
@@ -336,7 +367,10 @@ void Updater::CheckForUpdate(const bool forced)
 
         if (latest_release.version == current_release.version
             && latest_release.size == current_release.size) {
+<<<<<<< HEAD
             // 版本和大小匹配
+=======
+>>>>>>> master
             step = Done;
             is_latest_version = true;
             if (forced) {
@@ -383,7 +417,10 @@ void Updater::Draw(IDirect3DDevice9*)
             step = Done;
             break;
         case CheckAndAsk: {
+<<<<<<< HEAD
             // 检查并询问
+=======
+>>>>>>> master
             if (!visible) {
                 visible = true;
             }

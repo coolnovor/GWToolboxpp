@@ -4,6 +4,7 @@
 
 #include "KeyboardLanguageFix.h"
 
+<<<<<<< HEAD
 /*
 * 在游戏有机会分配键盘布局之前，尝试分配 GW 键盘布局地址。
 * 一旦 en-us 布局被加载，恢复原始键盘布局。
@@ -31,6 +32,8 @@
 *
 */
 
+=======
+>>>>>>> master
 void KeyboardLanguageFix::Initialize()
 {
     ToolboxModule::Initialize();

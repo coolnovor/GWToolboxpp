@@ -55,7 +55,10 @@ namespace {
     constexpr uint32_t COST_PER_CONNECTION_MS = 30 * 1000;
     constexpr uint32_t COST_PER_CONNECTION_MAX_MS = 60 * 1000;
 
+<<<<<<< HEAD
     // 用于类型安全表示的枚举
+=======
+>>>>>>> master
     enum class Currency : uint32_t { Platinum = 0, Ecto = 1, Zkeys = 2, Arms = 3, Count = 4, All = 0xf };
 
     enum class OrderType : uint8_t { Sell = 0, Buy = 1 };
@@ -193,7 +196,10 @@ namespace {
         return Attribute::None;
     }
 
+<<<<<<< HEAD
     // 数据结构
+=======
+>>>>>>> master
     struct Price {
         Currency type = Currency::Platinum;
         float quantity = 1.f;
@@ -335,7 +341,10 @@ namespace {
     bool show_edit_item_window = false;
     size_t editing_item_index = 0;
 
+<<<<<<< HEAD
     // 编辑窗口 - 匹配物品订单
+=======
+>>>>>>> master
     std::vector<MarketItem> edit_window_matching_orders;
     std::string edit_window_matching_item_name;
     bool edit_window_orders_needs_sort = true;
@@ -447,13 +456,18 @@ namespace {
         int buyOrders = 0;
     };
 
+<<<<<<< HEAD
     // 设置
+=======
+>>>>>>> master
     GWMarketWindow::Settings settings;
 
-    // WebSocket
     ThreadedWebSocket market_ws;
 
+<<<<<<< HEAD
     // 数据
+=======
+>>>>>>> master
     std::vector<AvailableItem> available_items;
     std::vector<MarketItem> last_items;
     std::vector<MarketItem> current_item_orders;
@@ -461,13 +475,11 @@ namespace {
     std::string pending_search_item;
     std::map<std::string, AvailableItem> favorite_items;
 
-    // UI
     char search_buffer[256] = "";
     enum FilterMode { SHOW_ALL, SHOW_SELL_ONLY, SHOW_BUY_ONLY };
     FilterMode filter_mode = SHOW_ALL;
     float refresh_timer = 0.0f;
 
-    // Socket.IO
     bool socket_io_ready = false;
     clock_t last_ping_time = 0;
     int ping_interval = 25000;
@@ -477,7 +489,10 @@ namespace {
     bool available_items_needs_sort = true;
     bool current_orders_needs_sort = true;
 
+<<<<<<< HEAD
     // 前向声明
+=======
+>>>>>>> master
     void SendSocketStarted();
     void SendGetAvailableOrders();
     void SendGetLastItemsByFamily(const std::string& family);
@@ -660,13 +675,19 @@ namespace {
         if (!_orders.empty()) {
             const auto& item_name = _orders[0].name;
 
+<<<<<<< HEAD
             // 更新当前查看的订单
+=======
+>>>>>>> master
             if (item_name == current_viewing_item) {
                 current_item_orders = _orders;
                 current_orders_needs_sort = true;
             }
 
+<<<<<<< HEAD
             // 更新编辑窗口匹配订单
+=======
+>>>>>>> master
             if (item_name == edit_window_matching_item_name) {
                 edit_window_matching_orders = _orders;
                 edit_window_orders_needs_sort = true;
@@ -739,7 +760,10 @@ namespace {
         SendSocketStarted();
         Refresh();
 
+<<<<<<< HEAD
         // 处理任何待处理的搜索请求
+=======
+>>>>>>> master
         if (!pending_search_item.empty()) {
             SendGetItemOrders(pending_search_item);
             pending_search_item.clear();
@@ -934,7 +958,10 @@ namespace {
     {
         ImGui::Text("可用列表 (%zu)", available_items.size());
         ImGui::Separator();
+<<<<<<< HEAD
         // 仅在数据变化时排序
+=======
+>>>>>>> master
         if (available_items_needs_sort) {
             std::sort(available_items.begin(), available_items.end(), [](const AvailableItem& a, const AvailableItem& b) {
                 return *a.name < *b.name;
@@ -944,11 +971,17 @@ namespace {
         }
 
         for (const auto& item : available_items) {
+<<<<<<< HEAD
             // 应用筛选模式
             if (filter_mode == SHOW_SELL_ONLY && item.sellOrders == 0) continue;
             if (filter_mode == SHOW_BUY_ONLY && item.buyOrders == 0) continue;
 
             // 应用搜索筛选
+=======
+            if (filter_mode == SHOW_SELL_ONLY && item.sellOrders == 0) continue;
+            if (filter_mode == SHOW_BUY_ONLY && item.buyOrders == 0) continue;
+
+>>>>>>> master
             if (search_buffer[0] != '\0') {
                 std::string search_lower = search_buffer;
                 std::string name_lower = *item.name;
@@ -1035,7 +1068,10 @@ namespace {
 
         ImGui::Text("物品: %s", current_viewing_item.c_str());
 
+<<<<<<< HEAD
         // 排序方式下拉
+=======
+>>>>>>> master
         ImGui::SameLine();
         ImGui::SetNextItemWidth(150.0f);
         if (ImGui::BeginCombo("##sort_mode", order_sort_mode == OrderSortMode::MostRecent ? "最新" : "货币")) {
@@ -1066,7 +1102,10 @@ namespace {
 
         ImGui::Separator();
 
+<<<<<<< HEAD
         // 收藏/取消收藏按钮
+=======
+>>>>>>> master
         if (!current_viewing_item.empty()) {
             bool is_favorite = favorite_items.contains(current_viewing_item);
             std::string fav_label = std::format("{} {}", ICON_FA_STAR, is_favorite ? "取消收藏" : "收藏");
@@ -1097,10 +1136,15 @@ namespace {
             return;
         }
 
+<<<<<<< HEAD
         // 仅当数据变化或排序模式变化时排序
         if (current_orders_needs_sort) {
             if (order_sort_mode == OrderSortMode::Currency) {
                 // 按价格排序（最便宜优先）
+=======
+        if (current_orders_needs_sort) {
+            if (order_sort_mode == OrderSortMode::Currency) {
+>>>>>>> master
                 std::sort(current_item_orders.begin(), current_item_orders.end(), [](const MarketItem& a, const MarketItem& b) {
                     if (a.prices.empty() || b.prices.empty()) return false;
                     if (a.currency() != b.currency()) return a.currency() < b.currency();
@@ -1108,7 +1152,10 @@ namespace {
                 });
             }
             else {
+<<<<<<< HEAD
                 // 按最新排序
+=======
+>>>>>>> master
                 std::sort(current_item_orders.begin(), current_item_orders.end(), [](const MarketItem& a, const MarketItem& b) {
                     return a.lastRefresh > b.lastRefresh;
                 });
@@ -1122,7 +1169,9 @@ namespace {
             const auto& price = order.prices[0];
             if (order_view_currency != Currency::All && order_view_currency != price.type) return;
 
-            ImGui::PushID(order.description.c_str());
+            // Use the order's address for a unique ID; descriptions are often empty and would collide,
+            // making the per-row "Whisper" buttons share an ImGui ID.
+            ImGui::PushID(&order);
             const auto top = ImGui::GetCursorPosY();
             ImGui::TextUnformatted(order.player.c_str());
             const auto timetext = TextUtils::RelativeTime(order.lastRefresh);
@@ -1225,9 +1274,13 @@ namespace {
             return;
         }
 
+<<<<<<< HEAD
         // 仅当数据变化时排序
         if (edit_window_orders_needs_sort) {
             // 按价格排序（最便宜优先）
+=======
+        if (edit_window_orders_needs_sort) {
+>>>>>>> master
             std::sort(edit_window_matching_orders.begin(), edit_window_matching_orders.end(), [](const MarketItem& a, const MarketItem& b) {
                 if (a.prices.empty() || b.prices.empty()) return false;
                 if (a.currency() != b.currency()) return a.currency() < b.currency();
@@ -1242,27 +1295,41 @@ namespace {
 
             const auto& price = order.prices[0];
 
-            ImGui::PushID(order.description.c_str());
+            // Use the order's address for a unique ID; descriptions are often empty and would collide.
+            ImGui::PushID(&order);
             // const auto top = ImGui::GetCursorPosY();
 
+<<<<<<< HEAD
             // 玩家名和时间
+=======
+>>>>>>> master
             ImGui::TextUnformatted(order.player.c_str());
             const auto timetext = TextUtils::RelativeTime(order.lastRefresh);
             ImGui::SameLine();
             ImGui::TextDisabled("%s", timetext.c_str());
 
+<<<<<<< HEAD
             // 武器详情
+=======
+>>>>>>> master
             if (order.has_weapon_details()) {
                 ImGui::TextUnformatted(order.weaponDetails.toString().c_str());
             }
 
+<<<<<<< HEAD
             // 描述
+=======
+>>>>>>> master
             if (!order.description.empty()) {
                 ImGui::TextUnformatted(order.description.c_str());
             }
 
+<<<<<<< HEAD
             // 价格信息
             ImGui::Text("想要 %s %d 个，价格 ", order.orderType == OrderType::Sell ? "出售" : "求购", order.quantity);
+=======
+            ImGui::Text("Wants to %s %d for ", order.orderType == OrderType::Sell ? "sell" : "buy", order.quantity);
+>>>>>>> master
 
             ImGui::SameLine(0, 0);
             const auto tex = GetCurrencyImage(price.type);
@@ -1277,7 +1344,10 @@ namespace {
                 ImGui::Text("%.2f %s", price.price, GetPriceTypeString(price.type));
             }
 
+<<<<<<< HEAD
             // 单价
+=======
+>>>>>>> master
             ImGui::SameLine();
             const auto price_per = order.price_per();
             ImGui::TextDisabled(price_per == static_cast<int>(price_per) ? "(%.0f %s 每个)" : "(%.1f %s 每个)", price_per, GetPriceTypeString(price.type));
@@ -1286,7 +1356,10 @@ namespace {
             ImGui::PopID();
         };
 
+<<<<<<< HEAD
         // 显示出售订单
+=======
+>>>>>>> master
         bool has_sell_orders = false;
         for (const auto& order : edit_window_matching_orders) {
             if (order.orderType == OrderType::Sell && order.valid()) {
@@ -1299,7 +1372,10 @@ namespace {
             }
         }
 
+<<<<<<< HEAD
         // 显示求购订单
+=======
+>>>>>>> master
         bool has_buy_orders = false;
         for (const auto& order : edit_window_matching_orders) {
             if (order.orderType == OrderType::Buy && order.valid()) {
@@ -1326,7 +1402,10 @@ namespace {
 
 
 
+<<<<<<< HEAD
     // 编辑商店物品的临时值
+=======
+>>>>>>> master
     struct EditingShopItem {
         char name_buffer[256] = {0};
         char description_buffer[512] = {0};
@@ -1364,6 +1443,7 @@ namespace {
     {
         ImGui::PushID(static_cast<int>(index));
 
+<<<<<<< HEAD
         // 物品名称
         ImGui::TextUnformatted(item.name.c_str());
 
@@ -1372,6 +1452,13 @@ namespace {
         ImGui::Text("x%d", item.quantity);
 
         // 价格
+=======
+        ImGui::TextUnformatted(item.name.c_str());
+
+        ImGui::SameLine(250);
+        ImGui::Text("x%d", item.quantity);
+
+>>>>>>> master
         ImGui::SameLine(350);
         if (!item.prices.empty()) {
             const auto& price = item.prices[0];
@@ -1382,7 +1469,10 @@ namespace {
             ImGui::Text("%.0f %s", price.price, GetPriceTypeString(price.type));
         }
 
+<<<<<<< HEAD
         // 编辑按钮
+=======
+>>>>>>> master
         ImGui::SameLine(ImGui::GetContentRegionAvail().x - 50);
         if (ImGui::SmallButton("编辑")) {
             editing_item_index = index;
@@ -1398,8 +1488,12 @@ namespace {
         if (!show_my_shop_window) return;
 
         ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+<<<<<<< HEAD
         if (ImGui::Begin("我的商店", &show_my_shop_window, ImGuiWindowFlags_NoCollapse)) {
             // 商店状态
+=======
+        if (ImGui::Begin("My Shop", &show_my_shop_window, ImGuiWindowFlags_NoCollapse)) {
+>>>>>>> master
             if (!my_shop.uuid.empty() && my_shop.is_certified(GetCurrentPlayerName())) {
                 ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "商店状态: 已验证");
             }
@@ -1413,22 +1507,32 @@ namespace {
 
             ImGui::Separator();
 
+<<<<<<< HEAD
             // 商店物品列表
+=======
+>>>>>>> master
             if (my_shop.items.empty()) {
                 ImGui::TextDisabled("商店中没有物品");
             }
             else {
                 ImGui::BeginChild("ShopItems", ImVec2(0, -30), true);
 
+<<<<<<< HEAD
                 // 表头
                 ImGui::Text("物品名称");
+=======
+                ImGui::Text("Item Name");
+>>>>>>> master
                 ImGui::SameLine(250);
                 ImGui::Text("数量");
                 ImGui::SameLine(350);
                 ImGui::Text("价格");
                 ImGui::Separator();
 
+<<<<<<< HEAD
                 // 物品列表
+=======
+>>>>>>> master
                 for (size_t i = 0; i < my_shop.items.size(); i++) {
                     DrawShopItem(my_shop.items[i], i);
                 }
@@ -1436,7 +1540,10 @@ namespace {
                 ImGui::EndChild();
             }
 
+<<<<<<< HEAD
             // 底部
+=======
+>>>>>>> master
             ImGui::Separator();
             if (ImGui::Button("添加物品", ImVec2(120, 0))) {
                 editing_item.Reset();
@@ -1460,6 +1567,7 @@ namespace {
 
         ImGui::SetNextWindowSize(ImVec2(900, 500), ImGuiCond_FirstUseEver);
         if (ImGui::Begin(window_title, &show_edit_item_window, ImGuiWindowFlags_NoCollapse)) {
+<<<<<<< HEAD
             // 检查物品名称是否改变，搜索匹配物品
             static char last_search_name[256] = {0};
             if (strcmp(editing_item.name_buffer, last_search_name) != 0 && strlen(editing_item.name_buffer) > 0) {
@@ -1467,30 +1575,46 @@ namespace {
                 strncpy(last_search_name, editing_item.name_buffer, sizeof(last_search_name) - 1);
 
                 // 在 available_items 中查找匹配物品
+=======
+            static char last_search_name[256] = {0};
+            if (strcmp(editing_item.name_buffer, last_search_name) != 0 && strlen(editing_item.name_buffer) > 0) {
+                strncpy(last_search_name, editing_item.name_buffer, sizeof(last_search_name) - 1);
+
+>>>>>>> master
                 const auto found = std::ranges::find_if(available_items.begin(), available_items.end(), [](const AvailableItem& item) {
                     return *item.name == last_search_name;
                 });
 
                 if (found != available_items.end()) {
+<<<<<<< HEAD
                     // 找到匹配，请求订单信息
+=======
+>>>>>>> master
                     edit_window_matching_item_name = *found->name;
                     edit_window_matching_orders.clear();
                     edit_window_orders_needs_sort = true;
                     SendGetItemOrders(edit_window_matching_item_name);
                 }
                 else {
+<<<<<<< HEAD
                     // 未找到
+=======
+>>>>>>> master
                     edit_window_matching_item_name.clear();
                     edit_window_matching_orders.clear();
                 }
             }
 
+<<<<<<< HEAD
             // 计算列宽
+=======
+>>>>>>> master
             const float available_width = ImGui::GetContentRegionAvail().x;
             const float available_height = ImGui::GetContentRegionAvail().y - 40.f; // 为按钮留出空间
             const float left_column_width = available_width * 0.5f - ImGui::GetStyle().ItemSpacing.x * 0.5f;
             const float right_column_width = available_width * 0.5f - ImGui::GetStyle().ItemSpacing.x * 0.5f;
 
+<<<<<<< HEAD
             // 左列 - 编辑表单
             ImGui::BeginChild("EditForm", ImVec2(left_column_width, available_height), true);
 
@@ -1511,6 +1635,22 @@ namespace {
 
             // 单价
             ImGui::InputFloat("单价", &editing_item.price.price, 1.f, 5.f, "%.0f");
+=======
+            ImGui::BeginChild("EditForm", ImVec2(left_column_width, available_height), true);
+
+            ImGui::InputText("Item Name", editing_item.name_buffer, sizeof(editing_item.name_buffer));
+
+            ImGui::InputTextMultiline("Description", editing_item.description_buffer, sizeof(editing_item.description_buffer), ImVec2(-1, 80));
+
+
+            ImGui::InputFloat("Quantity", &editing_item.price.quantity, 1.f, 10.f, "%.0f");
+            if (editing_item.price.quantity < 0.f) editing_item.price.quantity = 0.f;
+
+            const char* price_types[] = {"Platinum", "Ecto", "Zkeys", "Arms"};
+            ImGui::Combo("Currency", (int*)&editing_item.price.type, price_types, IM_ARRAYSIZE(price_types));
+
+            ImGui::InputFloat("Price Per", &editing_item.price.price, 1.f, 5.f, "%.0f");
+>>>>>>> master
             if (editing_item.price.price < 0) editing_item.price.price = 0;
 
             ImGui::EndChild();
@@ -1523,30 +1663,46 @@ namespace {
 
             ImGui::Separator();
 
+<<<<<<< HEAD
             // 操作按钮
             if (ImGui::Button("保存", ImVec2(120, 0))) {
                 if (editing_item_index < my_shop.items.size()) {
                     // 编辑现有物品
+=======
+            if (ImGui::Button("Save", ImVec2(120, 0))) {
+                if (editing_item_index < my_shop.items.size()) {
+>>>>>>> master
                     auto& item = my_shop.items[editing_item_index];
 
                     item = editing_item.item;
                     item.prices = {editing_item.price};
 
+<<<<<<< HEAD
                     // 更新物品
+=======
+>>>>>>> master
                     item.name = editing_item.name_buffer;
                     if (*editing_item.description_buffer) {
                         item.description = editing_item.description_buffer;
                     }
 
+<<<<<<< HEAD
                     // 更新价格
                 }
                 else {
                     // 添加新物品
+=======
+                }
+                else {
+>>>>>>> master
                     auto item = editing_item.item;
                     item = editing_item.item;
                     item.prices = {editing_item.price};
 
+<<<<<<< HEAD
                     // 更新物品
+=======
+>>>>>>> master
                     item.name = editing_item.name_buffer;
                     if (*editing_item.description_buffer) {
                         item.description = editing_item.description_buffer;
@@ -1559,7 +1715,10 @@ namespace {
                     my_shop.items.push_back(item);
                 }
 
+<<<<<<< HEAD
                 // 发送更新到服务器
+=======
+>>>>>>> master
                 SaveShop(my_shop, true);
 
                 editing_item.Reset();
@@ -1578,7 +1737,10 @@ namespace {
                 show_edit_item_window = false;
             }
 
+<<<<<<< HEAD
             // 仅在编辑现有物品时显示删除按钮
+=======
+>>>>>>> master
             if (!is_new_item) {
                 ImGui::SameLine();
                 if (ImGui::Button("移除物品", ImVec2(120, 0))) {
@@ -1889,7 +2051,10 @@ void GWMarketWindow::DrawSettingsInternal()
 
 void GWMarketWindow::Draw(IDirect3DDevice9*)
 {
+<<<<<<< HEAD
 // 绘制商店窗口
+=======
+>>>>>>> master
 #if (GWMARKET_SELLING_ENABLED)
     DrawMyShopWindow();
     DrawEditItemWindow();
@@ -1935,24 +2100,36 @@ void GWMarketWindow::Draw(IDirect3DDevice9*)
         ImGui::InputText("搜索", search_buffer, sizeof(search_buffer));
         ImGui::Separator();
 
+<<<<<<< HEAD
         // 计算两列布局的可用宽高
+=======
+>>>>>>> master
         const float available_width = ImGui::GetContentRegionAvail().x;
         const float available_height = ImGui::GetContentRegionAvail().y - 32.f;
         const float left_column_width = available_width * 0.5f - ImGui::GetStyle().ItemSpacing.x * 0.5f;
         const float right_column_width = available_width * 0.5f - ImGui::GetStyle().ItemSpacing.x * 0.5f;
 
+<<<<<<< HEAD
         // 左列分为上下两部分：65% 物品列表，35% 收藏
         const float item_list_height = available_height * 0.7f - ImGui::GetStyle().ItemSpacing.y * 0.5f;
         const float favorites_height = available_height * 0.3f - ImGui::GetStyle().ItemSpacing.y * 0.5f;
 
         // 左列 - 物品列表（上部分）
+=======
+        const float item_list_height = available_height * 0.7f - ImGui::GetStyle().ItemSpacing.y * 0.5f;
+        const float favorites_height = available_height * 0.3f - ImGui::GetStyle().ItemSpacing.y * 0.5f;
+
+>>>>>>> master
         ImGui::BeginChild("ItemList", ImVec2(left_column_width, item_list_height), true);
         DrawItemList();
         ImGui::EndChild();
 
         const auto favourites_cursor_pos = ImGui::GetCursorPos();
 
+<<<<<<< HEAD
         // 右列 - 物品详情（全高度）
+=======
+>>>>>>> master
         ImGui::SameLine();
         ImGui::BeginChild("ItemDetails", ImVec2(right_column_width, available_height), true);
         DrawItemDetails();
@@ -1960,7 +2137,10 @@ void GWMarketWindow::Draw(IDirect3DDevice9*)
 
         ImGui::SetCursorPos(favourites_cursor_pos);
 
+<<<<<<< HEAD
         // 左列 - 收藏列表（下部分）
+=======
+>>>>>>> master
         ImGui::BeginChild("FavoritesList", ImVec2(left_column_width, favorites_height), true);
         ImGui::Text("收藏");
         ImGui::Separator();

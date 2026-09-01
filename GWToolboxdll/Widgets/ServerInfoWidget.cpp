@@ -104,7 +104,10 @@ void ServerInfoWidget::Update(float)
         }
         current_server_info->last_update = time(nullptr);
         server_info_fetcher = std::thread([this] {
+<<<<<<< HEAD
             // 需要检查详情
+=======
+>>>>>>> master
             using namespace std::string_literals;
             const std::string url = "https://api.ipgeolocation.io/ipgeo?apiKey="s + IPGEO_API_KEY + "&ip=" + current_server_info->ip;
             int tries = 0;

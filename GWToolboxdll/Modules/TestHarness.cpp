@@ -1,60 +1,27 @@
 #include "stdafx.h"
 
-#include <chrono>
-#include <cmath>
 #include <filesystem>
-#include <set>
 #include <sstream>
+#include <format>
 #include <string>
 #include <system_error>
 
-#include <GWCA/GameContainers/GamePos.h>
-#include <GWCA/GameEntities/Agent.h>
-#include <GWCA/GameEntities/Pathing.h>
-#include <GWCA/GameEntities/Party.h>
-#include <GWCA/GameEntities/Skill.h>
-#include <GWCA/GameEntities/Quest.h>
-#include <GWCA/Context/CharContext.h>
-#include <GWCA/Context/MapContext.h>
-#include <GWCA/Context/PreGameContext.h>
 #include <GWCA/Constants/Constants.h>
-#include <GWCA/Managers/AgentMgr.h>
-#include <GWCA/Managers/CameraMgr.h>
-#include <GWCA/Managers/ChatMgr.h>
-#include <GWCA/Managers/ItemMgr.h>
 #include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/MemoryMgr.h>
-#include <GWCA/Managers/QuestMgr.h>
-#include <GWCA/Managers/SkillbarMgr.h>
-#include <GWCA/Managers/StoCMgr.h>
-#include <GWCA/Managers/UIMgr.h>
-
-#include <GWCA/Packets/StoC.h>
 
 #include <Logger.h>
 #include <Timer.h>
 
 #include "GWToolbox.h"
-#include "Modules/QuestModule.h"
 #include "Modules/Resources.h"
-#include "Modules/TestHarness.h"
-
-#include <GWCA/Managers/PartyMgr.h>
-
-#include "Modules/CartographerModule.h"
-#include "Modules/SkillRangeRingsModule.h"
-#include "Utils/GameWorldCompositor.h"
-#include "Utils/PropSurfaceIndex.h"
-#include "Utils/SettingsRegistry.h"
-#include "Utils/TerrainDrape.h"
 #include "Utils/TextUtils.h"
 #include "Utils/ToolboxUtils.h"
-#include "Widgets/WorldMapWidget.h"
-#include "Windows/Pathfinding/PathfindingWindow.h"
+#include "Modules/TestHarness.h"
+#include "Widgets/CartographerWidget.h"
 #include "Windows/TravelWindow.h"
-#include "Modules/GwDatModule.h"
-#include "Utils/ArenaNetFileParser.h"
 
+<<<<<<< HEAD
 // 开发迭代工具：在 Debug (_DEBUG) 和 RelWithDebInfo (GWTB_HARNESS) 中编译，
 // 日志写入 log.txt，在正式发布版中排除。
 #if defined(_DEBUG) || defined(GWTB_HARNESS)
@@ -80,21 +47,28 @@ namespace {
     int fps_frames = 0;
     clock_t fps_start = 0;
     long fps_duration_ms = 0;
+=======
+#ifdef _DEBUG
+namespace {
+    constexpr long kPollMs = 250;
+
+    clock_t last_poll = 0;
+    bool terminating = false;
+>>>>>>> master
 
     std::filesystem::path cmd_path() { return Resources::GetPath(L"harness_command.txt"); }
     std::filesystem::path status_path() { return Resources::GetPath(L"harness_status.txt"); }
-    std::filesystem::path config_path() { return Resources::GetPath(L"harness_config.txt"); }
 
     void write_status(const std::string& s) { Resources::WriteFile(status_path(), s); }
 
     std::string trim(const std::string& s)
     {
-        const auto a = s.find_first_not_of(" \t\r\n");
-        if (a == std::string::npos) return {};
-        const auto b = s.find_last_not_of(" \t\r\n");
-        return s.substr(a, b - a + 1);
+        const auto first = s.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) return {};
+        return s.substr(first, s.find_last_not_of(" \t\r\n") - first + 1);
     }
 
+<<<<<<< HEAD
     struct Config {
         float wx = 0, wy = 0;
         uint32_t wplane = 0;
@@ -103,14 +77,18 @@ namespace {
     };
 
     // 向 GW 窗口发送回车键（推进已预填的账户登录和角色选择）
+=======
+    // Advances the pre-filled account login and character select.
+>>>>>>> master
     void press_enter()
     {
-        if (HWND hwnd = GW::MemoryMgr::GetGWWindowHandle()) {
+        if (const HWND hwnd = GW::MemoryMgr::GetGWWindowHandle()) {
             PostMessageW(hwnd, WM_KEYDOWN, VK_RETURN, 0);
             PostMessageW(hwnd, WM_KEYUP, VK_RETURN, 0);
         }
     }
 
+<<<<<<< HEAD
     Config read_config()
     {
         Config c;
@@ -198,23 +176,39 @@ namespace {
     }
 
     // 执行一条通道命令。shutdown() 必须是最后一条，且之后不得触碰任何状态。
+=======
+    // shutdown() must be LAST and never touch state after.
+>>>>>>> master
     void run_command(const std::string& line)
     {
         std::istringstream is(line);
         std::string verb;
         is >> verb;
+<<<<<<< HEAD
         if (verb == "shutdown") {
             write_status("shutdown_signalled");
             Log::Log("[harness] 已发出关闭信号；卸载 DLL（GW 保持运行）");
             terminating = true;
             GWToolbox::SignalTerminate(true); // 干净地自我卸载；级联关闭各模块
             return;                            // 此后不得触碰任何东西
+=======
+        if (verb == "status") {
+            const auto map_id = static_cast<int>(GW::Map::GetMapID());
+            const auto instance = static_cast<int>(GW::Map::GetInstanceType());
+            char b[96];
+            snprintf(b, sizeof(b), "status: map=%d instance=%d loaded=%d", map_id, instance, static_cast<int>(GW::Map::GetIsMapLoaded()));
+            Log::Log("[harness] %s", b);
+            Log::FlushFile();
+            write_status(b);
+            return;
+>>>>>>> master
         }
         if (verb == "login") {
             press_enter();
             write_status("login: 已发送回车");
             return;
         }
+<<<<<<< HEAD
         if (verb == "setgoal") { // 将玩家位置捕获为持久目标
             set_goal_here();
             return;
@@ -545,11 +539,30 @@ namespace {
             else {
                 write_status("dropitem: 参数错误（需要: dropitem <bag 1-5> <slot 1-N>）");
             }
+=======
+        // PostMessage does not advance character select, so pick the character through the game's
+        // own selector instead: "play" with no name takes the first one on the account.
+        if (verb == "play") {
+            std::string want;
+            std::getline(is, want);
+            want = trim(want);
+            std::wstring name = TextUtils::StringToWString(want);
+            if (name.empty()) {
+                const auto chars = GW::AccountMgr::GetAvailableChars();
+                if (chars && chars->size()) name = (*chars)[0].player_name;
+            }
+            const bool ok = !name.empty() && GW::LoginMgr::SelectCharacterToPlay(name.c_str());
+            Log::Log("[harness] play '%S' ok=%d char_select_ready=%d", name.c_str(), static_cast<int>(ok),
+                     static_cast<int>(GW::LoginMgr::IsCharSelectReady()));
+            Log::FlushFile();
+            write_status(std::format("play: ok={} name_len={}", static_cast<int>(ok), name.size()));
+>>>>>>> master
             return;
         }
         if (verb == "travel") {
             int mapid = 0;
             is >> mapid;
+<<<<<<< HEAD
             if (mapid > 0) {
                 // TravelWindow::Travel 处理原始 GW::Map::Travel 静默失败的情况（例如离开公会大厅）。
                 const bool ok = TravelWindow::Instance().Travel(static_cast<GW::Constants::MapID>(mapid), GW::Constants::District::Current, 0);
@@ -728,10 +741,22 @@ namespace {
                      "drapeverify: n=%u both=%u nonzero_plane_hits=%u | PRUNE 不匹配数=%u max=%.2f | 总计 new-vs-old avg=%.2f max=%.2f",
                      n, both, nonzero_hits, prune_mismatch, max_prune, both ? sum_total / both : 0.0, max_total);
             Log::Log("[harness] %s", b);
+=======
+            if (mapid <= 0) {
+                write_status("travel: bad mapid (need: travel <mapid>)");
+                return;
+            }
+            // TravelWindow::Travel handles the cases raw GW::Map::Travel silently drops (e.g. leaving a guild hall).
+            const bool ok = TravelWindow::Instance().Travel(static_cast<GW::Constants::MapID>(mapid), GW::Constants::District::Current, 0);
+            Log::Log("[harness] travel -> map %d (queued=%d)", mapid, static_cast<int>(ok));
+>>>>>>> master
             Log::FlushFile();
+            char b[64];
+            snprintf(b, sizeof(b), "travel: %d queued=%d", mapid, static_cast<int>(ok));
             write_status(b);
             return;
         }
+<<<<<<< HEAD
         if (verb == "drapebench") { // drapebench [n radius]：A/B 对比旧的全平面 QueryAltitude 循环与新的修剪 SurfaceZ
             uint32_t n = 2000;
             float radius = 1200.f;
@@ -957,16 +982,62 @@ namespace {
             fps_start = TIMER_INIT();
             fps_active = true;
             write_status("fpsprobe: 运行中");
+=======
+        if (verb == "cartoprobe") {
+            int cx = INT_MIN, cy = INT_MIN;
+            is >> cx >> cy;
+            if (cx == INT_MIN || cy == INT_MIN) {
+                write_status("cartoprobe: bad args (need: cartoprobe <cx> <cy>)");
+                return;
+            }
+            Log::Log("[harness] cartoprobe (%d,%d) in map %d", cx, cy, static_cast<int>(GW::Map::GetMapID()));
+            CartographerWidget::LogProbeAtCell(cx, cy);
+            char b[64];
+            snprintf(b, sizeof(b), "cartoprobe: %d %d map=%d", cx, cy, static_cast<int>(GW::Map::GetMapID()));
+            write_status(b);
+            return;
+        }
+        if (verb == "glitch") {
+            int on = 0;
+            is >> on;
+            CartographerWidget::SetGateGlitchAllowed(on != 0);
+            Log::Log("[harness] gate glitching = %d", on);
+            Log::FlushFile();
+            write_status(std::format("glitch: {}", on));
+            return;
+        }
+        if (verb == "cartobake") {
+            CartographerWidget::StartContinentBake();
+            Log::Log("[harness] continent bake started");
+            Log::FlushFile();
+            write_status("cartobake: started");
+            return;
+        }
+        if (verb == "bakestatus") {
+            const bool running = CartographerWidget::ContinentBakeRunning();
+            char b[48];
+            snprintf(b, sizeof(b), "bakestatus: running=%d", static_cast<int>(running));
+            write_status(b);
+            return;
+        }
+        if (verb == "shutdown") {
+            write_status("shutdown_signalled");
+            Log::Log("[harness] shutdown signalled; unloading DLL (GW stays open)");
+            Log::FlushFile();
+            terminating = true;
+            GWToolbox::SignalTerminate(true);
+>>>>>>> master
             return;
         }
         write_status("unknown_command: " + verb);
     }
-} // namespace
+}
 #endif
 
 void TestHarness::Initialize()
 {
     ToolboxModule::Initialize();
+<<<<<<< HEAD
 #ifdef HARNESS_ENABLED
     // 在此实例存在之前写入的命令已过时（例如重新加载脚本的 `shutdown` 在未加载工具箱时未被消耗）；
     // 执行它会杀死新实例。
@@ -984,6 +1055,11 @@ void TestHarness::Initialize()
             Log::Log("[playeffect] id=%u coords=(%.0f,%.0f) plane=%u agent=%u d5=%u d6=%u",
                      pak->effect_id, pak->coords.x, pak->coords.y, pak->plane, pak->agent_id, pak->data5, pak->data6);
     });
+=======
+#ifdef _DEBUG
+    std::error_code ec;
+    std::filesystem::remove(cmd_path(), ec);
+>>>>>>> master
     write_status("harness_initialized");
     Log::Log("[harness] 已初始化；命令文件：%s", cmd_path().string().c_str());
 #endif
@@ -991,23 +1067,12 @@ void TestHarness::Initialize()
 
 void TestHarness::Update(float)
 {
-#ifdef HARNESS_ENABLED
+#ifdef _DEBUG
     if (terminating) return;
-    if (fps_active) {
-        ++fps_frames;
-        const long elapsed = TIMER_DIFF(fps_start);
-        if (elapsed >= fps_duration_ms) {
-            fps_active = false;
-            char b[96];
-            snprintf(b, sizeof(b), "fpsprobe: frames=%d secs=%.2f avg_fps=%.1f", fps_frames, elapsed / 1000.f, fps_frames * 1000.f / elapsed);
-            Log::Log("[harness] %s", b);
-            Log::FlushFile();
-            write_status(b);
-        }
-    }
     if (last_poll && TIMER_DIFF(last_poll) < kPollMs) return;
     last_poll = TIMER_INIT();
 
+<<<<<<< HEAD
     Log::FlushFile(); // 刷新缓冲日志行，以便主机可以读取新的 [polyanya]/[visgraph] 查询
 
     const Config cfg = read_config();
@@ -1072,14 +1137,26 @@ void TestHarness::Update(float)
             do_path_to(goal, src);
         }
     }
+=======
+    Log::FlushFile();
+
+    std::string body;
+    if (!Resources::ReadFile(cmd_path(), body)) return;
+    std::error_code ec;
+    std::filesystem::remove(cmd_path(), ec);
+    std::istringstream is(body);
+    std::string first;
+    std::getline(is, first);
+    first = trim(first);
+    if (!first.empty()) run_command(first);
+>>>>>>> master
 #endif
 }
 
 void TestHarness::Terminate()
 {
     ToolboxModule::Terminate();
-#ifdef HARNESS_ENABLED
-    GW::StoC::RemoveCallback<GW::Packet::StoC::PlayEffect>(&PlayEffect_Entry);
+#ifdef _DEBUG
     write_status("terminated");
 #endif
 }

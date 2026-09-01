@@ -9,6 +9,8 @@
 #include <GWCA/Managers/GameThreadMgr.h>
 #include <GWCA/Managers/MapMgr.h>
 
+#include <Windows/Pathfinding/Pathing.h>
+
 #include <Color.h>
 #include <D3DContainers.h>
 #include <Defines.h>
@@ -26,7 +28,10 @@ namespace {
     Color vq_color_blocked = IM_COL32(60, 20, 20, 170);
     Color vq_color_blocked_border = IM_COL32(180, 100, 100, 140);
 
+<<<<<<< HEAD
     // 敌人追踪
+=======
+>>>>>>> master
     enum class EnemyState { NotApplicable, Alive, Stale };
     struct TrackedEnemy {
         GW::Vec2f pos;
@@ -228,8 +233,11 @@ namespace {
         return !newly_explored_cells.empty();
     }
 
+<<<<<<< HEAD
     // 纯函数，在工作线程上安全：构建迷雾单元格索引 + 四边形。
     // 在迷雾缓冲区中包含可行走和被阻止的单元格，以便被阻止区域也可以被“探索”（迷雾清除，露出被阻止的颜色）。
+=======
+>>>>>>> master
     void BuildFogVertices(const MapGridData& data, std::vector<int>& out_cell_index, std::vector<D3DVertex>& out_verts)
     {
         out_cell_index.assign(data.size, -1);
@@ -454,6 +462,7 @@ namespace {
         return cx1 > left && cx0 < right;
     }
 
+<<<<<<< HEAD
     const GW::PathingTrapezoid* FindTrapezoidInPlane(const GW::Vec2f& point, const GW::PathingMap& plane)
     {
         GW::Node* n = plane.root_node;
@@ -555,12 +564,15 @@ namespace {
     }
 
     // 仅游戏线程：BFS + 将梯形坐标复制到工作线程。
+=======
+    // Game thread only: BFS + copy out trapezoid coords for the worker thread.
+>>>>>>> master
     std::vector<TrapezoidSnapshot> SnapshotPathingMap()
     {
         std::vector<TrapezoidSnapshot> out;
         const auto pathing_map = GW::Map::GetPathingMap();
         if (!pathing_map) return out;
-        const auto reachable = FindReachableTrapezoids(pathing_map);
+        const auto reachable = Pathing::FindReachableTrapezoids();
         for (size_t p = 0; p < pathing_map->size(); p++) {
             const auto& plane = pathing_map->at(p);
             for (uint32_t t = 0; t < plane.trapezoid_count; t++) {
@@ -670,10 +682,13 @@ namespace {
 
     bool grid_rebuild_pending = false;
 
+<<<<<<< HEAD
     // 异步重建：繁重的光栅化和顶点构建在工作线程上运行；只有 BFS 快照
     // 和最终交换触及游戏线程。用于地图切换和实例内变化（门、
     // 传送）。`force` 绕过进行中保护，以便地图切换即使在旧地图的
     // 先前构建仍在运行时也始终重建（其陈旧结果由应用步骤中的 map_id 守卫丢弃）。
+=======
+>>>>>>> master
     void QueueRebuildMapBorder(bool force = false)
     {
         if (grid_rebuild_pending && !force) return;
@@ -1024,7 +1039,8 @@ void VanquishMapOverlayWidget::DrawVanquishToggleButton()
 void VanquishMapOverlayWidget::Update(float)
 {
     const bool render_ready = MissionMapWidget::IsRenderReady();
-    should_draw = render_ready && visible && ToolboxUtils::IsExplorable();
+    const bool explorable = ToolboxUtils::IsExplorable();
+    should_draw = render_ready && visible && explorable;
 
     if (render_ready) {
         cached_px_to_game = MissionMapWidget::GetPxToGame();
@@ -1067,12 +1083,17 @@ void VanquishMapOverlayWidget::Update(float)
         }
     }
 
+<<<<<<< HEAD
     // 昂贵更新的帧率检查
+=======
+>>>>>>> master
     static clock_t last_check = TIMER_INIT();
     if (!ToolboxUtils::FrameRateCheck(last_check, 30)) return;
 
+    if (!visible && explorable) return;
+
     const auto player_pos = GW::PlayerMgr::GetPlayerPosition();
-    if (ToolboxUtils::IsExplorable()) {
+    if (explorable) {
         UpdateEnemyTracking();
         if (UpdateExploration(player_pos))
             UpdateFrontierIncremental();

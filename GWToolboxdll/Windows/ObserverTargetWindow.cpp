@@ -12,8 +12,12 @@ void ObserverTargetWindow::Prepare()
         return;
     }
 
+<<<<<<< HEAD
     // 准备当前追踪和比较的成员
     // 保持追踪与当前期望目标同步
+=======
+    // keep tracking up-to-date with the current desired target
+>>>>>>> master
     const GW::Agent* tracking_agent = GW::Agents::GetTarget();
     const GW::AgentLiving* tracking_living = nullptr;
     if (tracking_agent) {
@@ -40,13 +44,19 @@ void ObserverTargetWindow::Prepare()
     previously_tracked_agent_id = next_tracked_id;
 }
 
+<<<<<<< HEAD
 // 获取当前正在追踪的成员
+=======
+>>>>>>> master
 uint32_t ObserverTargetWindow::GetTracking()
 {
     return previously_tracked_agent_id;
 }
 
+<<<<<<< HEAD
 // 获取用于比较的成员
+=======
+>>>>>>> master
 uint32_t ObserverTargetWindow::GetComparison()
 {
     return previously_compared_agent_id;

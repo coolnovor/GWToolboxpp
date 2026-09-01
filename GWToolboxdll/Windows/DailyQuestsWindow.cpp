@@ -11,6 +11,9 @@
 
 #include <GWCA/Utilities/Hook.h>
 
+#include <tuple>
+#include <unordered_set>
+
 #include <Logger.h>
 #include <Utils/GuiUtils.h>
 
@@ -180,8 +183,11 @@ namespace {
     };
     static_assert(_countof(zaishen_bounty_cycles) == ZAISHEN_BOUNTY_COUNT);
 
+<<<<<<< HEAD
     // 这些向量可直接使用
 
+=======
+>>>>>>> master
     std::unordered_map<DailyQuests::NicholasCycleData*, uint16_t> nicholas_item_collected_count;
 
     DailyQuests::NicholasCycleData nicholas_cycles[] = {
@@ -859,7 +865,31 @@ namespace {
         return GetQuestByName(quest_name_english, location_enc) != nullptr;
     }
 
+<<<<<<< HEAD
     const char* you_have_this_quest = "你的任务日志中已有此任务";
+=======
+    std::unordered_map<std::string, std::unordered_set<std::wstring>> quests_in_log;
+
+    void RefreshQuestsInLog()
+    {
+        quests_in_log.clear();
+        const auto w = GW::GetWorldContext();
+        const auto decoded_quest_names = w ? GetQuestLogInfo() : nullptr;
+        if (!w || !decoded_quest_names) return;
+        for (auto& entry : w->quest_log) {
+            if (!entry.name || !IsDailyQuest(entry)) continue;
+            quests_in_log[decoded_quest_names->at(entry.quest_id)->string()].emplace(entry.location);
+        }
+    }
+
+    bool HaveQuestInLog(const char* quest_name_english, const wchar_t* location_enc = nullptr)
+    {
+        const auto found = quests_in_log.find(quest_name_english);
+        return found != quests_in_log.end() && (!location_enc || found->second.contains(location_enc));
+    }
+
+    const char* you_have_this_quest = "You have this quest in your log";
+>>>>>>> master
 
     bool OnNicholasContextMenu(void* wparam)
     {
@@ -960,6 +990,37 @@ namespace {
         }
     }
 
+    void WriteDailyInfo(bool* subscribed, DailyQuests::QuestData* info, const bool check_completion)
+    {
+        auto col = &normal_color;
+        if (check_completion && !CompletionWindow::IsAreaComplete(GW::AccountMgr::GetCurrentPlayerName(), info->map_id)) col = &incomplete_color;
+        if (*subscribed) col = &subscribed_color;
+        ImGui::TextColored(*col, info->GetQuestName());
+        auto lmb_clicked = ImGui::IsItemClicked();
+        auto rmb_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
+        const auto hovered = ImGui::IsItemHovered();
+        if (HaveQuestInLog(info->GetQuestName(), info->quest_location_enc)) {
+            ImGui::SameLine();
+            ImGui::TextColored(incomplete_color, ICON_FA_EXCLAMATION);
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(you_have_this_quest);
+            }
+            lmb_clicked |= ImGui::IsItemClicked();
+            rmb_clicked |= ImGui::IsItemClicked(ImGuiMouseButton_Right);
+        }
+        if (rmb_clicked) {
+            ImGui::SetContextMenu(OnDailyQuestContextMenu, info);
+        }
+        if (lmb_clicked) {
+            *subscribed = !*subscribed;
+        }
+        if (hovered && check_completion) {
+            ImGui::SetTooltip([info]() {
+                OnDailyQuestTooltip(info);
+            });
+        }
+    }
+
     GW::HookEntry OnUIMessage_HookEntry;
 
     bool IsZaishenMissionBonusActive(time_t unix)
@@ -971,7 +1032,10 @@ namespace {
     bool IsZaishenMissionOutpost(GW::Constants::MapID current_map, GW::Constants::MapID zaishen_map)
     {
         if (current_map == zaishen_map) return true;
+<<<<<<< HEAD
         // 阵营联合任务没有单一的前哨站入口，为每个任务硬编码入口前哨站
+=======
+>>>>>>> master
         switch (zaishen_map) {
             case MapID::Vizunah_Square_mission:
                 return current_map == MapID::Vizunah_Square_Local_Quarter_outpost
@@ -1053,7 +1117,10 @@ namespace {
         return found->second;
     }
     const std::unordered_map<GW::Constants::QuestID, DailyQuests::ZaishenCoinReward> zaishen_coin_rewards = {
+<<<<<<< HEAD
         // 战承主线奖励
+=======
+>>>>>>> master
         {QuestID::ZaishenMission_The_Great_Northern_Wall, {15, 74}},
         {QuestID::ZaishenMission_Fort_Ranik, {15, 74}},
         {QuestID::ZaishenMission_Ruins_of_Surmia, {15, 74}},
@@ -1124,7 +1191,10 @@ namespace {
         {QuestID::ZaishenMission_Minister_Chos_Estate, {15, 74}},
         {QuestID::ZaishenMission_Pogahn_Passage, {30, 150}},
 
+<<<<<<< HEAD
         // 战承悬赏奖励
+=======
+>>>>>>> master
         {QuestID::ZaishenBounty_Urgoz, {60, 210}},
         {QuestID::ZaishenBounty_Chung_The_Attuned, {20, 70}},
         {QuestID::ZaishenBounty_Mungri_Magicbox, {20, 70}},
@@ -1153,7 +1223,10 @@ namespace {
         {QuestID::ZaishenBounty_Magmus, {40, 140}},
         {QuestID::ZaishenBounty_Lord_Khobay, {40, 140}},
 
+<<<<<<< HEAD
         // 战承清图奖励
+=======
+>>>>>>> master
         {QuestID::ZaishenVanquish_Dejarin_Estate, {150, 150}},
         {QuestID::ZaishenVanquish_Watchtower_Coast, {50, 50}},
         {QuestID::ZaishenVanquish_Arbor_Bay, {250, 250}},
@@ -1321,42 +1394,13 @@ void DailyQuests::Draw(IDirect3DDevice9*)
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - checkbox_w - ImGui::GetStyle().WindowPadding.x);
     ImGui::Checkbox(other_label, &settings.show_other_searing_dailies);
 
-    auto write_daily_info = [](bool* subscribed, QuestData* info, bool check_completion) {
-        auto col = &normal_color;
-        if (check_completion && !CompletionWindow::IsAreaComplete(GW::AccountMgr::GetCurrentPlayerName(), info->map_id)) col = &incomplete_color;
-        if (*subscribed) col = &subscribed_color;
-        ImGui::TextColored(*col, info->GetQuestName());
-        auto lmb_clicked = ImGui::IsItemClicked();
-        auto rmb_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
-        const auto hovered = ImGui::IsItemHovered();
-        if (HasDailyQuest(info->GetQuestName(), info->quest_location_enc)) {
-            ImGui::SameLine();
-            ImGui::TextColored(incomplete_color, ICON_FA_EXCLAMATION);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip(you_have_this_quest);
-            }
-            lmb_clicked |= ImGui::IsItemClicked();
-            rmb_clicked |= ImGui::IsItemClicked(ImGuiMouseButton_Right);
-        }
-        if (rmb_clicked) {
-            ImGui::SetContextMenu(OnDailyQuestContextMenu, info);
-        }
-        if (lmb_clicked) {
-            *subscribed = !*subscribed;
-        }
-        if (hovered && check_completion) {
-            ImGui::SetTooltip([info]() {
-                OnDailyQuestTooltip(info);
-            });
-        }
-    };
-
     struct ColumnDef {
         const char* header;
         float width;
         std::function<void(time_t)> draw;
     };
 
+<<<<<<< HEAD
     std::vector<ColumnDef> columns;
 
     auto add_pre_cols = [&]() {
@@ -1383,8 +1427,29 @@ void DailyQuests::Draw(IDirect3DDevice9*)
                 }
             }
         }});
+=======
+    static std::vector<ColumnDef> columns;
+    using LayoutKey = std::tuple<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, float>;
+    static LayoutKey columns_key{};
+    const LayoutKey layout_key = {
+        is_pre,
+        settings.show_other_searing_dailies,
+        settings.show_zaishen_missions_in_window,
+        settings.show_zaishen_bounty_in_window,
+        settings.show_zaishen_combat_in_window,
+        settings.show_zaishen_vanquishes_in_window,
+        settings.show_wanted_quests_in_window,
+        settings.show_nicholas_in_window,
+        settings.show_weekly_bonus_pve_in_window,
+        settings.show_weekly_bonus_pvp_in_window,
+        ImGui::FontScale()
+>>>>>>> master
     };
+    if (layout_key != columns_key) {
+        columns_key = layout_key;
+        columns.clear();
 
+<<<<<<< HEAD
     auto add_post_cols = [&]() {
         if (settings.show_zaishen_missions_in_window)
             columns.push_back({"战承主线", zm_width, [&](time_t t) {
@@ -1413,9 +1478,23 @@ void DailyQuests::Draw(IDirect3DDevice9*)
                 const auto rmb_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
                 const auto hovered = ImGui::IsItemHovered();
                 const auto collected = nick->GetCollectedQuantity();
+=======
+        auto add_pre_cols = [&]() {
+            columns.push_back({"Vanguard Quest", vanguard_width, [](time_t t) {
+                WriteDailyInfo(&subscribed_vanguard[GetVanguardIdx(&t)], GetVanguardQuest(t).quest, false);
+            }});
+            columns.push_back({"Nicholas Sandford", sandford_width, [](time_t t) {
+                const auto si = GetNicholasSandfordIdx(&t);
+                const bool prev = subscribed_nicholas_sandford[si];
+                const auto sandford_quest = GetNicholasSandford(t).quest;
+                constexpr auto sandford_total = NICHOLAS_SANDFORD_ITEMS_PER_TRADE * NICHOLAS_TRADES_PER_ROTATION;
+                WriteDailyInfo(&subscribed_nicholas_sandford[si], sandford_quest, false);
+                const auto collected = GetNicholasSandfordCollectedQuantity(sandford_quest);
+>>>>>>> master
                 if (collected > 0) {
-                    ImGui::SameLine();
+                    ImGui::SameLine(0, 0);
                     const ImColor* col = &normal_color;
+<<<<<<< HEAD
                     if (collected >= nick->quantity) col = &incomplete_color;
                     ImGui::TextColored(*col, "（%d/%d）", collected, nick->quantity);
                 }
@@ -1433,17 +1512,88 @@ void DailyQuests::Draw(IDirect3DDevice9*)
                 write_daily_info(&subscribed_weekly_bonus_pvp[i], &pvp_weekly_bonus_cycles[i], false);
             }});
     };
+=======
+                    if (collected >= NICHOLAS_SANDFORD_ITEMS_PER_TRADE) col = &incomplete_color;
+                    if (collected >= sandford_total) col = &complete_color;
+                    ImGui::TextColored(*col, " (%d/%d)", static_cast<int>(collected), static_cast<int>(sandford_total));
+                }
+                if (subscribed_nicholas_sandford[si] != prev) {
+                    for (size_t j = 0; j < NICHOLAS_PRE_COUNT; ++j) {
+                        if (nicholas_sandford_cycles[j].GetQuestNameEnc() && wcscmp(nicholas_sandford_cycles[j].GetQuestNameEnc(), sandford_quest->GetQuestNameEnc()) == 0)
+                            subscribed_nicholas_sandford[j] = subscribed_nicholas_sandford[si];
+                    }
+                }
+            }});
+        };
+>>>>>>> master
 
-    if (is_pre) {
-        add_pre_cols();
-        if (settings.show_other_searing_dailies) add_post_cols();
-    }
-    else {
-        add_post_cols();
-        if (settings.show_other_searing_dailies) add_pre_cols();
+        auto add_post_cols = [&]() {
+            if (settings.show_zaishen_missions_in_window)
+                columns.push_back({"Zaishen Mission", zm_width, [](time_t t) {
+                    WriteDailyInfo(&subscribed_zaishen_missions[GetZaishenMissionIdx(&t)], GetZaishenMission(t).quest, true);
+                }});
+            if (settings.show_zaishen_bounty_in_window)
+                columns.push_back({"Zaishen Bounty", zb_width, [](time_t t) {
+                    WriteDailyInfo(&subscribed_zaishen_bounties[GetZaishenBountyIdx(&t)], GetZaishenBounty(t).quest, true);
+                }});
+            if (settings.show_zaishen_combat_in_window)
+                columns.push_back({"Zaishen Combat", zc_width, [](time_t t) {
+                    WriteDailyInfo(&subscribed_zaishen_combats[GetZaishenCombatIdx(&t)], GetZaishenCombat(t).quest, false);
+                }});
+            if (settings.show_zaishen_vanquishes_in_window)
+                columns.push_back({"Zaishen Vanquish", zv_width, [](time_t t) {
+                    WriteDailyInfo(&subscribed_zaishen_vanquishes[GetZaishenVanquishIdx(&t)], GetZaishenVanquish(t).quest, true);
+                }});
+            if (settings.show_wanted_quests_in_window)
+                columns.push_back({"Wanted", ws_width, [](time_t t) {
+                    WriteDailyInfo(&subscribed_wanted_quests[GetWantedByShiningBladeIdx(&t)], GetWantedByShiningBlade(t).quest, false);
+                }});
+            if (settings.show_nicholas_in_window)
+                columns.push_back({"Nicholas the Traveler", nicholas_width, [](time_t t) {
+                    const auto nick = static_cast<NicholasCycleData*>(GetNicholasTheTraveller(t).quest);
+                    ImGui::TextUnformatted(nick->GetQuestName());
+                    const auto rmb_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
+                    const auto hovered = ImGui::IsItemHovered();
+                    const auto collected = nick->GetCollectedQuantity();
+                    if (collected > 0) {
+                        const auto nick_total = nick->quantity * NICHOLAS_TRADES_PER_ROTATION;
+                        ImGui::SameLine();
+                        const ImColor* col = &normal_color;
+                        if (collected >= nick->quantity) col = &incomplete_color;
+                        if (collected >= nick_total) col = &complete_color;
+                        ImGui::TextColored(*col, "(%d/%d)", static_cast<int>(collected), static_cast<int>(nick_total));
+                    }
+                    if (rmb_clicked) ImGui::SetContextMenu(OnNicholasContextMenu, nick);
+                    if (hovered) ImGui::SetTooltip("%s in %s", nick->GetQuestName(), nick->GetMapName());
+                }});
+            if (settings.show_weekly_bonus_pve_in_window)
+                columns.push_back({"Weekly Bonus PvE", wbe_width, [](time_t t) {
+                    const auto i = GetWeeklyBonusPvEIdx(&t);
+                    WriteDailyInfo(&subscribed_weekly_bonus_pve[i], &pve_weekly_bonus_cycles[i], false);
+                }});
+            if (settings.show_weekly_bonus_pvp_in_window)
+                columns.push_back({"Weekly Bonus PvP", long_text_width, [](time_t t) {
+                    const auto i = GetWeeklyBonusPvPIdx(&t);
+                    WriteDailyInfo(&subscribed_weekly_bonus_pvp[i], &pvp_weekly_bonus_cycles[i], false);
+                }});
+        };
+
+        if (is_pre) {
+            add_pre_cols();
+            if (settings.show_other_searing_dailies) add_post_cols();
+        }
+        else {
+            add_post_cols();
+            if (settings.show_other_searing_dailies) add_pre_cols();
+        }
     }
 
+<<<<<<< HEAD
     // 表头行
+=======
+    RefreshQuestsInLog();
+
+>>>>>>> master
     float offset = 0.0f;
     ImGui::Text("日期");
     ImGui::SameLine(offset += short_text_width);
@@ -2007,14 +2157,17 @@ bool DailyQuests::IsNicholasItem(const GW::Item* item) {
 
 const DailyQuests::NicholasIngredientInfo* DailyQuests::GetNicholasIngredientInfo(const wchar_t* ingredient_enc)
 {
+<<<<<<< HEAD
     // 尼古拉斯·旅者收集物品的合成材料
     // TODO: 更新 ingredient_quantity 值以反映合成一套尼古拉斯物品所需的实际数量
+=======
+>>>>>>> master
     static NicholasIngredientInfo ingredients[] = {
         {GW::EncStrings::SkaleFins, GW::EncStrings::BowlofSkalefinSoup, 2},
         {GW::EncStrings::ChunkOfDrakeFlesh, GW::EncStrings::DrakeKabob, 1},
         {GW::EncStrings::IbogaPetals, GW::EncStrings::PahnaiSalad, 2},
         {GW::EncStrings::MandragorRoot, GW::EncStrings::MandragorRootCake, 3},
-        {GW::EncStrings::BogSkaleFins, GW::EncStrings::Herring, 5},         
+        {GW::EncStrings::BogSkaleFins, GW::EncStrings::Herring, 5},
         {GW::EncStrings::SentientSpores, GW::EncStrings::BottleofVabbianWine, 5}
     };
     if (!ingredient_enc) return 0;
@@ -2024,18 +2177,22 @@ const DailyQuests::NicholasIngredientInfo* DailyQuests::GetNicholasIngredientInf
     return 0;
 }
 
-time_t DailyQuests::GetTimestampFromNicholasSandford(QuestData* data)
+time_t DailyQuests::GetTimestampFromNicholasSandford(QuestData* data, time_t now)
 {
     constexpr time_t NICHOLAS_PRE_START_DATE = 1239260400;
     constexpr int SECONDSINADAY = 86400;
-    auto index = -1;
+    if (!now) now = time(nullptr);
+    // The 52 day cycle only contains 13 different items, so each one comes up several times.
+    // Check every slot holding this item and return the soonest, not just the first slot in the table.
+    auto next_event_time = std::numeric_limits<time_t>::max();
     for (auto i = 0; i < static_cast<int>(NICHOLAS_PRE_COUNT); i++) {
-        if (&nicholas_sandford_cycles[i] == data) {
-            index = i;
+        if (nicholas_sandford_cycles[i].enc_name != data->enc_name) {
+            continue;
         }
+        next_event_time = std::min(next_event_time, GetNextEventTime(NICHOLAS_PRE_START_DATE, now, i, NICHOLAS_PRE_COUNT, SECONDSINADAY));
     }
-    assert(index != -1);
-    return GetNextEventTime(NICHOLAS_PRE_START_DATE, time(nullptr), index, NICHOLAS_PRE_COUNT, SECONDSINADAY);
+    assert(next_event_time != std::numeric_limits<time_t>::max());
+    return next_event_time;
 }
 
 DailyQuests::DailyQuestResult DailyQuests::GetNicholasTheTraveller(time_t unix)
@@ -2124,11 +2281,15 @@ const DailyQuests::ZaishenCoinReward* DailyQuests::GetZaishenCoinReward(GW::Cons
     return it != zaishen_coin_rewards.end() ? &it->second : nullptr;
 }
 
-time_t DailyQuests::GetTimestampFromNicholasTheTraveller(NicholasCycleData* data)
+time_t DailyQuests::GetTimestampFromNicholasTheTraveller(NicholasCycleData* data, time_t now)
 {
+<<<<<<< HEAD
     /*
     此函数返回循环数据的下一个开始时间，如果循环正在进行则返回当前时间
     */
+=======
+    if (!now) now = time(nullptr);
+>>>>>>> master
     auto index = -1;
     for (auto i = 0; i < NICHOLAS_POST_COUNT; i++) {
         if (&nicholas_cycles[i] == data) {
@@ -2137,5 +2298,5 @@ time_t DailyQuests::GetTimestampFromNicholasTheTraveller(NicholasCycleData* data
     }
 
     assert(index != -1);
-    return GetNextEventTime(NICHOLAS_POST_START_DATE, time(nullptr), index, NICHOLAS_POST_COUNT, SECONDSINAWEEK);
+    return GetNextEventTime(NICHOLAS_POST_START_DATE, now, index, NICHOLAS_POST_COUNT, SECONDSINAWEEK);
 }

@@ -37,12 +37,19 @@ namespace lava_river_module {
 namespace {
     using namespace lava_river_module;
 
+<<<<<<< HEAD
     constexpr float kSampleSpacing = 50.f;            // 每约 50 个游戏单位重新采样河流中心线（跟随坡度）
     constexpr float kAltUnknown = 1e30f;              // 哨兵：此 (x,y) 处无地形数据
     constexpr size_t kMaxVertices = 1500000;          // 每地图总表面几何体的安全上限（若达到则提高 cell_size）
 
     // 设置（通过 SettingsRegistry 持久化的标量；河流单独通过 JSON 持久化）。
     // 地形后的遮挡与“游戏内渲染”模块共享，通过 GameWorldRenderer::GetOccludeBehindTerrain() 统一设置。
+=======
+    constexpr float kSampleSpacing = 50.f;            // resample a river centerline every ~50 gu (follow slopes)
+    constexpr float kAltUnknown = TerrainDrape::kNoAltitude; // sentinel: no terrain data at this (x,y)
+    constexpr size_t kMaxVertices = 1500000;          // safety cap on total surface geometry per map (raise cell_size if hit)
+
+>>>>>>> master
     float render_max_distance = 5000.f;
     float fog_factor = 1.0f;     // 距离衰减强度，传递给着色器
     float glow = 0.4f;           // 自发光亮度增强（0 = 原始纹理）
@@ -108,10 +115,14 @@ namespace {
     bool mesh_dirty = true;
     uint32_t built_map_id = 0xFFFFFFFFu;
 
+<<<<<<< HEAD
     // 增量式地面网格构建。对每个梯形进行细分（每个网格顶点一次 QueryAltitude）跨越一个大的可探索区域对于一帧来说过重，
     // 且 QueryAltitude 非线程安全（它会交换全局地图上下文），因此工作无法移到工作线程。
     // 相反，我们在渲染线程上跨帧分摊工作，在每帧查询预算下：地面会在几帧内逐步填充，负载永远不会阻塞。
     constexpr int kQueriesPerFrame = 2000; // 构建进行中每帧最大 QueryAltitude 调用数
+=======
+    constexpr int kQueriesPerFrame = 2000; // max QueryAltitude calls per frame while a build is in progress
+>>>>>>> master
     struct GroundGridVert {
         float x, y, z;
     };
@@ -141,6 +152,7 @@ namespace {
     // 创作状态（不持久）：当前地图的哪个河流“添加点”附加到。
     int active_river = -1;
 
+<<<<<<< HEAD
     // 在 (x,y) 处所有平面中最高的静态表面（激战向上为 -z，因此最高 = 最小高度），或哨兵。
     float HighestSurfaceZ(const float x, const float y, const uint32_t n_planes)
     {
@@ -170,6 +182,9 @@ namespace {
     }
 
     // 为一条河流构建贴地的纹理带状网格，并将其附加到给定的顶点桶中。
+=======
+    // Build a draped, textured ribbon for one river and append it to the given vertex bucket.
+>>>>>>> master
     void BuildRiverMesh(const LavaRiver& river, const uint32_t n_planes, std::vector<LavaVertex>& out)
     {
         if (river.points.size() < 2) return;
@@ -201,7 +216,7 @@ namespace {
         xs.reserve(dense.size());
 
         float arc = 0.f;
-        float prevz = HighestSurfaceZ(dense[0].x, dense[0].y, n_planes);
+        float prevz = TerrainDrape::HighestZ(dense[0].x, dense[0].y, n_planes);
         if (prevz == kAltUnknown) prevz = 0.f;
 
         for (size_t i = 0; i < dense.size(); ++i) {
@@ -226,11 +241,11 @@ namespace {
             const float lx = dense[i].x + px * half, ly = dense[i].y + py * half;
             const float rx = dense[i].x - px * half, ry = dense[i].y - py * half;
 
-            float lz = ClosestSurfaceZ(lx, ly, n_planes, prevz);
+            float lz = TerrainDrape::ClosestZ(lx, ly, n_planes, prevz);
             if (lz == kAltUnknown) lz = prevz;
-            float rz = ClosestSurfaceZ(rx, ry, n_planes, prevz);
+            float rz = TerrainDrape::ClosestZ(rx, ry, n_planes, prevz);
             if (rz == kAltUnknown) rz = prevz;
-            const float cz = ClosestSurfaceZ(dense[i].x, dense[i].y, n_planes, prevz);
+            const float cz = TerrainDrape::ClosestZ(dense[i].x, dense[i].y, n_planes, prevz);
             if (cz != kAltUnknown) prevz = cz;
 
             xs.push_back({lx, ly, lz - z_lift, rx, ry, rz - z_lift, arc / tile});
@@ -249,9 +264,12 @@ namespace {
         }
     }
 
+<<<<<<< HEAD
     // 将一个寻路梯形细分到其纹理桶中：将其网格化（足够精细以供波浪位移读取），
     // 通过高度查询将每个子顶点贴到梯形自身的平面上，并按世界位置平铺纹理，使其跨梯形无缝。
     // 返回所作 QueryAltitude 调用的数量，若达到每地图几何上限则返回 -1（调用者应停止构建）。
+=======
+>>>>>>> master
     int EmitGroundTrapezoid(const GW::PathingTrapezoid& tz, const uint32_t p)
     {
         if (tz.YT == tz.YB) return 0; // 退化的连接器
@@ -399,8 +417,11 @@ namespace {
             return;
         }
 
+<<<<<<< HEAD
         // 每个选定纹理一个顶点桶；连接到 mesh_vertices 中，每个桶对应一个 TexRange。
         // 全覆盖地面的洪泛是增量构建的（见 BeginGroundBuild）；此处仅铺设创作的河流，它们数量少到可以一帧完成。
+=======
+>>>>>>> master
         std::vector<std::vector<LavaVertex>> buckets(num);
         size_t river_count = 0;
         if (const auto it = rivers_by_map.find(map_id); it != rivers_by_map.end()) {
@@ -488,8 +509,12 @@ void RiverModule::DrawInWorld(IDirect3DDevice9* device)
     // 缓慢、不可公度的包络，使波浪起伏和缓和，没有明显的周期。
     const float env = std::max(0.15f, 1.f + 0.5f * std::sin(t_seconds * 0.13f) + 0.3f * std::sin(t_seconds * 0.071f));
 
+<<<<<<< HEAD
     IDirect3DStateBlock9* state_block = nullptr; // 退出时恢复，以免 GW 自身的渲染被破坏
     if (device->CreateStateBlock(D3DSBT_ALL, &state_block) != D3D_OK) return;
+=======
+    const D3DStateGuard state_guard(device); // restored on exit so GW's own rendering isn't corrupted
+>>>>>>> master
     if (device->SetVertexShader(lava_vs) == D3D_OK && device->SetPixelShader(lava_ps) == D3D_OK && device->SetVertexDeclaration(lava_decl) == D3D_OK && GameWorldCompositor::SetWorldViewProj(device)) {
         GameWorldCompositor::SetWorldRenderStates(device, GameWorldRenderer::GetOccludeBehindTerrain());
         GameWorldCompositor::SetDistanceFog(device, render_max_distance, fog_factor);
@@ -512,8 +537,6 @@ void RiverModule::DrawInWorld(IDirect3DDevice9* device)
             }
         }
     }
-    state_block->Apply();
-    state_block->Release();
 }
 
 void RiverModule::RegisterSettings(ToolboxModule* module)

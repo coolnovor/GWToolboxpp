@@ -79,6 +79,7 @@ namespace {
     bool friends_changed = false;
     bool friend_list_ready = false; // 当此值为 true 时允许处理
     bool need_to_reorder_friends = true;
+    std::vector<FriendListWindow::Friend*> friends_online_sorted{};
 
     constexpr const char* alias_types[] = {
         "无",
@@ -92,10 +93,15 @@ namespace {
 
     uint8_t poll_interval_seconds = 10;
 
+<<<<<<< HEAD
     // 名称 > UUID 映射
     std::unordered_map<std::wstring, FriendListWindow::Friend*> uuid_by_name{};
 
     // 好友信息主存储
+=======
+    std::unordered_map<std::wstring, FriendListWindow::Friend*> uuid_by_name{};
+
+>>>>>>> master
     std::unordered_map<std::string, FriendListWindow::Friend*> friends{};
 
     bool show_location = true;
@@ -251,11 +257,17 @@ namespace {
         // 这是 TB 为找出玩家实际使用的角色而临时添加到好友列表的玩家。
 
         if (lf->IsOffline()) {
+<<<<<<< HEAD
             // 如果仍然离线，则显示“玩家不在线”错误
             ASSERT(WriteError(MessageType::PLAYER_X_NOT_ONLINE, pending_whisper.charname.c_str()));
         }
         else {
             // 如果在线，则发送原始消息...
+=======
+            ASSERT(WriteError(MessageType::PLAYER_X_NOT_ONLINE, pending_whisper.charname.c_str()));
+        }
+        else {
+>>>>>>> master
             ASSERT(lf->current_char);
             is_redirecting_whisper = true;
             GW::Chat::SendChat(lf->current_char->getNameW().c_str(), pending_whisper.message.c_str());
@@ -263,7 +275,10 @@ namespace {
         }
         pending_whisper.reset();
 
+<<<<<<< HEAD
         // ...然后从 GW 中移除。
+=======
+>>>>>>> master
         ASSERT(lf->RemoveGWFriend());
         ASSERT(FriendListWindow::RemoveFriend(lf));
     }
@@ -277,7 +292,10 @@ namespace {
         }
     }
 
+<<<<<<< HEAD
     // 私聊发送成功时从待处理中移除
+=======
+>>>>>>> master
     void OnOutgoingWhisperSuccess(GW::HookStatus*, wchar_t*)
     {
         pending_whisper.reset();
@@ -287,7 +305,10 @@ namespace {
     {
         const auto player_name = TextUtils::GetPlayerNameFromEncodedString(message);
         if (const auto friend_ = FriendListWindow::GetFriend(player_name.c_str())) {
+<<<<<<< HEAD
             // 如果该玩家已在好友列表中，则直接发送消息。
+=======
+>>>>>>> master
             if (!friend_->IsOffline() && friend_->current_char->getNameW() != player_name) {
                 is_redirecting_whisper = true;
                 GW::Chat::SendChat(friend_->current_char->getNameW().c_str(), pending_whisper.message.c_str());
@@ -467,7 +488,10 @@ namespace {
             const auto packet = (GW::UI::UIPacket::kSendChatMessage*)wparam;
             const auto message = packet->message;
             const auto channel = GW::Chat::GetChannel(*message);
+<<<<<<< HEAD
             // 如果此传出私聊是由重定向产生的，或者不是私聊，则在此退出。
+=======
+>>>>>>> master
             if (is_redirecting_whisper || channel != GW::Chat::CHANNEL_WHISPER) {
                 return;
             }
@@ -521,7 +545,10 @@ namespace {
         if (!is_valid_uuid) {
             return nullptr;
         }
+<<<<<<< HEAD
         // 尝试通过 uuid 或 charname 获取现有好友条目
+=======
+>>>>>>> master
         FriendListWindow::Friend* lf = FriendListWindow::GetFriend(uuid);
         if (!lf && charname) {
             lf = FriendListWindow::GetFriend(charname);
@@ -552,12 +579,18 @@ namespace {
             uuid_by_name.emplace(lf->GetAliasW(), lf);
         }
         if (lf->current_map_id != map_id) {
+<<<<<<< HEAD
             // 地图已更改
+=======
+>>>>>>> master
             lf->current_map_id = map_id;
             lf->current_map_name = Resources::GetMapName(static_cast<GW::Constants::MapID>(map_id));
         }
 
+<<<<<<< HEAD
         // 检查并复制角色名，仅当玩家非离线时
+=======
+>>>>>>> master
         if (!charname || status == GW::FriendStatus::Offline) {
             lf->current_char = nullptr;
         }
@@ -700,7 +733,10 @@ bool FriendListWindow::GetIsPlayerIgnored(const std::wstring& player_name)
 
 
 /*  FriendListWindow::Friend    */
+<<<<<<< HEAD
 // 获取此好友的 Guild Wars 好友对象（如果存在）
+=======
+>>>>>>> master
 GW::Friend* FriendListWindow::Friend::GetFriend()
 {
     return GW::FriendListMgr::GetFriend((uint8_t*)&uuid_bytes);
@@ -727,7 +763,10 @@ FriendListWindow::Character* FriendListWindow::Friend::GetCharacter(const wchar_
     return &it->second;
 }
 
+<<<<<<< HEAD
 // 设置属于此好友的角色（例如查找职业等）
+=======
+>>>>>>> master
 FriendListWindow::Character* FriendListWindow::Friend::SetCharacter(const wchar_t* char_name, const uint8_t profession)
 {
     Character* existing = GetCharacter(char_name);
@@ -845,6 +884,9 @@ bool FriendListWindow::RemoveFriend(const Friend* f)
         uuid_by_name.erase(char_key);
     }
     uuid_by_name.erase(f->GetAliasW());
+    // Cached view may hold the pointer we're about to free.
+    friends_online_sorted.clear();
+    need_to_reorder_friends = true;
     delete f;
     return true;
 }
@@ -911,7 +953,10 @@ void FriendListWindow::Terminate()
     ToolboxWindow::Terminate();
     // 再次尝试移除回调。
     SignalTerminate();
+<<<<<<< HEAD
     // 释放好友列表内存。
+=======
+>>>>>>> master
     while (friends.begin() != friends.end()) {
         RemoveFriend(friends.begin()->second);
     }
@@ -999,11 +1044,17 @@ void FriendListWindow::Poll()
     while (it != friends.end()) {
         Friend* lf = it->second;
         if (lf->GetFriend()) {
+<<<<<<< HEAD
             // 好友存在于好友列表中，无需操作
             ++it;
             continue;
         }
         // 已从游戏好友列表中移除，从工具箱好友列表中删除。
+=======
+            ++it;
+            continue;
+        }
+>>>>>>> master
         ASSERT(RemoveFriend(lf));
         it = friends.begin();
     }
@@ -1117,12 +1168,23 @@ void FriendListWindow::Draw(IDirect3DDevice9*)
             GW::FriendListMgr::SetFriendListStatus(static_cast<GW::FriendStatus>(status));
         }
     }
-    std::vector<Friend*> friends_online;
-    for (const auto& it : friends) {
-        Friend* lfp = it.second;
-        if (lfp->type != GW::FriendType::Friend) {
-            continue;
+    if (need_to_reorder_friends) {
+        friends_online_sorted.clear();
+        friends_online_sorted.reserve(friends.size());
+        for (const auto& it : friends) {
+            const auto lfp = it.second;
+            if (lfp->type != GW::FriendType::Friend) {
+                continue;
+            }
+            if (lfp->IsOffline()) {
+                continue;
+            }
+            if (lfp->GetAliasW().empty()) {
+                continue;
+            }
+            friends_online_sorted.push_back(lfp);
         }
+<<<<<<< HEAD
         // 获取实际对象而非指针，以防在绘制过程中失效。
         if (lfp->IsOffline()) {
             continue;
@@ -1131,12 +1193,15 @@ void FriendListWindow::Draw(IDirect3DDevice9*)
             continue;
         }
         friends_online.push_back(lfp);
+=======
+        std::ranges::sort(friends_online_sorted, [](const Friend* lhs, const Friend* rhs) {
+            return lhs->GetAliasW().compare(rhs->GetAliasW()) < 0;
+        });
+        need_to_reorder_friends = false;
+>>>>>>> master
     }
-    std::ranges::sort(friends_online, [](const Friend* lhs, const Friend* rhs) {
-        return lhs->GetAliasW().compare(rhs->GetAliasW()) < 0;
-    });
     char tmpbuf[32];
-    for (Friend* lfp : friends_online) {
+    for (const auto lfp : friends_online_sorted) {
         colIdx = 0;
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, settings.hover_background_color.value);
@@ -1338,7 +1403,10 @@ void FriendListWindow::LoadFromFile()
         settings_thread.join();
     }
     settings_thread = std::thread([this] {
+<<<<<<< HEAD
         // 从工具箱清除配装
+=======
+>>>>>>> master
         uuid_by_name.clear();
         while (friends.begin() != friends.end()) {
             RemoveFriend(friends.begin()->second);
@@ -1357,7 +1425,10 @@ void FriendListWindow::LoadFromFile()
                 continue; // 错误，别名或 uuid 为空。
             }
 
+<<<<<<< HEAD
             // 获取角色名称
+=======
+>>>>>>> master
             for (const auto& [name, profession] : record.charnames) {
                 lf->SetCharacter(TextUtils::StringToWString(name).c_str(), profession);
             }
@@ -1370,6 +1441,7 @@ void FriendListWindow::LoadFromFile()
                 uuid_by_name[it.first] = lf;
             }
             uuid_by_name[lf->GetAliasW()] = lf;
+            need_to_reorder_friends = true;
         }
         Log::Log("%s：已从本地加载好友\n", Name());
         friends_list_checked = false;
@@ -1390,7 +1462,10 @@ void FriendListWindow::SaveToFile()
         if (friends.empty()) {
             return; // 错误，应至少有一个好友
         }
+<<<<<<< HEAD
         // 加载现有记录并修改信息
+=======
+>>>>>>> master
         auto records = LoadRecords();
         for (auto it = friends.begin(); it != friends.end(); ++it) {
             Friend& lf = *it->second;

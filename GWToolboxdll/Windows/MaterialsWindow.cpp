@@ -490,10 +490,14 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         constexpr auto stock_start = GW::Constants::Bag::Backpack;
         constexpr auto stock_end = GW::Constants::Bag::Storage_14;
 
+<<<<<<< HEAD
         // 注意：纹理是 64x64，但两者都偏离中心且带有大量空白。
         // 我们希望在最小化缩放的同时居中图像。
 
         // === 迅捷精华 ===
+=======
+        // === Essence ===
+>>>>>>> master
         ImGui::Image(*tex_essence, ImVec2(50, 50),
                      ImVec2(4.0f / 64, 9.0f / 64), ImVec2(47.0f / 64, 52.0f / 64));
         if (ImGui::IsItemHovered()) {
@@ -535,6 +539,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
             }
         }
 
+<<<<<<< HEAD
         /* @清理：使用 GW::Items::GetItemFormula 并伪造一个带有符合要求的公式 ID 的 GW::Item*，
            我们可以编程找出：
            a) 需要哪些材料及数量
@@ -544,6 +549,8 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
            如果我们这样做，可以通过对下面的代码循环 lambda 来将此模块削减一半。
         */
 
+=======
+>>>>>>> master
         ImGui::Separator();
         // === 力量圣杯 ===
         ImGui::Image(*tex_grail, ImVec2(50, 50),

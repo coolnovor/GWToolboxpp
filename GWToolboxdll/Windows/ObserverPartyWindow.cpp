@@ -30,7 +30,10 @@ void ObserverPartyWindow::SaveSettings(SettingsDoc& doc)
 }
 
 
+<<<<<<< HEAD
 // 绘制队伍统计列头
+=======
+>>>>>>> master
 void ObserverPartyWindow::DrawHeaders(const size_t party_count) const
 {
     float offset = 0;
@@ -41,137 +44,208 @@ void ObserverPartyWindow::DrawHeaders(const size_t party_count) const
     }
 
     for (size_t i = 0; i < party_count; i += 1) {
+<<<<<<< HEAD
         // [职业:短]
+=======
+>>>>>>> master
         if (settings.show_profession) {
             ImGui::Text(ObserverLabel::Profession);
             ImGui::SameLine(offset += text_short);
         }
 
+<<<<<<< HEAD
         // [名称:长]
         ImGui::Text(ObserverLabel::Name);
         ImGui::SameLine(offset += text_long);
 
         // [公会标签:短]
+=======
+        ImGui::Text(ObserverLabel::Name);
+        ImGui::SameLine(offset += text_long);
+
+>>>>>>> master
         if (settings.show_player_guild_tag) {
             ImGui::Text(ObserverLabel::PlayerGuildTag);
             ImGui::SameLine(offset += text_short);
         }
 
+<<<<<<< HEAD
         // [公会等级分:极小]
+=======
+>>>>>>> master
         if (settings.show_player_guild_rating) {
             ImGui::Text(ObserverLabel::PlayerGuildRating);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [公会排名:极小]
+=======
+>>>>>>> master
         if (settings.show_player_guild_rank) {
             ImGui::Text(ObserverLabel::PlayerGuildRank);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [击杀:极小]
+=======
+>>>>>>> master
         if (settings.show_kills) {
             ImGui::Text(ObserverLabel::Kills);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [死亡:极小]
+=======
+>>>>>>> master
         if (settings.show_deaths) {
             ImGui::Text(ObserverLabel::Deaths);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [击杀/死亡比:极小]
+=======
+>>>>>>> master
         if (settings.show_kdr) {
             ImGui::Text(ObserverLabel::KDR);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [取消:极小]
+=======
+>>>>>>> master
         if (settings.show_cancels) {
             ImGui::Text(ObserverLabel::Cancels);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [打断:极小]
+=======
+>>>>>>> master
         if (settings.show_interrupts) {
             ImGui::Text(ObserverLabel::Interrupts);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [击倒:极小]
+=======
+>>>>>>> master
         if (settings.show_knockdowns) {
             ImGui::Text(ObserverLabel::Knockdowns);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [受到攻击:极小]
         if (settings.show_received_party_attacks) {
+=======
+        if (settings.show_dealt_party_attacks) {
+>>>>>>> master
             ImGui::Text(ObserverLabel::AttacksReceivedFromOtherParties);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [造成攻击:极小]
         if (settings.show_dealt_party_attacks) {
+=======
+        if (settings.show_received_party_attacks) {
+>>>>>>> master
             ImGui::Text(ObserverLabel::AttacksDealtToOtherParties);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [受到暴击:极小]
+=======
+>>>>>>> master
         if (settings.show_received_party_crits) {
             ImGui::Text(ObserverLabel::CritsReceivedFromOtherParties);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [造成暴击:极小]
+=======
+>>>>>>> master
         if (settings.show_dealt_party_crits) {
             ImGui::Text(ObserverLabel::CritsDealToOtherParties);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [受到技能:极小]
+=======
+>>>>>>> master
         if (settings.show_received_party_skills) {
             ImGui::Text(ObserverLabel::SkillsReceivedFromOtherParties);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [造成技能:极小]
+=======
+>>>>>>> master
         if (settings.show_dealt_party_skills) {
             ImGui::Text(ObserverLabel::SkillsUsedOnOtherParties);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [使用技能:极小]
+=======
+>>>>>>> master
         if (settings.show_skills_used) {
             ImGui::Text(ObserverLabel::SkillsUsed);
             ImGui::SameLine(offset += text_tiny);
         }
 
+<<<<<<< HEAD
         // [造成伤害:短]
+=======
+>>>>>>> master
         if (settings.show_damage_dealt) {
             ImGui::Text("伤害+");
             ImGui::SameLine(offset += text_short);
         }
 
+<<<<<<< HEAD
         // [受到伤害:短]
+=======
+>>>>>>> master
         if (settings.show_damage_received) {
             ImGui::Text("伤害-");
             ImGui::SameLine(offset += text_short);
         }
 
+<<<<<<< HEAD
         // [造成治疗:短]
+=======
+>>>>>>> master
         if (settings.show_healing_dealt) {
             ImGui::Text("治疗+");
             ImGui::SameLine(offset += text_short);
         }
 
+<<<<<<< HEAD
         // [受到治疗:短]
+=======
+>>>>>>> master
         if (settings.show_healing_received) {
             ImGui::Text("治疗-");
             ImGui::SameLine(offset += text_short);
         }
 
+<<<<<<< HEAD
         // [最大生命:极小]
+=======
+>>>>>>> master
         if (settings.show_max_hp) {
             ImGui::Text("最大生命");
             ImGui::SameLine(offset += text_tiny);
@@ -180,7 +254,10 @@ void ObserverPartyWindow::DrawHeaders(const size_t party_count) const
 }
 
 
+<<<<<<< HEAD
 // 绘制空白队员占位
+=======
+>>>>>>> master
 void ObserverPartyWindow::DrawBlankPartyMember(float& offset) const
 {
     uint16_t tinys = 0;
@@ -257,23 +334,35 @@ void ObserverPartyWindow::DrawBlankPartyMember(float& offset) const
 }
 
 
+<<<<<<< HEAD
 // 绘制队伍成员
+=======
+>>>>>>> master
 void ObserverPartyWindow::DrawPartyMember(float& offset, ObserverModule::ObservableAgent& agent, const ObserverModule::ObservableGuild* guild,
                                           const bool odd, const bool, const bool) const
 {
     auto& Text = odd ? ImGui::TextDisabled : ImGui::Text;
 
+<<<<<<< HEAD
     // [职业:短]
+=======
+>>>>>>> master
     if (settings.show_profession) {
         Text(agent.profession.c_str());
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [名称:长]
     Text(agent.DisplayName().c_str());
     ImGui::SameLine(offset += text_long);
 
     // [公会标签:短]
+=======
+    Text(agent.DisplayName().c_str());
+    ImGui::SameLine(offset += text_long);
+
+>>>>>>> master
     if (settings.show_player_guild_tag) {
         if (guild) {
             ImGui::Text(guild->wrapped_tag.c_str());
@@ -284,7 +373,10 @@ void ObserverPartyWindow::DrawPartyMember(float& offset, ObserverModule::Observa
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [公会等级分:极小]
+=======
+>>>>>>> master
     if (settings.show_player_guild_rating) {
         if (guild) {
             ImGui::Text(std::to_string(guild->rating).c_str());
@@ -295,7 +387,10 @@ void ObserverPartyWindow::DrawPartyMember(float& offset, ObserverModule::Observa
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [公会排名:极小]
+=======
+>>>>>>> master
     if (settings.show_player_guild_rank) {
         if (guild) {
             ImGui::Text(std::to_string(guild->rank).c_str());
@@ -306,109 +401,163 @@ void ObserverPartyWindow::DrawPartyMember(float& offset, ObserverModule::Observa
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [击杀:极小]
+=======
+>>>>>>> master
     if (settings.show_kills) {
         Text(std::to_string(agent.stats.kills).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [死亡:极小]
+=======
+>>>>>>> master
     if (settings.show_deaths) {
         Text(std::to_string(agent.stats.deaths).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [击杀/死亡比:极小]
+=======
+>>>>>>> master
     if (settings.show_kdr) {
         Text(agent.stats.kdr_str.c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [取消:极小]
+=======
+>>>>>>> master
     if (settings.show_cancels) {
         Text(std::to_string(agent.stats.cancelled_skills_count).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [打断:极小]
+=======
+>>>>>>> master
     if (settings.show_interrupts) {
         Text(std::to_string(agent.stats.interrupted_skills_count).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [击倒:极小]
+=======
+>>>>>>> master
     if (settings.show_knockdowns) {
         Text(std::to_string(agent.stats.knocked_down_count).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [受到攻击:极小]
+=======
+>>>>>>> master
     if (settings.show_received_party_attacks) {
         Text(std::to_string(agent.stats.total_attacks_received_from_other_parties.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [造成攻击:极小]
+=======
+>>>>>>> master
     if (settings.show_dealt_party_attacks) {
         Text(std::to_string(agent.stats.total_attacks_dealt_to_other_parties.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [受到暴击:极小]
+=======
+>>>>>>> master
     if (settings.show_received_party_crits) {
         Text(std::to_string(agent.stats.total_party_crits_received).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [造成暴击:极小]
+=======
+>>>>>>> master
     if (settings.show_dealt_party_crits) {
         Text(std::to_string(agent.stats.total_party_crits_dealt).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [受到技能:极小]
+=======
+>>>>>>> master
     if (settings.show_received_party_skills) {
         Text(std::to_string(agent.stats.total_skills_received_from_other_parties.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [造成技能:极小]
+=======
+>>>>>>> master
     if (settings.show_dealt_party_skills) {
         Text(std::to_string(agent.stats.total_skills_used_on_other_parties.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [使用技能:极小]
+=======
+>>>>>>> master
     if (settings.show_skills_used) {
         Text(std::to_string(agent.stats.total_skills_used.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [造成伤害:短]
+=======
+>>>>>>> master
     if (settings.show_damage_dealt) {
         Text(std::to_string(agent.stats.total_damage_dealt).c_str());
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [受到伤害:短]
+=======
+>>>>>>> master
     if (settings.show_damage_received) {
         Text(std::to_string(agent.stats.total_damage_received).c_str());
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [造成治疗:短]
+=======
+>>>>>>> master
     if (settings.show_healing_dealt) {
         Text(std::to_string(agent.stats.total_healing_dealt).c_str());
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [受到治疗:短]
+=======
+>>>>>>> master
     if (settings.show_healing_received) {
         Text(std::to_string(agent.stats.total_healing_received).c_str());
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [最大生命:极小]
+=======
+>>>>>>> master
     if (settings.show_max_hp) {
         uint32_t max_hp = ObserverModule::Instance().GetCachedMaxHP(agent.agent_id);
         if (max_hp > 0) {
@@ -421,6 +570,7 @@ void ObserverPartyWindow::DrawPartyMember(float& offset, ObserverModule::Observa
 }
 
 
+<<<<<<< HEAD
 // 绘制队伍行
 void ObserverPartyWindow::DrawParty(float& offset, const ObserverModule::ObservableParty& party) const
 {
@@ -429,133 +579,203 @@ void ObserverPartyWindow::DrawParty(float& offset, const ObserverModule::Observa
     ImGui::SameLine(offset += text_long);
 
     // [职业:短]
+=======
+void ObserverPartyWindow::DrawParty(float& offset, const ObserverModule::ObservableParty& party) const
+{
+    ImGui::Text(party.display_name.c_str());
+    ImGui::SameLine(offset += text_long);
+
+>>>>>>> master
     if (settings.show_profession) {
         ImGui::Text("");
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [公会标签:短]
+=======
+>>>>>>> master
     if (settings.show_player_guild_tag) {
         // 标签在 display_name 中
         // 这使得它不可隐藏
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [公会等级分:极小]
+=======
+>>>>>>> master
     if (settings.show_player_guild_rating) {
         ImGui::Text(std::to_string(party.rating).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [公会排名:极小]
+=======
+>>>>>>> master
     if (settings.show_player_guild_rank) {
         ImGui::Text(std::to_string(party.rank).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [击杀:极小]
+=======
+>>>>>>> master
     if (settings.show_kills) {
         ImGui::Text(std::to_string(party.stats.kills).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [死亡:极小]
+=======
+>>>>>>> master
     if (settings.show_deaths) {
         ImGui::Text(std::to_string(party.stats.deaths).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [击杀/死亡比:极小]
+=======
+>>>>>>> master
     if (settings.show_kdr) {
         ImGui::Text(party.stats.kdr_str.c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [取消:极小]
+=======
+>>>>>>> master
     if (settings.show_cancels) {
         ImGui::Text(std::to_string(party.stats.cancelled_skills_count).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [打断:极小]
+=======
+>>>>>>> master
     if (settings.show_interrupts) {
         ImGui::Text(std::to_string(party.stats.interrupted_skills_count).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [击倒:极小]
+=======
+>>>>>>> master
     if (settings.show_knockdowns) {
         ImGui::Text(std::to_string(party.stats.knocked_down_count).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [受到攻击:极小]
+=======
+>>>>>>> master
     if (settings.show_received_party_attacks) {
         ImGui::Text(std::to_string(party.stats.total_attacks_received_from_other_parties.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [造成攻击:极小]
+=======
+>>>>>>> master
     if (settings.show_dealt_party_attacks) {
         ImGui::Text(std::to_string(party.stats.total_attacks_dealt_to_other_parties.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [受到暴击:极小]
+=======
+>>>>>>> master
     if (settings.show_received_party_crits) {
         ImGui::Text(std::to_string(party.stats.total_party_crits_received).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [造成暴击:极小]
+=======
+>>>>>>> master
     if (settings.show_received_party_crits) {
         ImGui::Text(std::to_string(party.stats.total_party_crits_dealt).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [受到技能:极小]
+=======
+>>>>>>> master
     if (settings.show_received_party_skills) {
         ImGui::Text(std::to_string(party.stats.total_skills_received_from_other_parties.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [造成技能:极小]
+=======
+>>>>>>> master
     if (settings.show_dealt_party_skills) {
         ImGui::Text(std::to_string(party.stats.total_skills_used_on_other_parties.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [使用技能:极小]
+=======
+>>>>>>> master
     if (settings.show_skills_used) {
         ImGui::Text(std::to_string(party.stats.total_skills_used.finished).c_str());
         ImGui::SameLine(offset += text_tiny);
     }
 
+<<<<<<< HEAD
     // [造成伤害:短]
+=======
+>>>>>>> master
     if (settings.show_damage_dealt) {
         ImGui::Text(std::to_string(party.stats.total_damage_dealt).c_str());
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [受到伤害:短]
+=======
+>>>>>>> master
     if (settings.show_damage_received) {
         ImGui::Text(std::to_string(party.stats.total_damage_received).c_str());
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [造成治疗:短]
+=======
+>>>>>>> master
     if (settings.show_healing_dealt) {
         ImGui::Text(std::to_string(party.stats.total_healing_dealt).c_str());
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [受到治疗:短]
+=======
+>>>>>>> master
     if (settings.show_healing_received) {
         ImGui::Text(std::to_string(party.stats.total_healing_received).c_str());
         ImGui::SameLine(offset += text_short);
     }
 
+<<<<<<< HEAD
     // [最大生命:极小]
+=======
+>>>>>>> master
     if (settings.show_max_hp) {
         ImGui::Text("");
         ImGui::SameLine(offset += text_tiny);
@@ -563,7 +783,10 @@ void ObserverPartyWindow::DrawParty(float& offset, const ObserverModule::Observa
 }
 
 
+<<<<<<< HEAD
 // 绘制所有内容
+=======
+>>>>>>> master
 void ObserverPartyWindow::Draw(IDirect3DDevice9*)
 {
     if (!visible) {
@@ -575,10 +798,13 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
         return ImGui::End();
     }
 
+<<<<<<< HEAD
     // TODO: 当前跟随玩家的背景色
     // TODO: 当前目标玩家的背景色
     // 参考 ObserverPartyWindow::Draw 以获取背景色着色灵感
 
+=======
+>>>>>>> master
     ObserverModule& observer_module = ObserverModule::Instance();
 
     // 这应该适用于 2/3（+？）支队伍，优先支持 2 支
@@ -607,6 +833,7 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
     text_short = 55.0f * global;
     text_tiny = 40.0f * global;
 
+<<<<<<< HEAD
     // DrawHeaders(actual_party_count);
     // ImGui::Text(""); // 新行
     // ImGui::Separator();
@@ -616,6 +843,9 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
         // `party_member_offset == -1` 是队伍信息
         // `party_member_offset == 0` 是玩家 1
         // 在玩家 1 之前放置分隔线
+=======
+    for (auto party_member_index = -1; party_member_index < static_cast<int>(max_party_size); party_member_index += 1) {
+>>>>>>> master
         if (party_member_index == 0) {
             ImGui::Text("");
             ImGui::Separator();
@@ -629,12 +859,18 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
         }
         // else if (party_member_index > 0) ImGui::Separator();
 
+<<<<<<< HEAD
         // 行偏移
         float offset = 0;
 
         // 遍历每支队伍
         for (auto party_index = 0u; party_index < party_count; party_index += 1) {
             // 队伍成员编号
+=======
+        float offset = 0;
+
+        for (auto party_index = 0u; party_index < party_count; party_index += 1) {
+>>>>>>> master
             if (settings.show_player_number && party_index == 0) {
                 // 显示 #1. <玩家> 给玩家，而不是队伍
                 if (party_member_index != -1) {
@@ -651,28 +887,40 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
                 return;
             }
 
+<<<<<<< HEAD
             // 绘制队伍总计
+=======
+>>>>>>> master
             if (party_member_index == -1) {
                 DrawParty(offset, *party);
                 continue;
             }
 
             if (party_member_index >= static_cast<int>(party->agent_ids.size())) {
+<<<<<<< HEAD
                 // 超出队伍大小
                 // 填充空白...
+=======
+>>>>>>> master
                 DrawBlankPartyMember(offset);
                 continue;
             }
 
             const uint32_t party_member_id = party->agent_ids[party_member_index];
 
+<<<<<<< HEAD
             // 无队伍成员
+=======
+>>>>>>> master
             if (party_member_id == NO_AGENT) {
                 DrawBlankPartyMember(offset);
                 continue;
             }
 
+<<<<<<< HEAD
             // 未找到队伍成员
+=======
+>>>>>>> master
             ObserverModule::ObservableAgent* party_member =
                 observer_module.GetObservableAgentById(party_member_id);
             if (!party_member) {
@@ -680,7 +928,10 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
                 continue;
             }
 
+<<<<<<< HEAD
             // 找到队伍成员！
+=======
+>>>>>>> master
             const ObserverModule::ObservableGuild* guild = observer_module.GetObservableGuildById(party_member->guild_id);
             DrawPartyMember(offset, *party_member, guild, party_member_index % 2, false, false);
         }
@@ -690,7 +941,10 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
 }
 
 
+<<<<<<< HEAD
 // 绘制设置
+=======
+>>>>>>> master
 void ObserverPartyWindow::DrawSettingsInternal()
 {
     ImGui::Text("请确保观战模块已启用。");

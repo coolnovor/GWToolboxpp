@@ -38,7 +38,10 @@ namespace {
     BuildsWindow::Settings settings;
     bool order_by_index = !settings.order_by_name;
 
+<<<<<<< HEAD
     // 首选技能顺序
+=======
+>>>>>>> master
     bool preferred_skill_orders_visible = false;
 
     GuiUtils::EncString preferred_skill_order_tooltip;
@@ -842,7 +845,10 @@ void BuildsWindow::Draw(IDirect3DDevice9* pDevice)
         ImGui::End();
     }
 
+<<<<<<< HEAD
     // 使用统一的 DrawEditWindow 绘制编辑窗口
+=======
+>>>>>>> master
     for (size_t i = 0; i < teambuilds.size(); i++) {
         if (!teambuilds[i].edit_open) continue;
         if (!teambuilds[i].DrawEditWindow(i, teambuilds, builds_changed)) {

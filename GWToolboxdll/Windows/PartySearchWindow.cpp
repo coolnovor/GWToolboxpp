@@ -32,9 +32,12 @@
 #include <Utils/TextUtils.h>
 #include <Utils/ToolboxUtils.h>
 
+<<<<<<< HEAD
 // 每次连接消耗 30 秒。
 // 你有 2 次尝试机会。
 // 之后，每 30 秒可以尝试一次。
+=======
+>>>>>>> master
 static constexpr uint32_t COST_PER_CONNECTION_MS = 30 * 1000;
 static constexpr uint32_t COST_PER_CONNECTION_MAX_MS = 60 * 1000;
 using easywsclient::WebSocket;
@@ -275,7 +278,10 @@ void PartySearchWindow::Initialize()
             }
         }
     });
+<<<<<<< HEAD
     // 本地消息
+=======
+>>>>>>> master
     GW::StoC::RegisterPostPacketCallback(&OnMessageLocal_Entry, GAME_SMSG_PARTY_SEARCH_REMOVE, OnRegionPartyUpdated);
     GW::StoC::RegisterPostPacketCallback(&OnMessageLocal_Entry, GAME_SMSG_PARTY_SEARCH_SIZE, OnRegionPartyUpdated);
     GW::StoC::RegisterPostPacketCallback(&OnMessageLocal_Entry, GAME_SMSG_PARTY_SEARCH_ADVERTISEMENT, OnRegionPartyUpdated);
@@ -546,15 +552,22 @@ void PartySearchWindow::fetch()
     }
 
     ws_window->dispatch([this](const std::string& data) {
+<<<<<<< HEAD
         // 添加到消息源
+=======
+>>>>>>> master
         Message msg;
         if (!parse_json_message(data, &msg)) {
             return; // 不是有效的消息对象
         }
         messages.add(msg);
 
+<<<<<<< HEAD
         // 检查提醒
         // 在 Kamadan AE 1 区时不显示交易聊天
+=======
+        // do not display trade chat while in kamadan AE district 1
+>>>>>>> master
         const bool print_message = settings.print_game_chat && IsLfpAlert(msg.message);
 
         if (print_message) {
@@ -572,10 +585,9 @@ bool PartySearchWindow::IsLfpAlert(std::string& message) const
     if (!settings.filter_alerts) {
         return true;
     }
-    std::regex word_regex;
-    std::smatch m;
-    static const auto regex_check = std::regex("^/(.*)/[a-z]?$", std::regex::ECMAScript | std::regex::icase);
+    // A word wrapped in slashes is a regex, anything else a case-insensitive substring.
     for (const auto& word : alert_words) {
+<<<<<<< HEAD
         if (std::regex_search(word, m, regex_check)) {
             try {
                 word_regex = std::regex(m._At(1).str(), std::regex::ECMAScript | std::regex::icase);
@@ -591,6 +603,10 @@ bool PartySearchWindow::IsLfpAlert(std::string& message) const
             if (found != message.end()) {
                 return true;
             }
+=======
+        if (word.Matches(message)) {
+            return true;
+>>>>>>> master
         }
     }
     return false;
@@ -624,6 +640,7 @@ void PartySearchWindow::Draw(IDirect3DDevice9*)
     constexpr bool display_messages = true;
     /* 主交易聊天区域 */
 
+<<<<<<< HEAD
     /* 连接检查 */
     /*if (!ws_window && !ws_window_connecting) {
         char buf[255];
@@ -642,6 +659,9 @@ void PartySearchWindow::Draw(IDirect3DDevice9*)
         ImGui::Text("连接中...");
         display_messages = false;
     } */
+=======
+    /* Connection checks */
+>>>>>>> master
     if (display_messages) {
         const float& innerspacing = ImGui::GetStyle().ItemInnerSpacing.x;
         const float playernamewidth = 200.0f * font_scale;
@@ -713,7 +733,10 @@ void PartySearchWindow::Draw(IDirect3DDevice9*)
 
             if (ImGui::Button(label, ImVec2(playernamewidth, 0))) {
                 std::wstring leader_name = TextUtils::StringToWString(party->player_name);
+<<<<<<< HEAD
                 // 向玩家打开密语
+=======
+>>>>>>> master
                 GW::GameThread::Enqueue([leader_name] {
                     SendUIMessage(GW::UI::UIMessage::kOpenWhisper, (wchar_t*)leader_name.data(), nullptr);
                 });
@@ -722,17 +745,6 @@ void PartySearchWindow::Draw(IDirect3DDevice9*)
             ImGui::TextColored(party->party_size < max_party_size ? white : yellow, "%d/%d", party->party_size, max_party_size);
             ImGui::SameLine(districtleft);
             ImGui::TextColored(party->language == language && party->district == district && party->map_id == map ? white : yellow, "%s - %d", DistrictAbbr(party->region_id, party->language), party->district);
-
-            /*auto map_name = map_names_by_id.find(party->map_id);
-            if (map_name == map_names_by_id.end()) {
-                std::wstring* map_name_ws = new std::wstring();
-                map_names_by_id[party->map_id] = { {0}, map_name_ws };
-                GW::AreaInfo* map = GW::Map::GetMapInfo(static_cast<GW::Constants::MapID>(party->map_id));
-                if (map && GW::UI::UInt32ToEncStr(map->name_id, map_names_by_id[party->map_id].first) {
-                    uint32_t map_id = 0;
-                    if()
-                }
-            }*/
 
             ImGui::SameLine(message_left);
             ImGui::Text(party->is_hard_mode ? "[困难模式] [%s] %s" : "[%s] %s", party_types[party->search_type], party->message.c_str());
@@ -760,7 +772,7 @@ void PartySearchWindow::DrawAlertsWindowContent(bool)
     ImGui::TextDisabled("（每行一个关键词，不区分大小写）");
     if (ImGui::InputTextMultiline("##alertfilter", alert_buf, ALERT_BUF_SIZE,
                                   ImVec2(-1.0f, 0.0f))) {
-        ParseBuffer(alert_buf, alert_words);
+        alert_words = TextUtils::ParsePatterns<char>(alert_buf);
         alertfile_dirty = true;
     }
 }
@@ -780,7 +792,7 @@ void PartySearchWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
     if (alert_file.is_open()) {
         alert_file.get(alert_buf, ALERT_BUF_SIZE, '\0');
         alert_file.close();
-        ParseBuffer(alert_buf, alert_words);
+        alert_words = TextUtils::ParsePatterns<char>(alert_buf);
     }
     alert_file.close();
 }
@@ -798,19 +810,6 @@ void PartySearchWindow::SaveSettings(SettingsDoc& doc)
             bycontent_file.close();
             alertfile_dirty = false;
         }
-    }
-}
-
-void PartySearchWindow::ParseBuffer(const char* text, std::vector<std::string>& words)
-{
-    words.clear();
-    std::istringstream stream(text);
-    std::string word;
-    while (std::getline(stream, word)) {
-        for (size_t i = 0; i < word.length(); i++) {
-            word[i] = static_cast<char>(tolower(word[i]));
-        }
-        words.push_back(word);
     }
 }
 

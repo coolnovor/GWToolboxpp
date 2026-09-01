@@ -2,20 +2,22 @@
 
 #include "FontLoader.h"
 #include <Modules/Resources.h>
-#include <Utils/TextUtils.h>
 #include "toolbox_default_font.h"
 
 #include "fonts/fontawesome5.h"
 
 namespace {
     ImFont* loaded_font = nullptr;
+    ImFont* full_font = nullptr;
 
     bool fonts_loading = false;
     bool fonts_loaded = false;
 
     struct FontData {
         std::vector<ImWchar> glyph_ranges;
-        std::wstring font_name;
+        std::filesystem::path path;
+        void* data = nullptr;
+        size_t data_size = 0;
     };
 
     const std::vector<ImWchar> fontawesome5_glyph_ranges = {ICON_MIN_FA, ICON_MAX_FA, 0};
@@ -153,11 +155,8 @@ namespace {
         return font_data;
     }
 
-    // Build a single font by merging all available font files.
-    ImFont* BuildFont(const float size, const bool default_only = false)
+    ImFontConfig GetBaseFontConfig()
     {
-        ImFontAtlas* atlas = ImGui::GetIO().Fonts;
-
         ImFontConfig cfg;
         cfg.PixelSnapH = true;
         cfg.OversampleH = 1;
@@ -166,15 +165,14 @@ namespace {
         // imgui 1.92's new backend resolves merged glyphs from the first
         // source, exclude font awesome's glyph ranges when adding regular fonts
         cfg.GlyphExcludeRanges = fontawesome5_glyph_ranges.data();
+        return cfg;
+    }
 
-        if (default_only) {
-            auto* font = atlas->AddFontFromMemoryCompressedTTF(toolbox_default_font_compressed_data, toolbox_default_font_compressed_size, size, &cfg, toolbox_default_font_glyph_ranges);
-            cfg.MergeMode = true;
-            cfg.GlyphExcludeRanges = nullptr;
-            atlas->AddFontFromMemoryCompressedTTF(fontawesome5_compressed_data, fontawesome5_compressed_size, size, &cfg, fontawesome5_glyph_ranges.data());
-            return font;
-        }
+    ImFont* BuildDefaultFont(const float size)
+    {
+        ImFontAtlas* atlas = ImGui::GetIO().Fonts;
 
+<<<<<<< HEAD
         ImFont* font = nullptr;
 
         // ★★★ 优先加载系统微软雅黑字体 (确保中文支持) ★★★
@@ -244,17 +242,20 @@ namespace {
         }
 
         // 合并 fontawesome 图标 (必须执行)
+=======
+        auto cfg = GetBaseFontConfig();
+
+        auto* font = atlas->AddFontFromMemoryCompressedTTF(toolbox_default_font_compressed_data, toolbox_default_font_compressed_size, size, &cfg, toolbox_default_font_glyph_ranges);
+>>>>>>> master
         cfg.MergeMode = true;
         cfg.GlyphExcludeRanges = nullptr;
         atlas->AddFontFromMemoryCompressedTTF(fontawesome5_compressed_data, fontawesome5_compressed_size, size, &cfg, fontawesome5_glyph_ranges.data());
-
         return font;
     }
 
 }
 
 namespace FontLoader {
-    // Has LoadFonts() finished?
     bool FontsLoaded()
     {
         return fonts_loaded;
@@ -277,12 +278,11 @@ namespace FontLoader {
         constexpr float base_size = static_cast<float>(FontSize::text);
 
         Resources::EnqueueDxTask([base_size](IDirect3DDevice9*) {
-            loaded_font = BuildFont(base_size, true);
-            fonts_loaded = true;
-            fonts_loading = false;
+            loaded_font = BuildDefaultFont(base_size);
             printf("Loaded default font\n");
         });
 
+<<<<<<< HEAD
         Resources::EnqueueDxTask([base_size](IDirect3DDevice9*) {
             ImFontAtlas* atlas = ImGui::GetIO().Fonts;
             ImFont* fallback = atlas->Fonts.Size > 0 ? atlas->Fonts[0] : nullptr;
@@ -298,8 +298,52 @@ namespace FontLoader {
             } else {
                 // 如果磁盘字体加载失败，保留默认字体
                 printf("No disk fonts loaded, keeping default font.\n");
+=======
+        Resources::EnqueueWorkerTask([base_size] {
+            for (auto& font : GetFontData()) {
+                std::ifstream file(font.path, std::ios::binary);
+                if (!file.is_open())
+                    continue;
+                file.seekg(0, std::ios::end);
+                const auto file_end = file.tellg();
+                if (file_end <= 0)
+                    continue;
+                const auto file_size = static_cast<size_t>(file_end);
+                font.data = ImGui::MemAlloc(file_size);
+                font.data_size = file_size;
+                file.seekg(0);
+                if (!file.read(static_cast<char*>(font.data), font.data_size)) {
+                    ImGui::MemFree(font.data);
+                    font.data = nullptr;
+                    continue;
+                }
+                Resources::EnqueueDxTask([base_size, &font](IDirect3DDevice9*) {
+                    auto cfg = GetBaseFontConfig();
+                    cfg.MergeMode = full_font != nullptr;
+                    full_font = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(font.data, static_cast<int>(font.data_size), base_size, &cfg, font.glyph_ranges.data());
+                    font.data = nullptr;
+                });
+>>>>>>> master
             }
-            printf("Loaded all fonts\n");
+            Resources::EnqueueDxTask([base_size](IDirect3DDevice9*) {
+                ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+                auto cfg = GetBaseFontConfig();
+                cfg.MergeMode = true;
+                cfg.GlyphExcludeRanges = nullptr;
+                atlas->AddFontFromMemoryCompressedTTF(fontawesome5_compressed_data, fontawesome5_compressed_size, base_size, &cfg, fontawesome5_glyph_ranges.data());
+                if (full_font) {
+                    loaded_font = full_font;
+                    ImFont* fallback = atlas->Fonts.Size > 0 ? atlas->Fonts[0] : nullptr;
+                    if (fallback && fallback != loaded_font) {
+                        atlas->RemoveFont(fallback);
+                        atlas->CompactCache();
+                    }
+                }
+                full_font = nullptr;
+                printf("Loaded all fonts\n");
+                fonts_loaded = true;
+                fonts_loading = false;
+            });
         });
     }
 

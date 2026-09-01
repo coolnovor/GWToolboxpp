@@ -35,6 +35,7 @@ namespace {
     // 根据场景深度缓冲区测试覆盖层，使世界几何体遮挡它们。
     bool occlude_behind_terrain = false;
 
+    float z_lift = 2.f; // raise above the surface so lines draw on top of terrain instead of z-fighting it (GW up is -z)
 
     GameWorldRenderer::RenderableVectors renderables;
     std::mutex renderables_mutex{};
@@ -121,6 +122,7 @@ namespace {
         return a * t + b * (1.f - t);
     }
 
+<<<<<<< HEAD
     constexpr auto ALTITUDE_UNKNOWN = std::numeric_limits<float>::max();
 
     // 候选平面中 (x,y) 处的最高静态表面（GW 的向上是 -z，所以最高 = 最小海拔）。QueryAltitude 对越界返回 0.f（忽略）；若无平面有数据则返回 ALTITUDE_UNKNOWN。
@@ -149,6 +151,9 @@ namespace {
         }
         return best;
     }
+=======
+    constexpr auto ALTITUDE_UNKNOWN = TerrainDrape::kNoAltitude;
+>>>>>>> master
 
     // ===== 批处理导航网格覆盖层线缓冲 =====
     // 一个用于导航网格覆盖层数万条边的线列表缓冲（逐条 CustomLine 在每次地图加载时是 O(N^2) 且每次移动都重新悬挂）：
@@ -187,6 +192,7 @@ namespace {
             const auto& ln = b.lines[b.build_cursor];
             const float dx = ln.b.x - ln.a.x, dy = ln.b.y - ln.a.y;
             const int steps = std::max(1, static_cast<int>(std::sqrt(dx * dx + dy * dy) / spacing));
+<<<<<<< HEAD
             // 在边自身的平面上对每个采样点进行悬挂。导航网格边位于单个梯形上，因此其表面就是
             // 该平面的高度场（在地面有斜坡/台阶的地方也是如此）。直接按点查询平面 — 而非全局最近表面 —
             // 使线条跟随该表面：平坦的保持平坦，斜坡上升，甲板保持在甲板上，桥下的边保持在
@@ -197,6 +203,15 @@ namespace {
                 const float a = TerrainDrape::QueryAltAt(x, y, plane);
                 if (a != 0.f) return a;                                      // 边所在平面在此有地面（常见情况）
                 const float c = ClosestSurfaceZ(x, y, num_planes, fallback); // 仅在无平面表面的边唇处
+=======
+            // Drape each sample on the edge's OWN plane (an edge lies on a single trapezoid, so that plane's heightfield
+            // IS its surface): unlike a globally-closest query, an edge under a bridge stays on the ground.
+            const uint32_t plane = ln.a.zplane; // == ln.b.zplane: both verts come from the same trapezoid
+            auto surfaceZ = [&](float x, float y, float fallback) -> float {
+                const float a = TerrainDrape::QueryAltAt(x, y, plane);
+                if (a != 0.f) return a;                                      // edge's plane has floor here (the common case)
+                const float c = TerrainDrape::ClosestZ(x, y, num_planes, fallback); // only at an edge lip with no plane surface
+>>>>>>> master
                 return c == ALTITUDE_UNKNOWN ? fallback : c;
             };
             float prev = surfaceZ(ln.a.x, ln.a.y, 0.f);
@@ -317,9 +332,10 @@ namespace {
                     candidate_planes.push_back(pt.zplane);
             }
             for (size_t i = poly.vertices_processed; i < vertices.size(); i++, poly.vertices_processed++)
-                vertices[i].z = HighestSurfaceZ(vertices[i].x, vertices[i].y, candidate_planes);
+                vertices[i].z = TerrainDrape::HighestZOnPlanes(vertices[i].x, vertices[i].y, candidate_planes);
         }
         else {
+<<<<<<< HEAD
             // 有序、密集采样的路径：在每个采样点按导航网格可行走平面悬挂（点定位），
             // 选择最接近运行高度的表面。这跟随路径实际行走的表面 —
             // 例如从两次地面跳跃之间上升到纪念碑平面 — 而不是沉入其下方的地面，
@@ -330,6 +346,12 @@ namespace {
             GW::GamePos seed_pos = poly.points.empty() ? GW::GamePos{} : poly.points.front();
             float prev = TerrainDrape::QueryAltAt(seed_pos.x, seed_pos.y, seed_pos.zplane);
             if (prev == 0.f) prev = ClosestSurfaceZ(seed_pos.x, seed_pos.y, num_planes, -1.0e9f); // 最高表面
+=======
+            auto* nav = PathfindingWindow::GetResidentNavMesh();
+            GW::GamePos seed_pos = poly.points.empty() ? GW::GamePos{} : poly.points.front();
+            float prev = TerrainDrape::QueryAltAt(seed_pos.x, seed_pos.y, seed_pos.zplane);
+            if (prev == 0.f) prev = TerrainDrape::ClosestZ(seed_pos.x, seed_pos.y, num_planes, -1.0e9f); // highest surface
+>>>>>>> master
             for (size_t i = poly.vertices_processed; i < vertices.size(); i++, poly.vertices_processed++) {
                 float z;
                 if (nav) {
@@ -337,7 +359,11 @@ namespace {
                     if (z == ALTITUDE_UNKNOWN) z = prev; // 在无可行走多边形的间隙中：保持高度，不沉到地面
                 }
                 else {
+<<<<<<< HEAD
                     z = ClosestSurfaceZ(vertices[i].x, vertices[i].y, num_planes, prev); // 导航网格尚未构建
+=======
+                    z = TerrainDrape::ClosestZ(vertices[i].x, vertices[i].y, num_planes, prev); // navmesh not built yet
+>>>>>>> master
                 }
                 if (z != ALTITUDE_UNKNOWN) prev = z;
                 vertices[i].z = z;
@@ -354,6 +380,8 @@ namespace {
                 if (v.z == ALTITUDE_UNKNOWN) v.z = last;
                 else last = v.z;
             }
+            // After backfill so the sentinel is never lifted (the compare above is exact).
+            for (auto& v : vertices) v.z -= z_lift;
         }
 
         auto res = device->CreateVertexBuffer(vertices.size() * sizeof(D3DVertex), D3DUSAGE_WRITEONLY, D3DFVF_CUSTOMVERTEX, D3DPOOL_MANAGED, &poly.vb, nullptr);
@@ -363,7 +391,7 @@ namespace {
         }
 
         void* mem_loc = nullptr;
-        res = poly.vb->Lock(0, vertices.size() * sizeof(D3DVertex), &mem_loc, D3DLOCK_DISCARD);
+        res = poly.vb->Lock(0, vertices.size() * sizeof(D3DVertex), &mem_loc, 0);
         if (res != S_OK || !mem_loc) {
             poly.vb->Release();
             poly.vb = nullptr;
@@ -438,10 +466,20 @@ void GameWorldRenderer::GenericPolyRenderable::Draw(IDirect3DDevice9* device)
         return;
 
     if (from_player_pos && vertices.size() > 1) {
+<<<<<<< HEAD
         if (const auto player = GW::Agents::GetControlledCharacter()) {
             // 将引导线重新锚定到玩家的实时位置，并在每个采样点按导航网格可行走平面悬挂，
             // 从 player->z 开始（即使报告的平面读数为 0 也是可靠的）。这跟随玩家实际行走的表面
             //（在跳跃之间上升纪念碑/坡道）而不是下方的地面。
+=======
+        // Any movement re-anchors: a distance threshold leaves the line's start trailing the player and snapping forward, which reads as jitter.
+        // Standing still still costs nothing, and a few dozen vertices against the Y-row drape index is cheap per-frame.
+        const auto player = GW::Agents::GetControlledCharacter();
+        if (player && (!anchored || player->pos.x != anchor_x || player->pos.y != anchor_y)) {
+            anchor_x = player->pos.x;
+            anchor_y = player->pos.y;
+            anchored = true;
+>>>>>>> master
             const float ex = vertices.back().x, ey = vertices.back().y;
             const GW::PathingMapArray* pathing_map = GW::Map::GetPathingMap();
             const uint32_t num_planes = pathing_map ? static_cast<uint32_t>(pathing_map->size()) : 0;
@@ -458,16 +496,21 @@ void GameWorldRenderer::GenericPolyRenderable::Draw(IDirect3DDevice9* device)
                     if (z == ALTITUDE_UNKNOWN) z = prev; // 无可行走多边形的间隙：保持高度，不沉到地面
                 }
                 else {
+<<<<<<< HEAD
                     z = num_planes ? ClosestSurfaceZ(sx, sy, num_planes, prev) : ALTITUDE_UNKNOWN; // 导航网格尚未构建
+=======
+                    z = num_planes ? TerrainDrape::ClosestZ(sx, sy, num_planes, prev) : ALTITUDE_UNKNOWN; // navmesh not built yet
+>>>>>>> master
                 }
                 if (z != ALTITUDE_UNKNOWN) prev = z; else z = prev;
                 vertices[j].x = sx;
                 vertices[j].y = sy;
-                vertices[j].z = z;
+                vertices[j].z = z - z_lift; // `prev` stays unlifted: it seeds the next drape query
             }
 
             void* mem_loc = nullptr;
-            auto res = vb->Lock(0, vertices.size() * sizeof(D3DVertex), &mem_loc, D3DLOCK_DISCARD);
+            // flags=0, not D3DLOCK_DISCARD: DISCARD needs D3DUSAGE_DYNAMIC but this is MANAGED, so it's ignored and the lock serialises against the GPU.
+            auto res = vb->Lock(0, vertices.size() * sizeof(D3DVertex), &mem_loc, 0);
             if (res == S_OK) {
                 memcpy(mem_loc, vertices.data(), vertices.size() * sizeof(D3DVertex));
                 vb->Unlock();
@@ -523,11 +566,16 @@ void GameWorldRenderer::DrawInWorld(IDirect3DDevice9* device)
         return;
     }
 
+<<<<<<< HEAD
     // 快照所有设备状态；在退出时无条件恢复（包括错误路径），以免破坏 GW 后续渲染。
     IDirect3DStateBlock9* state_block = nullptr;
     if (device->CreateStateBlock(D3DSBT_ALL, &state_block) != D3D_OK) {
         return;
     }
+=======
+    // Snapshot the device state toolbox touches; restored unconditionally on exit (incl. error paths) so GW's later rendering isn't corrupted.
+    const D3DStateGuard state_guard(device);
+>>>>>>> master
 
     if (GameWorldCompositor::SetupPipeline(device, occlude_behind_terrain, render_max_distance, fog_factor)) {
         const auto map_id = GW::Map::GetMapID();
@@ -589,15 +637,15 @@ void GameWorldRenderer::DrawInWorld(IDirect3DDevice9* device)
         }
         renderables_mutex.unlock();
     }
-
-    state_block->Apply();
-    state_block->Release();
 }
 
 void GameWorldRenderer::Render(IDirect3DDevice9* device)
 {
+<<<<<<< HEAD
     // 顶层（End Scene）路径。当需要 UI 下层且共享合成器运行时，它在 GW 的世界和 HUD 之间绘制我们的标记
     //（并自行运行标记同步），因此在此跳过。否则在顶层绘制 — 这也是合成器失败时的回退。
+=======
+>>>>>>> master
     if (render_under_ui && GameWorldCompositor::IsActive()) {
         return;
     }
@@ -612,12 +660,14 @@ void GameWorldRenderer::RegisterSettings(ToolboxModule* module)
     SettingsRegistry::RegisterField(module, "occlude_behind_terrain", &occlude_behind_terrain);
     SettingsRegistry::RegisterField(module, "render_under_ui", &render_under_ui);
     SettingsRegistry::RegisterField(module, "exclude_compass", &exclude_compass);
+    SettingsRegistry::RegisterField(module, "z_lift", &z_lift);
 }
 
 void GameWorldRenderer::OnSettingsLoaded()
 {
     render_max_distance = std::max(render_max_distance, 10.0f);
     fog_factor = std::clamp(fog_factor, 0.0f, 1.0f);
+    z_lift = std::clamp(z_lift, 0.0f, 200.0f);
     need_sync_markers = true;
     UpdateCompositorRegistration();
 }
@@ -625,6 +675,7 @@ void GameWorldRenderer::OnSettingsLoaded()
 void GameWorldRenderer::DrawSettings()
 {
     const auto red = ImGui::ColorConvertU32ToFloat4(Colors::Red());
+<<<<<<< HEAD
     ImGui::TextColored(red, "警告：此功能为测试版。");
     ImGui::Text("注意：自定义标记仅在游戏内渲染，如果特定标记启用了该选项（请检查设置）。");
     ImGui::DragFloat("最大渲染距离", &render_max_distance, 5.f, 0.f, 10000.f, "%.0f", ImGuiSliderFlags_AlwaysClamp);
@@ -633,6 +684,24 @@ void GameWorldRenderer::DrawSettings()
     ImGui::ShowHelp("插值点数。影响渲染平滑度。");
     ImGui::DragFloat("雾效因子", &fog_factor, 0.1f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
     ImGui::ShowHelp("从 0.0（禁用）到 1.0 缩放");
+=======
+    ImGui::TextColored(red, "Warning: This is a beta feature.");
+    ImGui::Text("Note: custom markers are only rendered in-game if the option is enabled for a particular marker (check settings).");
+    ImGui::DragFloat("Maximum render distance", &render_max_distance, 5.f, 0.f, 10000.f, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::ShowHelp("Maximum distance to render custom markers on the in-game terrain.");
+    need_sync_markers |= ImGui::DragInt("Interpolation granularity", reinterpret_cast<int*>(&lerp_steps_per_line), 1.0f, 0, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::ShowHelp("Number of points to interpolate. Affects smoothness of rendering.");
+    ImGui::DragFloat("Fog factor", &fog_factor, 0.1f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::ShowHelp("Scales from 0.0 (disabled) to 1.0");
+    if (ImGui::DragFloat("Height lift", &z_lift, 0.5f, 0.f, 200.f, "%.1f", ImGuiSliderFlags_AlwaysClamp)) {
+        // The lift is baked into each renderable's vertex buffer, so drop them and let the next sync re-drape.
+        renderables_mutex.lock();
+        renderables.clear();
+        renderables_mutex.unlock();
+        need_sync_markers = true;
+    }
+    ImGui::ShowHelp("Raise quest paths and other in-world overlays above the surface they're draped on, so they draw on top of the terrain instead of z-fighting it.");
+>>>>>>> master
 
     if (ImGui::Checkbox("在游戏 UI 下层渲染", &render_under_ui)) {
         UpdateCompositorRegistration();

@@ -358,7 +358,10 @@ namespace {
             const auto& connection = payload.connections[connection_id];
             const auto teamspeak_server = UpsertServer(connection.properties, static_cast<uint32_t>(connection_id));
             teamspeak_server->my_client_id = connection.clientId;
+<<<<<<< HEAD
             // 循环查找我们的频道
+=======
+>>>>>>> master
             for (const auto& client : connection.clientInfos) {
                 if (client.id == teamspeak_server->my_client_id) {
                     teamspeak_server->my_channel_id = client.channelId;

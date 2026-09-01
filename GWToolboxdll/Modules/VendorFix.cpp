@@ -15,6 +15,7 @@ namespace {
 
     void RefreshVendorItems(GW::UI::Frame* frame) {
         if (!frame) return;
+<<<<<<< HEAD
         /*
         如果供应商框架刚被创建，查看我们的背包。
         第56个物品之后的任何有效物品ID都不会被收集者立即找到。
@@ -23,6 +24,8 @@ namespace {
 
         识别“问题”槽位，并通过伪造数据包通知供应商。
         */
+=======
+>>>>>>> master
 
         const auto inventory = GW::Items::GetInventory();
         ASSERT(inventory);

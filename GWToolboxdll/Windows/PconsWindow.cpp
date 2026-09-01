@@ -36,9 +36,12 @@ namespace {
 
     GW::Agent* player = nullptr;
 
+<<<<<<< HEAD
     // 消耗品设置
     // TODO: 变身药水？
     // TODO: 士气/死亡惩罚移除
+=======
+>>>>>>> master
     GW::HookEntry AgentSetPlayer_Entry;
     GW::HookEntry AddExternalBond_Entry;
     GW::HookEntry PostProcess_Entry;
@@ -56,7 +59,10 @@ namespace {
     bool elite_area_disable_triggered = false; // 本轮是否已触发？
     clock_t elite_area_check_timer = 0;
 
+<<<<<<< HEAD
     // 每个地图需要检查的目标列表
+=======
+>>>>>>> master
     std::vector<DWORD> objectives_complete = {};
     const std::map<MapID, std::vector<DWORD>>
     objectives_to_complete_by_map_id = {
@@ -674,14 +680,20 @@ void PconsWindow::MapChanged()
         previous_instance_type = instance_type;
     }
     instance_type = GW::Map::GetInstanceType();
+<<<<<<< HEAD
     // 如果刚从探索区域出来，则禁用消耗品
+=======
+>>>>>>> master
     if (settings.disable_pcons_on_map_change && previous_instance_type == InstanceType::Explorable) {
         SetEnabled(false);
     }
 
     player = nullptr;
     elite_area_disable_triggered = false;
+<<<<<<< HEAD
     // 查找该地图需要完成的目标
+=======
+>>>>>>> master
     const auto map_objectives_it = objectives_to_complete_by_map_id.find(map_id);
     if (map_objectives_it != objectives_to_complete_by_map_id.end()) {
         objectives_complete.clear();
@@ -690,7 +702,10 @@ void PconsWindow::MapChanged()
     else {
         current_objectives_to_check.clear();
     }
+<<<<<<< HEAD
     // 查找是否需要检查该地图的首领范围
+=======
+>>>>>>> master
     const auto map_location_it = final_room_location_by_map_id.find(map_id);
     if (map_location_it != final_room_location_by_map_id.end()) {
         current_final_room_location = map_location_it->second;
@@ -783,7 +798,10 @@ void PconsWindow::DrawLunarsAndAlcoholSettings()
 
 void PconsWindow::CheckBossRangeAutoDisable()
 {
+<<<<<<< HEAD
     // 如果适用则触发精英区域自动禁用
+=======
+>>>>>>> master
     if (!enabled || elite_area_disable_triggered || instance_type != InstanceType::Explorable) {
         return; // 消耗品已禁用、自动禁用已触发或不在探索区域
     }

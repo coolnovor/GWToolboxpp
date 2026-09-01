@@ -32,9 +32,10 @@ namespace {
         GW::Constants::SkillID skill_id = GW::Constants::SkillID::No_Skill;
         GuiUtils::EncString skill_name;
         bool enabled = true;
+        const char* help_text = nullptr;
 
-        AvailableBond(const GW::Constants::SkillID _skill_id, const bool _enabled = true)
-            : skill_id(_skill_id), enabled(_enabled) { };
+        AvailableBond(const GW::Constants::SkillID _skill_id, const bool _enabled = true, const char* _help_text = nullptr)
+            : skill_id(_skill_id), enabled(_enabled), help_text(_help_text) { };
 
         void Initialize()
         {
@@ -46,7 +47,16 @@ namespace {
         }
     };
 
+<<<<<<< HEAD
     // 技能 ID => 默认启用
+=======
+    // Refrains are read from the party effects array, which the game only populates for you and your own heroes.
+    const char* refrain_help_text =
+        "Only shown on yourself and your own heroes.\n"
+        "Guild Wars doesn't tell your client about refrains on other players, so a refrain you maintain on them can't be displayed.";
+
+    // Skill ID => enabled by default
+>>>>>>> master
     AvailableBond available_bonds[] = {
         {GW::Constants::SkillID::Balthazars_Spirit, true},
         {GW::Constants::SkillID::Essence_Bond, true},
@@ -64,12 +74,12 @@ namespace {
         {GW::Constants::SkillID::Vital_Blessing, true},
         {GW::Constants::SkillID::Watchful_Spirit, true},
         {GW::Constants::SkillID::Watchful_Intervention, false},
-        {GW::Constants::SkillID::Heroic_Refrain, true},
-        {GW::Constants::SkillID::Burning_Refrain, true},
-        {GW::Constants::SkillID::Mending_Refrain, true},
-        {GW::Constants::SkillID::Bladeturn_Refrain, true},
-        {GW::Constants::SkillID::Hasty_Refrain, true},
-        {GW::Constants::SkillID::Aggressive_Refrain, false}
+        {GW::Constants::SkillID::Heroic_Refrain, true, refrain_help_text},
+        {GW::Constants::SkillID::Burning_Refrain, true, refrain_help_text},
+        {GW::Constants::SkillID::Mending_Refrain, true, refrain_help_text},
+        {GW::Constants::SkillID::Bladeturn_Refrain, true, refrain_help_text},
+        {GW::Constants::SkillID::Hasty_Refrain, true, refrain_help_text},
+        {GW::Constants::SkillID::Aggressive_Refrain, false, refrain_help_text}
     };
 
     AvailableBond* GetAvailableBond(const GW::Constants::SkillID skill_id)
@@ -85,8 +95,15 @@ namespace {
 
     BondsWidget::Settings settings;
 
+<<<<<<< HEAD
     std::vector<GW::Constants::SkillID> bond_list{};               // 索引到技能 ID
     std::unordered_map<GW::Constants::SkillID, size_t> bond_map{}; // 技能 ID 到索引
+=======
+    std::vector<GW::Constants::SkillID> bond_list{};               // index to skill id
+    std::unordered_map<GW::Constants::SkillID, size_t> bond_map{}; // skill id to index
+    std::array<uint32_t, 8> fetched_skill_ids{};
+    bool bond_skills_dirty = true;
+>>>>>>> master
 
     bool UseBuff(GW::AgentID agent_id, GW::Constants::SkillID skill_id)
     {
@@ -122,8 +139,17 @@ namespace {
     {
         const GW::Skillbar* bar = GW::SkillbarMgr::GetPlayerSkillbar();
         if (!bar || !bar->IsValid()) {
+            bond_skills_dirty = true;
             return false;
         }
+        std::array<uint32_t, 8> skill_ids{};
+        for (size_t i = 0; i < skill_ids.size(); i++) {
+            skill_ids[i] = std::to_underlying(bar->skills[i].skill_id);
+        }
+        if (!bond_skills_dirty && skill_ids == fetched_skill_ids)
+            return true;
+        bond_skills_dirty = false;
+        fetched_skill_ids = skill_ids;
         bond_list.clear();
         bond_map.clear();
         for (const auto& skill : bar->skills) {
@@ -209,8 +235,13 @@ namespace {
             syntax_err();
             return;
         }
+<<<<<<< HEAD
         if (skill_id >= std::to_underlying(GW::Constants::SkillID::Count)) {
             Log::WarningW(L"%d：不是有效的技能 ID", skill_id);
+=======
+        if (skill_id >= GW::SkillbarMgr::GetSkillCount()) {
+            Log::WarningW(L"%d: is not a valid skill id", skill_id);
+>>>>>>> master
             syntax_err();
             return;
         }
@@ -267,19 +298,26 @@ bool BondsWidget::GetBondPosition(uint32_t agent_id, GW::Constants::SkillID skil
     if (!health_bar_pos)
         return false;
 
-    if (!party_indeces_by_agent_id.contains(agent_id))
+    const auto party_slot_it = party_indeces_by_agent_id.find(agent_id);
+    if (party_slot_it == party_indeces_by_agent_id.end())
         return false;
-    const auto party_slot = party_indeces_by_agent_id[agent_id];
+    const auto party_slot = party_slot_it->second;
     if (party_slot >= allies_start_idx && !settings.show_allies)
         return false;
 
+<<<<<<< HEAD
     if (!bond_map.contains(skill_id)) {
         return false; // 技能栏中没有此增益技能
+=======
+    const auto bond_it = bond_map.find(skill_id);
+    if (bond_it == bond_map.end()) {
+        return false; // bond with a skill not in skillbar
+>>>>>>> master
     }
 
     const auto img_width = health_bar_pos->bottom_right.y - health_bar_pos->top_left.y;
     const auto y = health_bar_pos->top_left.y;
-    const auto x = ImGui::GetCurrentWindow()->Pos.x + (img_width * bond_map[skill_id]);
+    const auto x = ImGui::GetCurrentWindow()->Pos.x + (img_width * bond_it->second);
 
     *top_left_out = { x, y };
     *bottom_right_out = { x + img_width, y + img_width };
@@ -301,15 +339,24 @@ void BondsWidget::Draw(IDirect3DDevice9*)
     }
     // 注意：info->heroes、->henchmen 和 ->others 在正常使用期间可能无效。
 
+<<<<<<< HEAD
     // @清理：不必每帧都做 — 仅在玩家技能发生变化时执行
+=======
+>>>>>>> master
     if (!FetchBondSkills()) {
         return;
     }
     if (bond_list.empty()) {
         return; // 如果技能栏中没有增益技能，则不显示增益小部件
     }
+<<<<<<< HEAD
     // @清理：仅在队伍窗口移动或更新时调用
+=======
+>>>>>>> master
     if (!(FetchPartyInfo() && RecalculatePartyPositions())) {
+        return;
+    }
+    if (agent_health_bar_positions.empty()) {
         return;
     }
 
@@ -467,7 +514,11 @@ void BondsWidget::DrawSettingsInternal()
         ImGui::NextSpacedElement();
         const auto written = snprintf(label_buf, sizeof(label_buf), "%s##available_bond_%p", bond.skill_name.string().c_str(), &bond);
         ASSERT(written != -1);
-        if (ImGui::Checkbox(label_buf, &bond.enabled)) {
+        const bool changed = bond.help_text
+                                 ? ImGui::CheckboxWithHelp(label_buf, &bond.enabled, bond.help_text)
+                                 : ImGui::Checkbox(label_buf, &bond.enabled);
+        if (changed) {
+            bond_skills_dirty = true;
             FetchBondSkills();
         }
     }

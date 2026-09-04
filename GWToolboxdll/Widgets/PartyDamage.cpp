@@ -877,7 +877,7 @@ void PartyDamage::DrawSettingsInternal()
     ImGui::NextSpacedElement();
     ImGui::Checkbox("在前哨站隐藏", &settings.hide_in_outpost);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("Ctrl + 点击打印玩家伤害", &settings.print_by_click);
+    ImGui::Checkbox("Ctrl + 点击在聊天框输出玩家伤害", &settings.print_by_click);
     ImGui::NextSpacedElement();
     ImGui::CheckboxWithHelp("条向左延伸", &settings.bars_left, "如果取消勾选，条将向右延伸");
     ImGui::NextSpacedElement();

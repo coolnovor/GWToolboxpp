@@ -23,7 +23,7 @@ public:
 
     [[nodiscard]] const char* Name() const override
     {
-        return "Skillbar";
+        return "技能栏设置";
     }
 
     [[nodiscard]] const char* Icon() const override { return ICON_FA_HISTORY; }

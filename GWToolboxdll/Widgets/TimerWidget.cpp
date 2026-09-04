@@ -487,7 +487,7 @@ void TimerWidget::DrawSettingsInternal()
     if (ImGui::SliderInt("显示小数位", &settings.show_decimals, 0, 3)) {
         settings.show_decimals = std::clamp(settings.show_decimals, 0, 3);
     }
-    ImGui::Text("打印时间：");
+    ImGui::Text("输出时间：");
     ImGui::Indent();
     ImGui::StartSpacedElements(200.f);
     ImGui::NextSpacedElement();

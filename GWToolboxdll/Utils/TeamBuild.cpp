@@ -40,7 +40,7 @@ namespace {
     using GW::Constants::HeroID;
 
     // ----------------------------------------------------------------
-    // Async build-load infrastructure
+    // 异步Build加载基础设施
     // ----------------------------------------------------------------
 
     struct PendingBuildLoad {
@@ -128,7 +128,7 @@ namespace {
                 if (i++) s += ", ";
                 s += p->abbrev;
             }
-            Log::Flash("Pcons loaded: %s", s.c_str());
+            Log::Flash("已加载 Pcons：%s", s.c_str());
         }
         if (!not_visible.empty()) {
             std::string s;
@@ -137,7 +137,7 @@ namespace {
                 if (i++) s += ", ";
                 s += p->abbrev;
             }
-            Log::Warning("Pcons not loaded (not visible in Pcons window): %s", s.c_str());
+            Log::Warning("Pcons 未加载（在 Pcons 窗口中不可见）：%s", s.c_str());
         }
     }
 
@@ -147,20 +147,20 @@ namespace {
             const auto decoded = build.Decode();
             if (decoded && GW::SkillbarMgr::LoadSkillTemplate(*decoded)) {
                 LoadPcons(build);
-                Log::Flash("<quote>Build loaded: %s", build.GetChatBuildCode().c_str());
+                Log::Flash("<quote>已加载Build：%s", build.GetChatBuildCode().c_str());
             }
             return true;
         }
 
-        // Hero build: async — add hero then wait for it to appear in party.
+        // 英雄Build：异步 — 添加英雄，然后等待它出现在队伍中。
         if (!started) started = TIMER_INIT();
-        if (TIMER_DIFF(started) > 1000) return true; // timeout
+        if (TIMER_DIFF(started) > 1000) return true; // 超时
 
         switch (stage) {
             case AddHero:
                 if (!ToolboxUtils::IsHeroUnlocked(build.hero_id)) return true;
                 if (!GW::PartyMgr::AddHero(build.hero_id)) {
-                    Log::Warning("Failed to add hero %d", build.hero_id);
+                    Log::Warning("添加英雄 %d 失败", build.hero_id);
                     return true;
                 }
                 stage = WaitForHero;
@@ -187,8 +187,8 @@ namespace {
 
     // ----------------------------------------------------------------
 
-    // Hero IDs in the same order as the GW client hero panel.
-    // Razah appears after mesmers because most players without mercenaries have it set as mesmer.
+    // 英雄 ID 顺序与 GW 客户端英雄面板相同。
+    // Razah 出现在幻术师之后，因为大多数没有雇佣兵的玩家将其设为幻术师。
     constexpr std::array HeroIndexToID = {
         HeroID::NoHero,
         HeroID::Goren,
@@ -232,7 +232,7 @@ namespace {
         HeroID::GhostOfAlthea
     };
 
-    // Returns hero IDs sorted by name; re-sorts each frame until all names are decoded.
+    // 按名称排序的英雄 ID；每帧重新排序，直到所有名称解码完毕。
     const std::vector<HeroID>& SortedHeroIDs()
     {
         static std::vector<HeroID> sorted;
@@ -400,7 +400,7 @@ void Build::Copy()
     const auto msg = GetChatBuildCode();
     if (msg.empty()) return;
     ImGui::SetClipboardText(msg.c_str());
-    Log::Flash("Build code copied to clipboard");
+    Log::Flash("Build代码已复制到剪贴板");
 }
 
 void Build::EnqueueSend(std::string msg)
@@ -559,12 +559,12 @@ void TeamBuild::Copy() const
     if (encoded.empty()) return;
     const auto msg = TextUtils::WStringToString(std::format(L"[TB;{}]", encoded));
     ImGui::SetClipboardText(msg.c_str());
-    Log::Flash("Teambuild code copied to clipboard");
+    Log::Flash("团队Build代码已复制到剪贴板");
 }
 TeamBuild TeamBuild::Duplicate()
 {
     TeamBuild copy = *this;
-    copy.name += " (Copy)";
+    copy.name += "（副本）";
     return std::move(copy);
 }
 
@@ -585,7 +585,7 @@ void TeamBuild::DrawTooltip()
         ImGui::Spacing();
 
         if (has_hero_slots) {
-            const auto hero_name = has_hero ? Resources::GetHeroName(build.hero_id)->string() : std::string("Player");
+            const auto hero_name = has_hero ? Resources::GetHeroName(build.hero_id)->string() : std::string("玩家");
             const auto display_name = has_name ? build.name : build.GetFallbackBuildName();
             const auto full_name = std::format("{} ({})", display_name, hero_name);
             ImGui::TextUnformatted(full_name.c_str());
@@ -599,7 +599,7 @@ void TeamBuild::DrawTooltip()
             GuiUtils::DrawSkillbar(decoded, false);
         }
         else {
-            ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "No Build Defined");
+            ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "未定义Build");
         }
 
         ImGui::Spacing();
@@ -620,13 +620,13 @@ void TeamBuild::Load() const
     }
     if (has_hero_slots) {
         if (!GW::PartyMgr::KickAllHeroes()) {
-            Log::Warning("Failed to kick all heroes");
+            Log::Warning("踢出所有英雄失败");
             return;
         }
         kickall_timer = TIMER_INIT();
     }
     if (mode > 0) {
-        GW::PartyMgr::SetHardMode(mode == 2) || (Log::Warning("Failed to set hard mode"), true);
+        GW::PartyMgr::SetHardMode(mode == 2) || (Log::Warning("设置困难模式失败"), true);
     }
     for (const auto& build : builds) {
         build.Load();
@@ -634,7 +634,7 @@ void TeamBuild::Load() const
 }
 
 // ------------------------------------------------------------
-// Player-builds layout (BuildsWindow style)
+// 玩家Build布局（BuildsWindow 风格）
 // ------------------------------------------------------------
 void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
 {
@@ -643,8 +643,8 @@ void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
     const auto icon_btn_size = ImVec2(row_height, row_height);
     const float spacing = 4.f * font_scale;
     const auto min_row_width = row_height * 15.f;
-    // 4 visible icon buttons when editable: chat, load/reroll, edit, dropdown
-    // 3 when read-only: chat, load/reroll, dropdown (no edit toggle)
+    // 可编辑时可见图标按钮数：聊天、加载/切换角色、编辑、下拉菜单 = 4
+    // 只读时：聊天、加载/切换角色、下拉菜单 = 3
     const size_t icon_btns = editable ? 4 : 3;
 
     const auto* me = GW::Agents::GetControlledCharacter();
@@ -659,7 +659,7 @@ void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
 
         const bool editing = editable && editing_build_idx_ == static_cast<int>(j);
 
-        // ---- Row: number + name (editable in edit mode) + icon buttons ----
+        // ---- 行：编号 + 名称（编辑模式下可编辑）+ 图标按钮 ----
         ImGui::Text("#%zu", j + 1);
         ImGui::SameLine(0);
         ImGui::Indent();
@@ -672,7 +672,7 @@ void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
             ImGui::InputText("###name", build.name, 128);
             ImGui::PopItemWidth();
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Build name/label");
+                ImGui::SetTooltip("Build名称/标签");
             }
 
             ImGui::PushItemWidth(name_width);
@@ -683,7 +683,7 @@ void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
             ImGui::PopItemWidth();
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip([&build]() {
-                    ImGui::TextUnformatted("Build code");
+                    ImGui::TextUnformatted("Build代码");
                     if (const auto decoded = build.Decode()) {
                         ImGui::Spacing();
                         GuiUtils::DrawSkillbar(build.Decode());
@@ -712,12 +712,12 @@ void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
         }
 
 
-        // --- Send to chat ---
+        // --- 发送到聊天 ---
         ImGui::SameLine(btns_start);
         if (GuiUtils::IconButton("##chat", GuiUtils::GwButtonIcon::ChatIcon, icon_btn_size)) build.Send();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Send to team chat");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("发送到队伍聊天");
 
-        // --- Load / Reroll ---
+        // --- 加载 / 切换角色 ---
         ImGui::SameLine(0, spacing);
         {
             const auto skillbar = build.Decode();
@@ -741,7 +741,7 @@ void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
                 }
                 else if (reroll_to) {
                     if (GuiUtils::IconButtonConfirm("##reroll", GuiUtils::GwButtonIcon::ManageTemplates, icon_btn_size)) build.RerollAndLoad(reroll_to);
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip(std::format("Reroll to {} and load build", TextUtils::WStringToString(reroll_to)).c_str());
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip(std::format("切换角色至 {} 并加载Build", TextUtils::WStringToString(reroll_to)).c_str());
                 }
                 else {
                     ImGui::Dummy(icon_btn_size);
@@ -749,27 +749,27 @@ void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
             }
         }
 
-        // --- Edit toggle ---
+        // --- 编辑开关 ---
         ImGui::SameLine(0, spacing);
         if (editable) {
             if (editing) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
             if (ImGui::Button(ICON_FA_EDIT "##edit", icon_btn_size)) editing_build_idx_ = editing ? -1 : static_cast<int>(j);
             if (editing) ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip(editing ? "Stop editing" : "Edit build");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip(editing ? "停止编辑" : "编辑Build");
         }
 
-        // --- Dropdown (view, copy, delete) ---
+        // --- 下拉菜单（查看、复制、删除） ---
         ImGui::SameLine(0, spacing);
         if (ImGui::Button(ICON_FA_ELLIPSIS_V, icon_btn_size)) ImGui::OpenPopup("##build_menu");
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("More options");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("更多选项");
 
         if (ImGui::BeginPopup("##build_menu")) {
-            if (ImGui::MenuItem(ICON_FA_EYE "  View build")) build.View();
-            if (ImGui::MenuItem(ICON_FA_COPY "  Copy build code")) build.Copy();
+            if (ImGui::MenuItem(ICON_FA_EYE "  查看Build")) build.View();
+            if (ImGui::MenuItem(ICON_FA_COPY "  复制Build代码")) build.Copy();
             if (editable) {
                 ImGui::Separator();
                 bool delete_confirmed = false;
-                if (ImGui::ConfirmButton(ICON_FA_TRASH "  Delete build", &delete_confirmed, "Delete Build\n\nAre you sure?\nThis operation cannot be undone.")) {
+                if (ImGui::ConfirmButton(ICON_FA_TRASH "  删除Build", &delete_confirmed, "删除Build\n\n确定吗？\n此操作无法撤销。")) {
                     if (editing_build_idx_ == static_cast<int>(j))
                         editing_build_idx_ = -1;
                     else if (editing_build_idx_ > static_cast<int>(j))
@@ -785,10 +785,10 @@ void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
             ImGui::EndPopup();
         }
 
-        // ---- Expanded edit panel (below the row) ----
+        // ---- 展开的编辑面板（行下方） ----
         if (editing) {
-            ImGui::TextUnformatted("Pcons:");
-            ImGui::ShowHelp("Enable or disable pcons when this build is loaded");
+            ImGui::TextUnformatted("Pcons：");
+            ImGui::ShowHelp("加载此Build时启用或禁用 Pcons");
             const auto& pcons = PconsWindow::Instance().pcons;
             const float skill_h = ImGui::CalcTextSize(" ").y * 2.f;
             ImGui::StartSpacedElements(skill_h + ImGui::GetStyle().ItemSpacing.x);
@@ -819,23 +819,23 @@ void TeamBuild::DrawPlayerBuildsContent(bool& builds_modified, bool editable)
     ImGui::Spacing();
 
     if (editable) {
-        ImGui::Checkbox("Show numbers", &show_numbers);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Prefix build names with their index when sending to chat");
+        ImGui::Checkbox("显示编号", &show_numbers);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("发送到聊天时在Build名称前添加索引");
 
         ImGui::SameLine();
         const float add_btn_width = 140.f;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - add_btn_width);
-        if (ImGui::Button("Add Build", ImVec2(add_btn_width, 0))) {
+        if (ImGui::Button("添加Build", ImVec2(add_btn_width, 0))) {
             builds.emplace_back("", "");
             ResetEncodedCache();
             editing_build_idx_ = static_cast<int>(builds.size()) - 1;
             builds_modified = true;
         }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add another build row");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("添加另一行Build");
     }
 }
 // ------------------------------------------------------------
-// Hero-builds layout (HeroBuildsWindow style)
+// 英雄Build布局（HeroBuildsWindow 风格）
 // ------------------------------------------------------------
 void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
 {
@@ -844,8 +844,8 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
     const auto icon_btn_size = ImVec2(row_height, row_height);
     const float spacing = 4.f * font_scale;
     const auto min_row_width = row_height * 15.f;
-    // 4 visible icon buttons when editable: send, load, edit, dropdown
-    // 3 when read-only: send, load, dropdown (no edit toggle)
+    // 可编辑时可见图标按钮数：发送、加载、编辑、下拉菜单 = 4
+    // 只读时：发送、加载、下拉菜单 = 3
     const size_t icon_btns = editable ? 4 : 3;
 
     const auto* me = GW::Agents::GetControlledCharacter();
@@ -871,7 +871,7 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
         const bool editing = editable && editing_build_idx_ == static_cast<int>(j);
         const bool is_player = j == player_idx;
 
-        // ---- Row label ----
+        // ---- 行标签 ----
         if (is_player)
             ImGui::Text("P");
         else
@@ -883,12 +883,12 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
         const auto btns_start = min_row_width + ImGui::GetIndent() - (icon_btns * (icon_btn_size.x + spacing));
         const float name_width = btns_start - spacing - ImGui::GetIndent();
 
-        // ---- Name + code (editable in edit mode) ----
+        // ---- 名称 + 代码（编辑模式下可编辑） ----
         if (editing) {
             ImGui::PushItemWidth(name_width);
             ImGui::InputText("###name", build.name, 128);
             ImGui::PopItemWidth();
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Build name/label");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Build名称/标签");
 
             ImGui::PushItemWidth(name_width);
             if (ImGui::InputText("###code", build.code, 128)) {
@@ -898,7 +898,7 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
             ImGui::PopItemWidth();
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip([&build]() {
-                    ImGui::TextUnformatted("Build code");
+                    ImGui::TextUnformatted("Build代码");
                     if (const auto decoded = build.Decode()) {
                         ImGui::Spacing();
                         GuiUtils::DrawSkillbar(decoded);
@@ -923,12 +923,12 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
             }
         }
 
-        // --- Send to chat ---
+        // --- 发送到聊天 ---
         ImGui::SameLine(btns_start);
         if (GuiUtils::IconButton("##chat", GuiUtils::GwButtonIcon::ChatIcon, icon_btn_size)) build.Send();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Send to team chat");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("发送到队伍聊天");
 
-        // --- Load / Reroll ---
+        // --- 加载 / 切换角色 ---
         ImGui::SameLine(0, spacing);
         {
             const auto skillbar = build.Decode();
@@ -946,11 +946,11 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
 
                 if (can_load) {
                     if (GuiUtils::IconButton("##load", GuiUtils::GwButtonIcon::LoadFromTemplate, icon_btn_size)) build.Load();
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Load build");
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("加载Build");
                 }
                 else if (reroll_to) {
                     if (GuiUtils::IconButtonConfirm("##reroll", GuiUtils::GwButtonIcon::ManageTemplates, icon_btn_size)) build.RerollAndLoad(reroll_to);
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip(std::format("Reroll to {} and load build", TextUtils::WStringToString(reroll_to)).c_str());
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip(std::format("切换角色至 {} 并加载Build", TextUtils::WStringToString(reroll_to)).c_str());
                 }
                 else {
                     ImGui::Dummy(icon_btn_size);
@@ -964,10 +964,10 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
                     const bool hero_in_party = GetHeroFlagInfo(static_cast<uint32_t>(build.hero_id)) != nullptr;
                     const bool no_space = party_full && !hero_in_party;
                     if (no_space) ImGui::BeginDisabled();
-                    if (GuiUtils::IconButton("Load##load", GuiUtils::GwButtonIcon::LoadFromTemplate, icon_btn_size)) build.Load();
+                    if (GuiUtils::IconButton("加载##load", GuiUtils::GwButtonIcon::LoadFromTemplate, icon_btn_size)) build.Load();
                     if (no_space) ImGui::EndDisabled();
                     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                        ImGui::SetTooltip(no_space ? "No space in the party to load the hero" : "Load build on hero");
+                        ImGui::SetTooltip(no_space ? "队伍中无空位加载此英雄" : "在英雄上加载Build");
                 }
                 else {
                     ImGui::Dummy(icon_btn_size);
@@ -975,23 +975,23 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
             }
         }
 
-        // --- Edit toggle ---
+        // --- 编辑开关 ---
         ImGui::SameLine(0, spacing);
         if (editable) {
             if (editing) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
             if (ImGui::Button(ICON_FA_EDIT "##edit", icon_btn_size)) editing_build_idx_ = editing ? -1 : static_cast<int>(j);
             if (editing) ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip(editing ? "Stop editing" : "Edit build");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip(editing ? "停止编辑" : "编辑Build");
         }
 
-        // --- Dropdown (view, copy, move, delete) ---
+        // --- 下拉菜单（查看、复制、移动、删除） ---
         ImGui::SameLine(0, spacing);
         if (ImGui::Button(ICON_FA_ELLIPSIS_V, icon_btn_size)) ImGui::OpenPopup("##build_menu");
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("More options");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("更多选项");
 
         if (ImGui::BeginPopup("##build_menu")) {
-            if (ImGui::MenuItem(ICON_FA_EYE "  View build")) build.View();
-            if (ImGui::MenuItem(ICON_FA_COPY "  Copy build code")) build.Copy();
+            if (ImGui::MenuItem(ICON_FA_EYE "  查看Build")) build.View();
+            if (ImGui::MenuItem(ICON_FA_COPY "  复制Build代码")) build.Copy();
             if (editable) {
 
                 if (!is_player) {
@@ -1001,7 +1001,7 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
                     const bool can_move_down = j + 1 < builds.size() && !next_is_player;
                     ImGui::Separator();
                     if (!can_move_up) ImGui::BeginDisabled();
-                    if (ImGui::MenuItem(ICON_FA_ARROW_UP "  Move up")) {
+                    if (ImGui::MenuItem(ICON_FA_ARROW_UP "  上移")) {
                         std::swap(builds[j - 1], builds[j]);
                         ResetEncodedCache();
                         builds_modified = true;
@@ -1012,7 +1012,7 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
                     }
                     if (!can_move_up) ImGui::EndDisabled();
                     if (!can_move_down) ImGui::BeginDisabled();
-                    if (ImGui::MenuItem(ICON_FA_ARROW_DOWN "  Move down")) {
+                    if (ImGui::MenuItem(ICON_FA_ARROW_DOWN "  下移")) {
                         std::swap(builds[j], builds[j + 1]);
                         ResetEncodedCache();
                         builds_modified = true;
@@ -1026,7 +1026,7 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
 
                 ImGui::Separator();
                 bool delete_confirmed = false;
-                if (ImGui::ConfirmButton(ICON_FA_TRASH "  Delete build", &delete_confirmed, "Delete Build\n\nAre you sure?\nThis operation cannot be undone.")) {
+                if (ImGui::ConfirmButton(ICON_FA_TRASH "  删除Build", &delete_confirmed, "删除Build\n\n确定吗？\n此操作无法撤销。")) {
                     if (editing_build_idx_ == static_cast<int>(j))
                         editing_build_idx_ = -1;
                     else if (editing_build_idx_ > static_cast<int>(j))
@@ -1043,7 +1043,7 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
             ImGui::EndPopup();
         }
 
-        // ---- Expanded edit section ----
+        // ---- 展开的编辑区域 ----
         if (editing) {
             if (!is_player) {
                 const auto& sorted_heroes = SortedHeroIDs();
@@ -1051,7 +1051,7 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
                 int combo_idx = hero_it != sorted_heroes.end() ? static_cast<int>(std::distance(sorted_heroes.begin(), hero_it)) : -1;
                 ImGui::PushItemWidth(name_width);
                 if (ImGui::MyCombo(
-                        "###heroid", "Choose Hero", &combo_idx,
+                        "###heroid", "选择英雄", &combo_idx,
                         [](void*, const int idx, const char** out_text) -> bool {
                             const auto& heroes = SortedHeroIDs();
                             if (idx < 0 || idx >= static_cast<int>(heroes.size())) return false;
@@ -1070,19 +1070,19 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
                 if (ImGui::Button(panel_icon, icon_btn_size)) {
                     build.show_panel = !build.show_panel;
                 }
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip(build.show_panel ? "Hero panel: Show" : "Hero panel: Hide");
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip(build.show_panel ? "英雄面板：显示" : "英雄面板：隐藏");
 
                 ImGui::SameLine(0, spacing);
                 const char* behavior_icon = reinterpret_cast<const char*>(ICON_FA_SHIELD_ALT);
-                const char* behavior_tooltip = "Hero behaviour: Guard";
+                const char* behavior_tooltip = "英雄行为：防御";
                 switch (build.behavior) {
                     case 0:
                         behavior_icon = reinterpret_cast<const char*>(ICON_FA_FIST_RAISED);
-                        behavior_tooltip = "Hero behaviour: Fight";
+                        behavior_tooltip = "英雄行为：攻击";
                         break;
                     case 2:
                         behavior_icon = reinterpret_cast<const char*>(ICON_FA_DOVE);
-                        behavior_tooltip = "Hero behaviour: Avoid Combat";
+                        behavior_tooltip = "英雄行为：回避战斗";
                         break;
                 }
                 if (ImGui::Button(behavior_icon, icon_btn_size)) {
@@ -1096,10 +1096,10 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
                     if ((build.disabled_skills >> k) & 1) enabled_count--;
                 char skills_label[8];
                 snprintf(skills_label, sizeof(skills_label), "%d/8", enabled_count);
-                if (ImGui::Button(skills_label, icon_btn_size)) ImGui::OpenPopup("SkillsPopup");
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Toggle which skills are disabled when loading");
+                if (ImGui::Button(skills_label, icon_btn_size)) ImGui::OpenPopup("技能开关");
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("切换加载时禁用哪些技能");
 
-                if (ImGui::BeginPopup("SkillsPopup")) {
+                if (ImGui::BeginPopup("技能开关")) {
                     const auto decoded = build.Decode();
                     constexpr float skill_px = 48.0f;
                     for (int k = 0; k < 8; k++) {
@@ -1134,8 +1134,8 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
             }
 
             if (is_player) {
-                ImGui::TextUnformatted("Pcons:");
-                ImGui::ShowHelp("Enable or disable pcons when this build is loaded");
+                ImGui::TextUnformatted("Pcons：");
+                ImGui::ShowHelp("加载此Build时启用或禁用 Pcons");
                 const auto& pcons = PconsWindow::Instance().pcons;
                 const float skill_h = ImGui::CalcTextSize(" ").y * 2.f;
                 ImGui::StartSpacedElements(skill_h + ImGui::GetStyle().ItemSpacing.x);
@@ -1171,21 +1171,21 @@ void TeamBuild::DrawHeroBuildsContent(bool& builds_modified, bool editable)
     if (editable) {
         const bool has_player_slot = player_idx < builds.size();
         if (!has_player_slot && builds.size() < 8) {
-            if (ImGui::Button("Add Player Slot")) {
+            if (ImGui::Button("添加玩家槽位")) {
                 builds.insert(builds.begin(), Build("", "", HeroID::NoHero, 0, 1));
                 ResetEncodedCache();
                 builds_modified = true;
             }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add a player build slot");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("添加玩家Build槽位");
             ImGui::SameLine();
         }
         if (builds.size() < 8) {
-            if (ImGui::Button("Add Hero Slot")) {
+            if (ImGui::Button("添加英雄槽位")) {
                 builds.push_back(Build("", "", HeroID::NoHero, 0, 1));
                 ResetEncodedCache();
                 builds_modified = true;
             }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add a hero build slot");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("添加英雄Build槽位");
         }
     }
 }
@@ -1215,37 +1215,37 @@ bool TeamBuild::DrawEditWindow(size_t index, std::vector<TeamBuild>& all_builds,
     }
 
     if (has_hero_slots) {
-        ImGui::InputText("Hero Build Name", name, 128);
-        ImGui::InputText("Group", group, 128);
+        ImGui::InputText("英雄Build名称", name, 128);
+        ImGui::InputText("分组", group, 128);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Assign to a group. Builds sharing a group name are shown together under a collapsible header.");
+            ImGui::SetTooltip("分配到一个分组。共享相同分组名称的Build会显示在一个可折叠标题下。");
         }
         DrawHeroBuildsContent(builds_modified);
     }
     else {
         ImGui::PushItemWidth(-120.f);
-        ImGui::InputText("Build Name", name, 128);
+        ImGui::InputText("Build名称", name, 128);
         ImGui::PopItemWidth();
         DrawPlayerBuildsContent(builds_modified);
     }
 
     ImGui::Spacing();
 
-    if (ImGui::Button("Up") && index > 0) {
+    if (ImGui::Button("上移") && index > 0) {
         std::swap(all_builds[index - 1], all_builds[index]);
         builds_modified = true;
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Move the teambuild up in the list");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("在列表中上移此团队Build");
 
     ImGui::SameLine();
-    if (ImGui::Button("Down") && index + 1 < all_builds.size()) {
+    if (ImGui::Button("下移") && index + 1 < all_builds.size()) {
         std::swap(all_builds[index], all_builds[index + 1]);
         builds_modified = true;
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Move the teambuild down in the list");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("在列表中下移此团队Build");
 
     ImGui::SameLine();
-    if (ImGui::Button("Duplicate")) {
+    if (ImGui::Button("复制")) {
         auto cpy = Duplicate();
         cpy.has_hero_slots = has_hero_slots;
         cpy.edit_open = true;
@@ -1256,29 +1256,29 @@ bool TeamBuild::DrawEditWindow(size_t index, std::vector<TeamBuild>& all_builds,
         return false;
     }
     if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Duplicate Teambuild");
+        ImGui::SetTooltip("复制团队Build");
     }
     bool deleted = false;
-    if (ImGui::ConfirmButton("Delete", &deleted, "Delete Teambuild?\n\nAre you sure?\nThis operation cannot be undone.\n\n")) {
+    if (ImGui::ConfirmButton("删除", &deleted, "删除团队Build？\n\n确定吗？\n此操作无法撤销。")) {
         all_builds.erase(all_builds.begin() + static_cast<ptrdiff_t>(index));
         builds_modified = true;
         ImGui::End();
         return false;
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Delete the teambuild");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("删除此团队Build");
 
     if (has_hero_slots) {
         ImGui::SameLine();
         ImGui::PushItemWidth(110.f);
-        constexpr const char* modes[] = {"Don't change", "Normal Mode", "Hard Mode"};
-        ImGui::Combo("Mode", &mode, modes, 3);
+        constexpr const char* modes[] = {"不更改", "普通模式", "困难模式"};
+        ImGui::Combo("模式", &mode, modes, 3);
         ImGui::PopItemWidth();
 
         ImGui::SameLine(ImGui::GetContentRegionAvail().x + ImGui::GetCursorPosX() - 40);
-        if (ImGui::Button("Close", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+        if (ImGui::Button("关闭", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
             edit_open = false;
         }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Close this window");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("关闭此窗口");
     }
 
     ImGui::Spacing();
@@ -1286,32 +1286,32 @@ bool TeamBuild::DrawEditWindow(size_t index, std::vector<TeamBuild>& all_builds,
     ImGui::Spacing();
     const bool chat_code_too_long = ChatCodeTooLong();
     if (chat_code_too_long) ImGui::BeginDisabled();
-    if (ImGui::Button("Send Teambuild code in chat")) {
+    if (ImGui::Button("在聊天中发送团队Build代码")) {
         this->Send();
     }
     if (chat_code_too_long) ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
         if (chat_code_too_long) {
-            ImGui::SetTooltip("Teambuild code is too long to send in chat");
+            ImGui::SetTooltip("团队Build代码太长，无法在聊天中发送");
         }
         else {
-            ImGui::SetTooltip("Send the encoded teambuild link to team chat.\nOther toolbox users can click the chat link without getting spammed.");
+            ImGui::SetTooltip("将编码后的团队Build链接发送到队伍聊天。\n其他工具箱用户可直接点击链接，不会刷屏。");
         }
     }
     ImGui::SameLine();
-    if (ImGui::Button("Copy Teambuild code")) {
+    if (ImGui::Button("复制团队Build代码")) {
         this->Copy();
     }
     if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Copy the encoded teambuild link to clipboard.\nPaste it anywhere to share your teambuild.");
+        ImGui::SetTooltip("将编码后的团队Build链接复制到剪贴板。\n可粘贴到任何地方分享你的团队Build。");
     }
     ImGui::SameLine();
-    if (ImGui::ConfirmButton("Send all builds in chat", &send_all_confirming_, "Send All Builds to Chat\n\nThis will send each build as a separate message in team chat.\nAre you sure?")) {
+    if (ImGui::ConfirmButton("在聊天中发送所有Build", &send_all_confirming_, "在聊天中发送所有Build\n\n这将在队伍聊天中将每个Build作为单独消息发送。\n确定吗？")) {
         this->Send(true);
         send_all_confirming_ = false;
     }
     if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Send all builds as individual skill template links in team chat.\nNon-toolbox users will be able to click builds one by one.");
+        ImGui::SetTooltip("将每个Build作为独立的技能模板链接发送到队伍聊天。\n非工具箱用户也能逐一点击加载。");
     }
 
     ImGui::End();
@@ -1346,13 +1346,13 @@ void TeamBuild::DrawDetachedWindow(std::vector<TeamBuild>& hero_builds, bool& bu
     else
         DrawPlayerBuildsContent(builds_modified, false);
 
-    // ---- Bottom buttons (detached-specific) ----
+    // ---- 底部按钮（分离窗口专用） ----
     if (has_hero_slots) {
-        if (ImGui::Button("Load All")) Load();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Load all builds onto your heroes");
+        if (ImGui::Button("全部加载")) Load();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("将所有Build加载到你的英雄上");
         ImGui::SameLine();
     }
-    if (ImGui::Button("Add to My Builds")) {
+    if (ImGui::Button("添加到我的Build")) {
         TeamBuild copy = *this;
         copy.edit_open = false;
         if (copy.has_hero_slots) {
@@ -1363,10 +1363,10 @@ void TeamBuild::DrawDetachedWindow(std::vector<TeamBuild>& hero_builds, bool& bu
             BuildsWindow::Instance().AddTeambuild(std::move(copy));
         }
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip(has_hero_slots ? "Save this teambuild to your Hero Builds list" : "Save this teambuild to your Builds list");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip(has_hero_slots ? "将此团队Build保存到你的英雄Build列表" : "将此团队Build保存到你的Build列表");
 
     ImGui::SameLine();
-    if (ImGui::Button("Close")) edit_open = false;
+    if (ImGui::Button("关闭")) edit_open = false;
 
     ImGui::End();
 }

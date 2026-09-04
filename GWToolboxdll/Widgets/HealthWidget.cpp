@@ -106,7 +106,7 @@ void HealthWidget::DrawSettingsInternal()
     ImGui::SameLine();
     ImGui::Checkbox("在前哨站隐藏", &settings.hide_in_outpost);
     ImGui::SameLine();
-    ImGui::Checkbox("Ctrl+点击打印目标生命值", &settings.click_to_print_health);
+    ImGui::Checkbox("Ctrl+点击在聊天框输出目标生命值", &settings.click_to_print_health);
     ImGui::Text("文字大小：");
     ImGui::ShowHelp("文字大小为 0 表示不绘制。");
     ImGui::Indent();

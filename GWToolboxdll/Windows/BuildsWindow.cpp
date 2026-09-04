@@ -821,8 +821,8 @@ void BuildsWindow::Draw(IDirect3DDevice9* pDevice)
                 }
                 ImGui::PopID();
             }
-            if (ImGui::Button("添加团队配装", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-                TeamBuild new_tbuild(std::format("我的新团队配装，{}", TextUtils::GetFormattedDateTime()));
+            if (ImGui::Button("添加团队装备配置", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+                TeamBuild new_tbuild(std::format("我的新 团队 配装，{}", TextUtils::GetFormattedDateTime()));
                 new_tbuild.has_hero_slots = false;
                 new_tbuild.edit_open = true;
                 const auto party_agent_ids = GW::PartyMgr::GetPartyAgentIds();

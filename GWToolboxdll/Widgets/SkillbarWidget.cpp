@@ -441,7 +441,7 @@ void SkillbarWidget::DrawSettingsInternal()
     const bool is_vertical = layout == Layout::Column || layout == Layout::Columns;
 
     ImGui::Separator();
-    ImGui::Text("技能覆盖层设置");
+    ImGui::Text("技能栏覆盖设置");
     ImGui::Spacing();
     ImGui::Indent();
     ImGui::PushID("skill_overlay_settings");

@@ -148,9 +148,9 @@ namespace {
 
         status->blocked = true;
 
-        wcscpy(packet->link_prefix, L"团队构建: ");
+        wcscpy(packet->link_prefix, L"团队Build: ");
 
-        const auto new_name = std::format(L"{} 的团队构建", packet->sender);
+        const auto new_name = std::format(L"{} 的团队Build", packet->sender);
 
         wcscpy(packet->label, new_name.c_str());
     }
@@ -180,7 +180,7 @@ namespace {
     }
 
     TeamBuild FromCurrentTeam() {
-        TeamBuild tb(std::format("{} 的团队构建, {}", TextUtils::WStringToString(GW::AccountMgr::GetCurrentPlayerName()),TextUtils::GetFormattedDateTime()));
+        TeamBuild tb(std::format("{} 的团队Build, {}", TextUtils::WStringToString(GW::AccountMgr::GetCurrentPlayerName()),TextUtils::GetFormattedDateTime()));
         tb.has_hero_slots = true;
         tb.edit_open = true;
         GW::SkillbarMgr::SkillTemplate skill_template;
@@ -402,10 +402,10 @@ void HeroBuildsWindow::Draw(IDirect3DDevice9*)
                 if (send_disabled) ImGui::EndDisabled();
                 if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
                     if (send_disabled) {
-                        ImGui::SetTooltip("团队构建代码太长，无法在聊天中发送。\n[TB;<code>] 将超过 120 个字符。");
+                        ImGui::SetTooltip("团队Build 代码太长，无法在聊天中发送。\n[TB;<code>] 将超过 120 个字符。");
                     }
                     else {
-                        ImGui::SetTooltip(ctrl_held ? "点击发送到团队聊天" : "点击将构建加载到英雄和玩家。按住 Ctrl 点击则发送到聊天。");
+                        ImGui::SetTooltip(ctrl_held ? "点击发送到队伍频道" : "点击将团队Build加载到英雄和玩家。按住 Ctrl 点击则发送到聊天。");
                     }
                 }
 
@@ -477,7 +477,7 @@ void HeroBuildsWindow::Draw(IDirect3DDevice9*)
                     ImGui::PopID();
                 }
             }
-            if (ImGui::Button("添加团队构建", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+            if (ImGui::Button("添加团队Build", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
                 TeamBuild tb = FromCurrentTeam();
                 tb.has_hero_slots = tb.edit_open = true;
                 builds_changed = true;
@@ -552,7 +552,7 @@ void HeroBuildsWindow::Update(float)
 void CHAT_CMD_FUNC(HeroBuildsWindow::CmdHeroTeamBuild)
 {
     if (argc < 2) {
-        Log::ErrorW(L"语法: /%s [英雄构建名称|构建代码]", argv[0]);
+        Log::ErrorW(L"语法: /%s [英雄Build名称|Build代码]", argv[0]);
         return;
     }
     std::wstring arg = argv[1];
@@ -564,7 +564,7 @@ void CHAT_CMD_FUNC(HeroBuildsWindow::CmdHeroTeamBuild)
     if (TeamBuildEncoder::IsEncodedTeamBuild(arg)) {
         TeamBuild tbuild;
         if (!TeamBuildEncoder::EncodedToTeamBuild(arg, tbuild)) {
-            Log::ErrorW(L"解码团队构建代码失败");
+            Log::ErrorW(L"解析团队Build代码失败");
             return;
         }
         tbuild.has_hero_slots = true;
@@ -576,7 +576,7 @@ void CHAT_CMD_FUNC(HeroBuildsWindow::CmdHeroTeamBuild)
     if (TeamBuildEncoder::IsDaybreakTeamBuild(arg_s)) {
         TeamBuild tbuild;
         if (!TeamBuildEncoder::DaybreakToTeamBuild(arg_s, tbuild)) {
-            Log::ErrorW(L"解码团队构建代码失败");
+            Log::ErrorW(L"解析团队Build代码失败");
             return;
         }
         tbuild.has_hero_slots = true;
@@ -586,7 +586,7 @@ void CHAT_CMD_FUNC(HeroBuildsWindow::CmdHeroTeamBuild)
 
     const TeamBuild* found = Instance().GetTeambuildByName(arg_s);
     if (!found) {
-        Log::ErrorW(L"未找到 '%s' 的英雄构建", arg.c_str());
+        Log::ErrorW(L"未找到 '%s' 的英雄Build", arg.c_str());
         return;
     }
     found->Load();
@@ -594,11 +594,11 @@ void CHAT_CMD_FUNC(HeroBuildsWindow::CmdHeroTeamBuild)
 
 void HeroBuildsWindow::DrawHelp()
 {
-    if (!ImGui::TreeNodeEx("英雄团队构建聊天命令", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+    if (!ImGui::TreeNodeEx("英雄团队Build聊天命令", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
         return;
     }
     ImGui::Bullet();
-    ImGui::Text("'/heroteam <名称|代码>' 或 '/herobuild <名称|代码>' 按部分名称、Daybreak 构建代码或加密字符串加载英雄团队构建。");
+    ImGui::Text("'/heroteam <名称|代码>' 或 '/herobuild <名称|代码>' 按部分名称、Daybreak Build代码或加密字符串加载英雄团队Build。");
     ImGui::TreePop();
 }
 
@@ -611,8 +611,8 @@ void HeroBuildsWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
 
 void HeroBuildsWindow::DrawSettingsInternal()
 {
-    ImGui::Checkbox("进入探索区域时隐藏英雄构建窗口", &settings.hide_when_entering_explorable);
-    ImGui::CheckboxWithHelp("每次只显示一个团队构建窗口", &settings.one_teambuild_at_a_time, "打开新窗口时关闭其他团队构建窗口");
+    ImGui::Checkbox("进入探索区域时隐藏英雄Build窗口", &settings.hide_when_entering_explorable);
+    ImGui::CheckboxWithHelp("每次只显示一个团队Build窗口", &settings.one_teambuild_at_a_time, "打开新窗口时关闭其他团队Build窗口");
 }
 
 void HeroBuildsWindow::SaveSettings(SettingsDoc& doc)

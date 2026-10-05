@@ -15,7 +15,7 @@ public:
 
     [[nodiscard]] const char* Name() const override
     {
-        return "效果持续时间";
+        return "Effect Durations";
     }
 
     [[nodiscard]] const char* Icon() const override { return ICON_FA_HISTORY; }

@@ -21,11 +21,11 @@ public:
         return instance;
     }
 
-    [[nodiscard]] const char* Name() const override { return "gMod/uMod/纯文本模式"; }
+    [[nodiscard]] const char* Name() const override { return "gMod/uMod/Texmod"; }
     [[nodiscard]] const char* Icon() const override { return ICON_FA_IMAGE; }
     [[nodiscard]] const char* Description() const override
     {
-        return "在运行时通过gMod加载纹理替换包（TPF/ZIP）。";
+        return "Load texture replacement packs (TPF/ZIP) via gMod at runtime.";
     }
 
     // Persisted shape of one texture pack entry (path stored as UTF-8)

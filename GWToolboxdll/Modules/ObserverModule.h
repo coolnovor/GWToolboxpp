@@ -555,7 +555,7 @@ public:
 
     const bool IsActive() const;
 
-    [[nodiscard]] const char* Name() const override { return "观战模块"; }
+    [[nodiscard]] const char* Name() const override { return "Observer Module"; }
     [[nodiscard]] const char* Icon() const override { return ICON_FA_EYE; }
 
     struct Settings {
@@ -657,11 +657,10 @@ private:
     void HandleInstantSkillActivated(uint32_t caster_id, uint32_t target_id, GW::Constants::SkillID skill_id);
 
     void HandleAttackSkillFinished(uint32_t agent_id);
-    void HandleAttackSkillStopped(uint32_t agent_id);
     void HandleAttackSkillStarted(uint32_t caster_id, uint32_t target_id, GW::Constants::SkillID skill_id);
 
     void HandleSkillFinished(uint32_t agent_id);
-    void HandleSkillStopped(uint32_t agent_id);
+    void HandleSkillCancelled(uint32_t agent_id);
     void HandleSkillActivated(uint32_t caster_id, uint32_t target_id, GW::Constants::SkillID skill_id);
 
     void HandleGenericPacket(uint32_t value_id, uint32_t caster_id,

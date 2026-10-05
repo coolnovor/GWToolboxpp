@@ -77,8 +77,8 @@ void ClockWidget::SaveSettings(SettingsDoc& doc)
 
 void ClockWidget::DrawSettingsInternal()
 {
-    ImGui::Checkbox("使用 24 小时制", &settings.use_24h_clock);
-    ImGui::Checkbox("显示秒", &settings.show_seconds);
-    ImGui::DragFloat("文字大小（像素）", &settings.font_size, 1.f, 0.f, 48.f, "%.f");
+    ImGui::Checkbox("Use 24h clock", &settings.use_24h_clock);
+    ImGui::Checkbox("Show seconds", &settings.show_seconds);
+    ImGui::DragFloat("Text size in px", &settings.font_size, 1.f, 0.f, 48.f, "%.f");
 
 }

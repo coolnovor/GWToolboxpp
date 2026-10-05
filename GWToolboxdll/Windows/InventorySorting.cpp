@@ -35,7 +35,7 @@ namespace {
         return false;                                                                      \
     }                                                                                      \
     if (pending_cancel) {                                                                  \
-        Log::Info("排序已取消");                                                           \
+        Log::Info("Sorting cancelled");                                                    \
         is_sorting = false;                                                                \
         show_sort_popup = false;                                                           \
         return false;                                                                      \
@@ -46,7 +46,7 @@ namespace {
         return GW::Map::GetInstanceType() != GW::Constants::InstanceType::Loading && !GW::Map::GetIsObserving() && GW::MemoryMgr::GetGWWindowHandle() == GetActiveWindow();
     }
 
-    // ImGui 颜色：物品稀有度
+    // ImGui colors for item rarities
     const ImVec4 ItemBlue = ImColor(153, 238, 255).Value;
     const ImVec4 ItemPurple = ImColor(187, 137, 237).Value;
     const ImVec4 ItemGold = ImColor(255, 204, 86).Value;
@@ -59,15 +59,15 @@ namespace {
     GW::HookEntry sort_inventory_cmd_entry;
     GW::HookEntry sort_storage_cmd_entry;
 
-    // 由聊天命令设置，在下一次 Draw 中触发确认对话框
+    // Flags set by chat commands to trigger confirm dialogs on the next Draw
     bool pending_sortinventory_confirm = false;
     bool pending_sortstorage_confirm = false;
 
     std::vector<GW::Constants::ItemType> sort_order;
     InventorySorting::Settings settings;
 
-    // 主键：物品类型（来自 sort_order）。次键：对于 Nicholas 收集品，
-    // 距离 Nicholas 要求的周数（0 = 本周）；对于所有其他物品，使用 model_file_id。
+    // Primary key: item type (from sort_order). Secondary key: for Nicholas collectibles,
+    // weeks until Nick requests them (0 = this week); for all other items, model_file_id.
     uint32_t GetItemSortPriority(GW::Item* item)
     {
         if (!item) return 0xFFFFFFFF;
@@ -138,24 +138,24 @@ namespace {
     void DrawSortInventoryPopup()
     {
         if (show_sort_popup) {
-            ImGui::OpenPopup("排序库存");
+            ImGui::OpenPopup("Sort Inventory");
         }
 
-        if (ImGui::BeginPopupModal("排序库存", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::BeginPopupModal("Sort Inventory", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             if (!is_sorting) {
                 ImGui::CloseCurrentPopup();
                 ImGui::EndPopup();
                 return;
             }
 
-            ImGui::TextUnformatted("正在按类型排序库存...");
-            ImGui::Text("已排序物品: %zu", items_sorted_count);
+            ImGui::TextUnformatted("Sorting inventory by type...");
+            ImGui::Text("Items sorted: %zu", items_sorted_count);
 
             ImGui::Separator();
             ImGui::Spacing();
 
-            ImGui::TextDisabled("根据物品数量，这可能需要一段时间。");
-            ImGui::TextDisabled("您可以随时取消。");
+            ImGui::TextDisabled("This may take a while depending on the number of items.");
+            ImGui::TextDisabled("You can cancel at any time.");
 
             ImGui::Spacing();
 
@@ -163,7 +163,7 @@ namespace {
             const float window_width = ImGui::GetContentRegionAvail().x;
             ImGui::SetCursorPosX((window_width - button_width) * 0.5f);
 
-            if (ImGui::Button("取消", ImVec2(button_width, 0)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            if (ImGui::Button("Cancel", ImVec2(button_width, 0)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
                 pending_cancel = true;
                 InventorySorting::CancelSort();
                 ImGui::CloseCurrentPopup();
@@ -190,12 +190,12 @@ namespace {
     struct SlotExpectation {
         GW::Constants::Bag bag_id;
         uint32_t slot;
-        uint32_t expected_value; // 根据检查模式，可能是 item_id 或数量
+        uint32_t expected_value; // item_id or quantity depending on check mode
     };
 
     enum class ExpectationMode {
-        Quantity, // expected_value 是数量，0 表示槽位应为空
-        ItemId,   // expected_value 是 item_id
+        Quantity, // expected_value is quantity, 0 means slot should be empty
+        ItemId,   // expected_value is item_id
     };
 
     bool WaitForExpectations(const std::vector<SlotExpectation>& expectations, ExpectationMode mode, uint32_t timeout_ms)
@@ -237,7 +237,7 @@ namespace {
                 task_done = true;
             });
 
-            WAIT_FOR_GAME_THREAD_TASK(task_done, 3000, "验证槽位期望失败");
+            WAIT_FOR_GAME_THREAD_TASK(task_done, 3000, "Failed to verify slot expectations");
 
             if (all_done) return true;
             Sleep(50);
@@ -282,7 +282,7 @@ void InventorySorting::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
         }
     }
     else {
-        // 旧版 INI 回退：sort_order_count + sort_order_N 键
+        // Legacy INI fallback: sort_order_count + sort_order_N keys
         const size_t sort_order_count = legacy->GetLongValue(Name(), "sort_order_count", 0);
         for (size_t i = 0; i < sort_order_count; i++) {
             char key[32];
@@ -321,8 +321,8 @@ void InventorySorting::Draw(IDirect3DDevice9*)
         ImGui::OpenPopup("##sortinventory_confirm");
     }
     if (ImGui::BeginPopupModal("##sortinventory_confirm", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::TextUnformatted("确定要排序角色库存吗？");
-        if (ImGui::Button("确定", ImVec2(120, 0)) || ImGui::IsKeyReleased(ImGuiKey_Enter)) {
+        ImGui::TextUnformatted("Are you sure you want to sort character inventory?");
+        if (ImGui::Button("OK", ImVec2(120, 0)) || ImGui::IsKeyReleased(ImGuiKey_Enter)) {
             const auto end_bag = settings.sort_equipment_pack ? GW::Constants::Bag::Equipment_Pack : GW::Constants::Bag::Bag_2;
             Resources::EnqueueWorkerTask([end_bag]() {
                 SortInventory(GW::Constants::Bag::Backpack, end_bag);
@@ -330,7 +330,7 @@ void InventorySorting::Draw(IDirect3DDevice9*)
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("取消", ImVec2(120, 0))) {
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -341,15 +341,15 @@ void InventorySorting::Draw(IDirect3DDevice9*)
         ImGui::OpenPopup("##sortstorage_confirm");
     }
     if (ImGui::BeginPopupModal("##sortstorage_confirm", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::TextUnformatted("确定要排序仓库库存吗？");
-        if (ImGui::Button("确定", ImVec2(120, 0)) || ImGui::IsKeyReleased(ImGuiKey_Enter)) {
+        ImGui::TextUnformatted("Are you sure you want to sort storage inventory?");
+        if (ImGui::Button("OK", ImVec2(120, 0)) || ImGui::IsKeyReleased(ImGuiKey_Enter)) {
             Resources::EnqueueWorkerTask([]() {
                 SortInventory(GW::Constants::Bag::Storage_1, GW::Constants::Bag::Storage_14);
             });
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("取消", ImVec2(120, 0))) {
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -362,7 +362,7 @@ void InventorySorting::DrawSettingsInternal()
 
     {
         bool sort_char_inv = false;
-        if (ImGui::ConfirmButton("排序角色库存！", &sort_char_inv)) {
+        if (ImGui::ConfirmButton("Sort Character Inventory!", &sort_char_inv)) {
             const auto end_bag = settings.sort_equipment_pack
                 ? GW::Constants::Bag::Equipment_Pack
                 : GW::Constants::Bag::Bag_2;
@@ -371,17 +371,17 @@ void InventorySorting::DrawSettingsInternal()
             });
         }
         ImGui::SameLine();
-        ImGui::Checkbox("包含装备包", &settings.sort_equipment_pack);
+        ImGui::Checkbox("Include Equipment Pack", &settings.sort_equipment_pack);
     }
 
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
-    bool open = ImGui::CollapsingHeader("更改仓库库存排序顺序", ImGuiTreeNodeFlags_SpanLabelWidth);
+    bool open = ImGui::CollapsingHeader("Change Storage Inventory Sorting Order", ImGuiTreeNodeFlags_SpanLabelWidth);
     ImGui::SameLine(0.f, 20.f);
     bool sort_inv = false;
-    if (ImGui::ConfirmButton("排序仓库库存！", &sort_inv)) {
+    if (ImGui::ConfirmButton("Sort Storage Inventory!", &sort_inv)) {
         Resources::EnqueueWorkerTask([]() {
             SortInventory(GW::Constants::Bag::Storage_1, GW::Constants::Bag::Storage_14);
         });
@@ -389,8 +389,8 @@ void InventorySorting::DrawSettingsInternal()
     if (open) {
         ImGui::Indent();
 
-        ImGui::TextUnformatted("排序顺序配置");
-        ImGui::TextDisabled("拖拽项目以重新排序优先级（上方 = 更高优先级）");
+        ImGui::TextUnformatted("Sort Order Configuration");
+        ImGui::TextDisabled("Drag items to reorder priority (top = higher priority)");
         ImGui::Spacing();
 
         for (size_t i = 0; i < sort_order.size(); i++) {
@@ -423,7 +423,7 @@ void InventorySorting::DrawSettingsInternal()
         ImGui::Separator();
         ImGui::Spacing();
         bool reset = false;
-        if (ImGui::ConfirmButton("重置为默认顺序", &reset)) {
+        if (ImGui::ConfirmButton("Reset to Default Order", &reset)) {
             ResetSortOrder();
         }
 
@@ -447,7 +447,7 @@ void InventorySorting::CancelSort()
 void InventorySorting::RegisterSettingsContent()
 {
     ToolboxModule::RegisterSettingsContent(
-        "库存设置", ICON_FA_BOXES,
+        "Inventory Settings", ICON_FA_BOXES,
         [this](const std::string&, const bool is_showing) {
             if (is_showing) {
                 DrawSettingsInternal();
@@ -489,7 +489,7 @@ bool InventorySorting::CombineStacks(GW::Constants::Bag start, GW::Constants::Ba
         task_done = true;
     });
 
-    WAIT_FOR_GAME_THREAD_TASK(task_done, 3000, "堆叠整合收集物品失败");
+    WAIT_FOR_GAME_THREAD_TASK(task_done, 3000, "Stack consolidation failed to collect items");
     if (groups.empty() || pending_cancel) return !pending_cancel;
 
     task_done = false;
@@ -528,7 +528,7 @@ bool InventorySorting::CombineStacks(GW::Constants::Bag start, GW::Constants::Ba
         task_done = true;
     });
 
-    WAIT_FOR_GAME_THREAD_TASK(task_done, 5000, "堆叠整合发出合并命令失败");
+    WAIT_FOR_GAME_THREAD_TASK(task_done, 5000, "Stack consolidation failed to issue merge commands");
     if (pending_cancel) return false;
 
     return WaitForExpectations(expectations, ExpectationMode::Quantity, 5000);
@@ -570,7 +570,7 @@ bool InventorySorting::StoreMaterials(GW::Constants::Bag start, GW::Constants::B
         task_done = true;
     });
 
-    WAIT_FOR_GAME_THREAD_TASK(task_done, 3000, "存储材料发出移动命令失败");
+    WAIT_FOR_GAME_THREAD_TASK(task_done, 3000, "Store materials failed to issue move commands");
     if (expectations.empty() || pending_cancel) return !pending_cancel;
 
     return WaitForExpectations(expectations, ExpectationMode::Quantity, 5000);
@@ -618,7 +618,7 @@ bool InventorySorting::SortInventory(GW::Constants::Bag start, GW::Constants::Ba
         task_done = true;
     });
 
-    WAIT_FOR_GAME_THREAD_TASK(task_done, 3000, "排序发出移动命令失败");
+    WAIT_FOR_GAME_THREAD_TASK(task_done, 3000, "Sorting failed to issue move commands");
     if (expectations.empty() || pending_cancel) return !pending_cancel;
 
     return WaitForExpectations(expectations, ExpectationMode::ItemId, 5000);

@@ -79,7 +79,7 @@ namespace {
             case WindowID_VaultBox:
                 return 0x31b;
             case WindowID_Merchant:
-                return 0xbdf; // 游戏使用NPC名称，默认"商人"
+                return 0xbdf; // Game uses NPC name, default to "Merchant"
             case WindowID_InGameClock:
                 return 0x13418;
 
@@ -133,7 +133,7 @@ namespace {
             delete it;
         }
         out->preferences.clear();
-        // TODO: 读取所有类型的偏好设置...
+        // TODO: Read preferences of all types...
         out->reordered = false;
         ASSERT(GetWindowRect(GW::MemoryMgr::GetGWWindowHandle(),&out->window_rect));
     }
@@ -151,7 +151,7 @@ void GWPreferences::Draw()
         ImGui::End();
         return;
     }
-    if (ImGui::Button("获取当前")) {
+    if (ImGui::Button("Get current")) {
         GetCurrentPreferences(&current_preferences);
     }
     if (!current_preferences.reordered) {
@@ -169,22 +169,22 @@ void GWPreferences::Draw()
             current_preferences.reordered = true;
         }
     }
-    if (ImGui::TreeNodeEx("游戏内偏好设置", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+    if (ImGui::TreeNodeEx("In-Game Preferences", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
         const float avail_width = ImGui::GetContentRegionAvail().x;
         const float font_scale = ImGui::FontScale();
 
         const float name_width = avail_width - 80.f * font_scale;
         ImGui::Text(" ");
         ImGui::SameLine(name_width);
-        ImGui::Text("值");
+        ImGui::Text("Value");
         for (const auto* pref : current_preferences.preferences) {
-            ImGui::Text("找到这个的名称！");
+            ImGui::Text("find the name for this!");
             ImGui::SameLine(name_width);
             ImGui::Text("%ls", pref->value.c_str());
         }
         ImGui::TreePop();
     }
-    if (ImGui::TreeNodeEx("界面位置", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+    if (ImGui::TreeNodeEx("GUI positions", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
         const float avail_width = ImGui::GetContentRegionAvail().x;
         const float font_scale = ImGui::FontScale();
 
@@ -193,11 +193,11 @@ void GWPreferences::Draw()
         float offset = 0.f;
         ImGui::Text(" ");
         ImGui::SameLine(offset += name_width);
-        ImGui::Text("可见?");
+        ImGui::Text("Visible?");
         ImGui::SameLine(offset += atts_width);
-        ImGui::Text("位置");
+        ImGui::Text("Position");
         ImGui::SameLine(offset += atts_width);
-        ImGui::Text("大小");
+        ImGui::Text("Size");
         const float gw_scale = GuiUtils::GetGWScaleMultiplier();
         for (auto* pref : current_preferences.window_positions) {
             offset = 0.f;

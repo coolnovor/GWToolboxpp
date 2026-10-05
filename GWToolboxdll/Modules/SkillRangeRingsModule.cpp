@@ -22,8 +22,8 @@ namespace {
     constexpr int kMinSegments = 64;
     constexpr int kMaxSegments = 512;
     constexpr float kSampleSpacing = 25.f;
-    constexpr float kMaxRingRadius = 5200.f; // 忽略超出罗盘范围的虚假范围数据
-    constexpr uint8_t kTargetNone = 0;        // Skill.target == no_target（瞬发附魔/姿态/自我施放形态）
+    constexpr float kMaxRingRadius = 5200.f; // ignore bogus range data past compass-ish sizes
+    constexpr uint8_t kTargetNone = 0;        // Skill.target == no_target (flash enchant / stance / self-cast form)
 
     constexpr GW::Constants::SkillID kStaleAoeRange[] = {
         GW::Constants::SkillID::Double_Dragon,
@@ -33,7 +33,7 @@ namespace {
     float fog_factor = 0.6f;
     float ring_thickness = 24.f;
     float opacity = 0.7f;
-    float z_lift = 5.f; // 抬高以避免 Z 冲突（GW 的向上方向为 -z）
+    float z_lift = 5.f; // raise above the floor to avoid z-fighting (GW up is -z)
     bool aoe_at_target = true;
     Color color_aoe = Colors::ARGB(255, 255, 120, 40);
     Color color_earshot = Colors::ARGB(255, 80, 220, 120);
@@ -57,13 +57,13 @@ namespace {
     uint32_t debug_skill_id = 0;
     int compositor_token = 0;
 
-    // `scratch` 上次拖拽的锚点状态；超过 kAnchorMoveEpsilon 的变化触发重建。
+    // Anchor state `scratch` was last draped at; a change beyond kAnchorMoveEpsilon triggers a rebuild.
     constexpr float kAnchorMoveEpsilon = 1.f;
     float built_me_x = 0.f, built_me_y = 0.f;
     uint32_t built_me_zplane = 0, built_target_id = 0, built_target_zplane = 0;
     float built_target_x = 0.f, built_target_y = 0.f;
     bool built_tgt_valid = false;
-    // 异步道具表面烘焙完成时 SurfaceZ 输出会变化，因此也要在该转换时重新拖拽。
+    // SurfaceZ output changes when the async prop-surface bake lands, so re-drape on that transition too.
     bool built_prop_ready = false;
 
     int RingSegments(const float radius)
@@ -84,9 +84,9 @@ namespace {
             out.push_back({GW::Constants::Range::Earshot, color_earshot, false});
         }
         if (type == Ritual) {
-            out.push_back({GW::Constants::Range::Spirit, color_effect, false}); // 放置的灵将覆盖的范围
+            out.push_back({GW::Constants::Range::Spirit, color_effect, false}); // what the placed spirit will cover
         }
-        // 小于 50 的值为生成偏移（例如 Shelter 的 10），约 5000 表示“全队/全域”——两者都不是环。
+        // Sub-50 values are spawn offsets (e.g. Shelter's 10), ~5000 means "party-wide/everywhere" - neither is a ring.
         const bool stale_aoe = std::ranges::contains(kStaleAoeRange, skill.skill_id);
         const float aoe_range = stale_aoe ? skill.const_effect : skill.aoe_range;
         if (aoe_range > 50.f && aoe_range < 4990.f) {
@@ -95,7 +95,7 @@ namespace {
         if (!stale_aoe && skill.const_effect > 50.f && skill.const_effect < 4990.f) {
             out.push_back({skill.const_effect, color_effect, false});
         }
-        // 相同半径出现两次（例如某个战吼的 aoe_range 已经是 earshot）则合并为一个环。
+        // Same radius twice (e.g. a shout whose aoe_range is already earshot) reads as one ring.
         for (size_t i = 0; i < out.size(); ++i) {
             for (size_t j = out.size(); j-- > i + 1;) {
                 if (std::fabs(out[i].radius - out[j].radius) < 15.f) out.erase(out.begin() + static_cast<int>(j));
@@ -110,8 +110,8 @@ namespace {
         return (color & ~(0xFFu << IM_COL32_A_SHIFT)) | (a << IM_COL32_A_SHIFT);
     }
 
-    // 将一个环带追加到 `out` 中，拖拽到可见表面：每个顶点在其自己的 (x,y) 处获取表面高度，
-    // 优先使用锚点的平面，使环紧贴您所站立的表面。
+    // Append a ring band for one spec into `out`, draped onto the visible surface: each vertex takes the surface
+    // height at its own (x,y), preferring the anchor's plane so the ring hugs the surface you're standing on.
     void EmitBand(std::vector<RingVertex>& out, const float cx, const float cy, const uint32_t zplane,
                   const uint32_t n_planes, const float ref_z, const RingSpec& spec)
     {
@@ -142,7 +142,7 @@ namespace {
         }
     }
 
-    // 为悬停技能重新计算每个环的规格。仅在技能/设置变化时运行。
+    // Recompute the per-ring specs for the hovered skill. Only runs on a skill/settings change.
     void BuildSpecs(const GW::Skill& skill)
     {
         built_specs.clear();
@@ -203,7 +203,8 @@ void SkillRangeRingsModule::DrawInWorld(IDirect3DDevice9* device)
     if (rings_dirty || skill->skill_id != built_skill) BuildSpecs(*skill);
     if (built_specs.empty()) return;
 
-    // 仅当锚点实际移动时重新拖拽；否则重用缓存的几何体。每个环锚定到当前目标（目标 AoE 技能）或玩家，拖拽到该表面。
+    // Re-drape only when an anchor actually moves; otherwise reuse the cached geometry. Each ring anchors to
+    // the current target (targeted AoE skills) or the player, draped onto that surface.
     const GW::Agent* target = GW::Agents::GetTarget();
     const bool tgt_valid = aoe_at_target && target && target->agent_id != me->agent_id;
     const uint32_t target_id = tgt_valid ? target->agent_id : 0;
@@ -279,19 +280,23 @@ void SkillRangeRingsModule::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
 void SkillRangeRingsModule::DrawSettingsInternal()
 {
     const auto red = ImGui::ColorConvertU32ToFloat4(Colors::Red());
-    if (!GameWorldCompositor::IsActive())
-        ImGui::TextColored(red, GameWorldCompositor::HasFailed() ? "世界内合成器安装失败。" : "世界内合成器：尚未安装。");
+    if (GameWorldCompositor::HasFailed())
+        ImGui::TextColored(red, "In-world compositor FAILED to install.");
+    else if (GameWorldCompositor::IsActive())
+        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Colors::Green()), "In-world compositor active.");
+    else
+        ImGui::TextDisabled("In-world compositor: not installed yet.");
 
-    ImGui::TextUnformatted("悬停任意技能（技能栏、技能窗口…）即可在地面看到其范围。");
-    if (ImGui::Checkbox("在当前目标位置显示 AoE 环", &aoe_at_target)) rings_dirty = true;
-    ImGui::ShowHelp("对于有区域效果的目标技能。关闭：始终围绕你自己。");
-    ImGui::TextDisabled("地形后的遮挡遵循“游戏内渲染”模块的设置。");
-    ImGui::DragFloat("最大渲染距离", &render_max_distance, 25.f, 10.f, 100000.f, "%.0f", ImGuiSliderFlags_AlwaysClamp);
-    if (ImGui::DragFloat("环厚度", &ring_thickness, 1.f, 4.f, 200.f, "%.0f", ImGuiSliderFlags_AlwaysClamp)) rings_dirty = true;
-    if (ImGui::DragFloat("不透明度", &opacity, 0.01f, 0.f, 1.f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) rings_dirty = true;
-    if (ImGui::DragFloat("高度抬升", &z_lift, 0.5f, 0.f, 200.f, "%.1f", ImGuiSliderFlags_AlwaysClamp)) rings_dirty = true;
+    ImGui::TextUnformatted("Hover any skill (skillbar, skills window...) to see its ranges on the ground.");
+    if (ImGui::Checkbox("Show AoE ring at your current target", &aoe_at_target)) rings_dirty = true;
+    ImGui::ShowHelp("For targeted skills with an area effect. Off: always around you.");
+    ImGui::TextDisabled("Occlusion behind terrain follows the \"In-game rendering\" module's setting.");
+    ImGui::DragFloat("Maximum render distance", &render_max_distance, 25.f, 10.f, 100000.f, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+    if (ImGui::DragFloat("Ring thickness", &ring_thickness, 1.f, 4.f, 200.f, "%.0f", ImGuiSliderFlags_AlwaysClamp)) rings_dirty = true;
+    if (ImGui::DragFloat("Opacity", &opacity, 0.01f, 0.f, 1.f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) rings_dirty = true;
+    if (ImGui::DragFloat("Height lift", &z_lift, 0.5f, 0.f, 200.f, "%.1f", ImGuiSliderFlags_AlwaysClamp)) rings_dirty = true;
     ImGui::Separator();
-    if (Colors::DrawSettingHueWheel("AoE 半径", &color_aoe)) rings_dirty = true;
-    if (Colors::DrawSettingHueWheel("听觉范围（战吼、赞歌）", &color_earshot)) rings_dirty = true;
-    if (Colors::DrawSettingHueWheel("恒定效果（灵范围）", &color_effect)) rings_dirty = true;
+    if (Colors::DrawSettingHueWheel("AoE radius", &color_aoe)) rings_dirty = true;
+    if (Colors::DrawSettingHueWheel("Earshot (shouts, chants)", &color_earshot)) rings_dirty = true;
+    if (Colors::DrawSettingHueWheel("Constant effect (spirit range)", &color_effect)) rings_dirty = true;
 }

@@ -5,38 +5,38 @@
 #include <cstdint>
 namespace WorldMapWidget_Constants {
 
-    // 重复使用的备注字符串
-    static constexpr const char* shared_spawn = "共享刷新点。不一定会出现。";
-    static constexpr const char* two_bosses_can_spawn = "该位置可同时刷新两个首领。不一定会出现。";
-    static constexpr const char* during_siege = "围攻期间。不一定会出现。";
-    static constexpr const char* does_not_always_spawn = "不一定会出现。";
-    static constexpr const char* war_in_kryta = "仅在\"科瑞塔战争\"期间。";
-    static constexpr const char* battle_for_lions_arch = "仅在\"狮门保卫战\"任务期间。";
-    static constexpr const char* titan_source = "仅在\"泰坦之源\"任务期间。";
-    static constexpr const char* titan_source_alt = "仅在\"泰坦之源\"任务期间。";
-    static constexpr const char* cleansing_morostav_trail = "仅在\"净化莫洛斯特之路\"任务期间。";
-    static constexpr const char* not_during_raisu_palace = "不在\"莱苏皇宫\"任务期间。";
-    static constexpr const char* not_during_gyala_hatchery = "不在\"加拉孵化场\"任务期间。";
-    static constexpr const char* not_during_nundu_bay = "不在\"努杜湾\"任务期间。";
-    static constexpr const char* only_4_of_8_bosses = "这 8 个首领中只会出现 4 个。";
-    static constexpr const char* proof_of_triumph = "仅当玩家背包中有\"凯旋之证\"时。";
-    static constexpr const char* spawns_one_of_six = "在六个位置之一刷新。";
-    static constexpr const char* not_during_sunjiang = "不在\"孙江区\"任务期间。";
-    static constexpr const char* can_spawn_one_of_six = "可在六个位置之一刷新";
-    static constexpr const char* spawns_one_of_ten_spots = "在 10 个位置之一刷新。";
-    static constexpr const char* spawns_one_of_six_possible = "在六个可能位置之一刷新";
-    static constexpr const char* path_to_revelations = "仅在\"启示之路\"任务期间。";
-    static constexpr const char* two_bosses_at_a_time = "该位置同时刷新两个首领";
-    static constexpr const char* not_during_arborstone = "不在\"树石\"任务期间。";
-    static constexpr const char* three_bosses_lava = "三个首领可在此刷新，或从熔岩中出来";
-    static constexpr const char* attack_on_jalis_camp = "仅在\"进攻贾利斯营地\"任务期间。";
-    static constexpr const char* dunkoro_passage = "你必须进入敦科罗告诉你要避开的通道，因此你将无法同时击杀该首领并获得奖励。";
-    // 重复使用的首领名称
-    static constexpr const char* corsair_commander = "海盗指挥官";
-    static constexpr const char* yoannh_the_rebuilder = "重建者尤安娜";
-    static constexpr const char* afflicted_miju = "受难者米珠";
-    static constexpr const char* eidolon = "幻灵";
-    static constexpr const char* blade_ancient_syu_shai = "剑之远古者修·沙伊";
+    // Repeated note strings
+    static constexpr const char* shared_spawn = "Shared spawn. Does not always spawn.";
+    static constexpr const char* two_bosses_can_spawn = "Two bosses can spawn in this location. Does not always spawn.";
+    static constexpr const char* during_siege = "During the siege. Does not always spawn.";
+    static constexpr const char* does_not_always_spawn = "Does not always spawn.";
+    static constexpr const char* war_in_kryta = "Only during \"War in Kryta\".";
+    static constexpr const char* battle_for_lions_arch = "Only during \"The Battle for Lion's Arch\" quest.";
+    static constexpr const char* titan_source = "Only during \"The Titan Source\" quest.";
+    static constexpr const char* titan_source_alt = "Only during the \"The Titan Source\" quest.";
+    static constexpr const char* cleansing_morostav_trail = "Only during \"Cleansing Morostav Trail\" quest.";
+    static constexpr const char* not_during_raisu_palace = "Not during \"Raisu Palace\" mission.";
+    static constexpr const char* not_during_gyala_hatchery = "Not during \"Gyala Hatchery\" mission.";
+    static constexpr const char* not_during_nundu_bay = "Not during \"Nundu Bay\" mission.";
+    static constexpr const char* only_4_of_8_bosses = "Only 4 out of these 8 bosses will appear.";
+    static constexpr const char* proof_of_triumph = "Only if a player has a \"Proof of Triumph\" in their inventory.";
+    static constexpr const char* spawns_one_of_six = "Spawns in one of the six locations.";
+    static constexpr const char* not_during_sunjiang = "Not during \"Sunjiang District\" mission.";
+    static constexpr const char* can_spawn_one_of_six = "Can spawn in one of the six locations";
+    static constexpr const char* spawns_one_of_ten_spots = "Spawns in one of the 10 spots.";
+    static constexpr const char* spawns_one_of_six_possible = "Spawns in one of six possible locations";
+    static constexpr const char* path_to_revelations = "Only during \"The Path to Revelations\" quest.";
+    static constexpr const char* two_bosses_at_a_time = "Two bosses at a time spawn at this location";
+    static constexpr const char* not_during_arborstone = "Not during \"Arborstone\" mission.";
+    static constexpr const char* three_bosses_lava = "Three bosses can spawn here, or get out of the lava";
+    static constexpr const char* attack_on_jalis_camp = "Only during \"Attack on Jalis's Camp\" quest.";
+    static constexpr const char* dunkoro_passage = "You will have to enter the passage Dunkoro tells you to avoid, so you will be unable to kill this boss and get the bonus at the same time.";
+    // Repeated boss names
+    static constexpr const char* corsair_commander = "Corsair Commander";
+    static constexpr const char* yoannh_the_rebuilder = "Yoannh the Rebuilder";
+    static constexpr const char* afflicted_miju = "The Afflicted Miju";
+    static constexpr const char* eidolon = "Eidolon";
+    static constexpr const char* blade_ancient_syu_shai = "Blade Ancient Syu-Shai";
 
     struct EliteBossLocation {
         GW::Constants::SkillID skill_id;
@@ -1116,3 +1116,4 @@ namespace WorldMapWidget_Constants {
     };
 
 }
+

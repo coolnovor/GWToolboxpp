@@ -51,7 +51,7 @@ namespace {
             id = next_tab_id++;
         }
         else {
-            // 去重：如果已存在此 ID 的标签页则跳过
+            // Deduplicate: skip if a tab with this id already exists
             for (const auto& existing : tabs) {
                 if (existing->id == id) {
                     return existing.get();
@@ -61,7 +61,7 @@ namespace {
         }
         std::string default_name;
         if (!name || !*name) {
-            default_name = "笔记 " + std::to_string(tabs.size() + 1);
+            default_name = "Note " + std::to_string(tabs.size() + 1);
             name = default_name.c_str();
         }
         auto tab = std::make_unique<NotepadTab>(id, name);
@@ -160,24 +160,24 @@ void NotePadWindow::Draw(IDirect3DDevice9*)
                 auto& tab = *tabs[i];
                 const ImGuiTabItemFlags flags = tab.dirty ? ImGuiTabItemFlags_UnsavedDocument : ImGuiTabItemFlags_None;
                 bool tab_open = true;
-                // 仅在当前活动标签页上显示关闭按钮（X），以防止意外关闭
+                // Only show the close button (X) on the currently active tab to prevent accidental closure
                 bool* const p_open = (tabs.size() > 1 && i == active_tab_idx) ? &tab_open : nullptr;
                 const bool tab_visible = ImGui::BeginTabItem(tab.name, p_open, flags);
 
                 if (ImGui::BeginPopupContextItem()) {
-                    if (ImGui::MenuItem("重命名")) {
+                    if (ImGui::MenuItem("Rename")) {
                         renaming_tab = i;
                         strncpy_s(rename_buf, tab.name, tab_name_length - 1);
                         rename_needs_focus = true;
                     }
-                    if (tabs.size() > 1 && ImGui::MenuItem("关闭")) {
-                        ImGui::ConfirmDialog("确定要关闭此标签页吗？", confirm_close_tab, reinterpret_cast<void*>(static_cast<intptr_t>(tab.id)));
+                    if (tabs.size() > 1 && ImGui::MenuItem("Close")) {
+                        ImGui::ConfirmDialog("Are you sure you want to close this tab?", confirm_close_tab, reinterpret_cast<void*>(static_cast<intptr_t>(tab.id)));
                     }
                     ImGui::EndPopup();
                 }
 
                 if (!tab_open) {
-                    ImGui::ConfirmDialog("确定要关闭此标签页吗？", confirm_close_tab, reinterpret_cast<void*>(static_cast<intptr_t>(tab.id)));
+                    ImGui::ConfirmDialog("Are you sure you want to close this tab?", confirm_close_tab, reinterpret_cast<void*>(static_cast<intptr_t>(tab.id)));
                 }
 
                 if (tab_visible) {
@@ -232,20 +232,20 @@ void NotePadWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
             const size_t prev_size = tabs.size();
             AddTab(t.name.c_str(), t.id);
             if (tabs.size() > prev_size) {
-                // 仅为真正新增的标签页加载内容
+                // Only load content for genuinely new tabs
                 LoadTabContent(tabs.size() - 1);
             }
         }
         if (tabs.empty()) {
-            AddTab("笔记 1");
+            AddTab("Note 1");
         }
         return;
     }
 
     const long tab_count = legacy ? legacy->GetLongValue(Name(), "tab_count", -1) : -1;
     if (tab_count < 0) {
-        // 旧版单标签页配置
-        auto* tab = AddTab("笔记 1");
+        // Legacy single-tab config
+        auto* tab = AddTab("Note 1");
         std::ifstream file(Resources::GetPath(L"Notepad.txt"));
         if (file) {
             file.get(tab->text, text_buffer_length, '\0');
@@ -259,14 +259,14 @@ void NotePadWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
             snprintf(name_key, sizeof(name_key), "tab_%ld_name", i);
             const int id = static_cast<int>(legacy->GetLongValue(Name(), id_key, i));
             const size_t prev_size = tabs.size();
-            AddTab(legacy->GetValue(Name(), name_key, "笔记"), id);
+            AddTab(legacy->GetValue(Name(), name_key, "Note"), id);
             if (tabs.size() > prev_size) {
-                // 仅为真正新增的标签页加载内容
+                // Only load content for genuinely new tabs
                 LoadTabContent(tabs.size() - 1);
             }
         }
         if (tabs.empty()) {
-            AddTab("笔记 1");
+            AddTab("Note 1");
         }
     }
 }
@@ -289,5 +289,5 @@ void NotePadWindow::SaveSettings(SettingsDoc& doc)
 void NotePadWindow::DrawSettingsInternal()
 {
     ToolboxWindow::DrawSettingsInternal();
-    ImGui::DragFloat("文字大小", &settings.font_size, 1.0, text_size_min, FontLoader::text_size_max, "%.0f");
+    ImGui::DragFloat("Text size", &settings.font_size, 1.0, text_size_min, FontLoader::text_size_max, "%.0f");
 }

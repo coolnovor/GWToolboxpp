@@ -38,7 +38,7 @@ CustomRenderer::CustomLine::CustomLine(const float x1, const float y1, const flo
       map(m),
       draw_everywhere(draw_everywhere)
 {
-    std::snprintf(name, sizeof(name), "%s", _name ? _name : "线条");
+    std::snprintf(name, sizeof(name), "%s", _name ? _name : "line");
 }
 
 CustomRenderer::CustomLine::CustomLine(GW::GamePos p1, GW::GamePos p2, GW::Constants::MapID m, const char* n, bool draw_everywhere)
@@ -47,7 +47,7 @@ CustomRenderer::CustomLine::CustomLine(GW::GamePos p1, GW::GamePos p2, GW::Const
       map(m),
       draw_everywhere(draw_everywhere)
 {
-    std::snprintf(name, sizeof(name), "%s", n ? n : "线条");
+    std::snprintf(name, sizeof(name), "%s", n ? n : "line");
 }
 
 CustomRenderer::CustomMarker::CustomMarker(const float x, const float y, const float s, const Shape sh, const GW::Constants::MapID m, const char* _name)
@@ -56,18 +56,18 @@ CustomRenderer::CustomMarker::CustomMarker(const float x, const float y, const f
       shape(sh),
       map(m)
 {
-    std::snprintf(name, sizeof(name), "%s", _name ? _name : "标记");
+    std::snprintf(name, sizeof(name), "%s", _name ? _name : "marker");
 }
 
 CustomRenderer::CustomPolygon::CustomPolygon(const GW::Constants::MapID m, const char* _name)
     : map(m)
 {
-    std::snprintf(name, sizeof(name), "%s", _name ? _name : "多边形");
+    std::snprintf(name, sizeof(name), "%s", _name ? _name : "polygon");
 };
 
 void CustomRenderer::RegisterSettings(ToolboxModule* module)
 {
-    // SettingColor 与 Color 布局兼容；强制转换使注册表能将其持久化为十六进制字符串
+    // SettingColor is layout-compatible with Color; the cast lets the registry persist it as a hex string
     SettingsRegistry::RegisterField(module, "color_custom_markers", reinterpret_cast<Colors::SettingColor*>(&color));
     SettingsRegistry::RegisterField(module, "color_hero_flag_circles", reinterpret_cast<Colors::SettingColor*>(&color_hero_flags_));
     SettingsRegistry::RegisterField(module, "hero_flag_circle_thickness", &hero_flag_line_thickness_);
@@ -86,8 +86,8 @@ void CustomRenderer::LoadMarkers()
         const std::string json_buf{std::istreambuf_iterator(file), {}};
         MarkersFile data;
         if (!file || glz::read<glz::opts{.error_on_unknown_keys = false}>(data, json_buf)) {
-            // 保持 markers_loaded 未设置，以便保存不会覆盖不可读的文件
-            Log::Error("解析 Markers.json 失败");
+            // leave markers_loaded unset so a save can't overwrite the unreadable file
+            Log::Error("Failed to parse Markers.json");
             markers_changed = true;
             return;
         }
@@ -124,7 +124,7 @@ void CustomRenderer::LoadMarkers()
         }
     }
     else {
-        // 旧版回退；Markers.ini 从此处读取，下次保存时写入 json
+        // legacy fallback; Markers.ini is only ever read from here on, the next save writes json
         ToolboxIni inifile;
         ASSERT(inifile.LoadIfExists(Resources::GetLegacySettingFile(ini_filename).c_str()) == SI_OK);
 
@@ -136,7 +136,7 @@ void CustomRenderer::LoadMarkers()
                 continue;
             }
             if (strncmp(section, "customline", "customline"s.length()) == 0) {
-                auto line = new CustomLine(inifile.GetValue(section, "name", "线条"));
+                auto line = new CustomLine(inifile.GetValue(section, "name", "line"));
                 line->p1.x = static_cast<float>(inifile.GetDoubleValue(section, "x1", 0.0));
                 line->p1.y = static_cast<float>(inifile.GetDoubleValue(section, "y1", 0.0));
                 line->p2.x = static_cast<float>(inifile.GetDoubleValue(section, "x2", 0.0));
@@ -148,7 +148,7 @@ void CustomRenderer::LoadMarkers()
                 lines.push_back(line);
             }
             else if (strncmp(section, "custommarker", "custommarker"s.length()) == 0) {
-                auto marker = CustomMarker(inifile.GetValue(section, "name", "标记"));
+                auto marker = CustomMarker(inifile.GetValue(section, "name", "marker"));
                 marker.pos.x = static_cast<float>(inifile.GetDoubleValue(section, "x", 0.0));
                 marker.pos.y = static_cast<float>(inifile.GetDoubleValue(section, "y", 0.0));
                 marker.size = static_cast<float>(inifile.GetDoubleValue(section, "size", 0.0));
@@ -158,10 +158,10 @@ void CustomRenderer::LoadMarkers()
                 marker.color_sub = Colors::Load(&inifile, section, "color_sub", marker.color_sub);
                 marker.visible = inifile.GetBoolValue(section, "visible", true);
                 marker.draw_on_terrain = inifile.GetBoolValue(section, "draw_on_terrain", false);
-                markers.push_back(marker);
+                markers.push_back(std::move(marker));
             }
             else if (strncmp(section, "custompolygon", "custompolygon"s.length()) == 0) {
-                auto polygon = CustomPolygon(inifile.GetValue(section, "name", "多边形"));
+                auto polygon = CustomPolygon(inifile.GetValue(section, "name", "polygon"));
                 for (auto i = 0; i < CustomPolygon::max_points; i++) {
                     GW::Vec2f vec;
                     vec.x = static_cast<float>(
@@ -181,7 +181,7 @@ void CustomRenderer::LoadMarkers()
                 polygon.map = static_cast<GW::Constants::MapID>(inifile.GetLongValue(section, "map", 0));
                 polygon.visible = inifile.GetBoolValue(section, "visible", true);
                 polygon.draw_on_terrain = inifile.GetBoolValue(section, "draw_on_terrain", false);
-                polygons.push_back(polygon);
+                polygons.push_back(std::move(polygon));
             }
         }
     }
@@ -260,7 +260,7 @@ void CustomRenderer::Invalidate()
 
 void CustomRenderer::SetTooltipMapID(const GW::Constants::MapID& map_id)
 {
-    ImGui::SetTooltip(std::format("地图 ID（{}）", Resources::GetMapName(map_id)->string()).c_str());
+    ImGui::SetTooltip(std::format("Map ID ({})", Resources::GetMapName(map_id)->string()).c_str());
 }
 
 bool CustomRenderer::RemoveCustomLine(CustomLine* line)
@@ -300,7 +300,7 @@ CustomRenderer::CustomLine* CustomRenderer::AddCustomLine(const GW::GamePos& fro
 
 void CustomRenderer::DrawLineSettings()
 {
-    if (Colors::DrawSettingHueWheel("颜色", &color)) {
+    if (Colors::DrawSettingHueWheel("Color", &color)) {
         Invalidate();
     }
     
@@ -317,38 +317,38 @@ void CustomRenderer::DrawLineSettings()
         ImGui::PushID(static_cast<int>(i));
         markers_changed |= ImGui::Checkbox("##visible", &line.visible);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("可见");
+            ImGui::SetTooltip("Visible");
         }
         ImGui::SameLine(0.0f, spacing);
         ImGui::PushItemWidth((ImGui::CalcItemWidth() - ImGui::GetTextLineHeightWithSpacing() - spacing * 5) / 5);
 
         markers_changed |= ImGui::DragFloat("##x1", &line.p1.x, 1.0f, 0.0f, 0.0f, "%.0f");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("线条 X 1");
+            ImGui::SetTooltip("Line X 1");
         }
         ImGui::SameLine(0.0f, spacing);
 
         markers_changed |= ImGui::DragFloat("##y1", &line.p1.y, 1.0f, 0.0f, 0.0f, "%.0f");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("线条 Y 1");
+            ImGui::SetTooltip("Line Y 1");
         }
         ImGui::SameLine(0.0f, spacing);
 
         markers_changed |= ImGui::DragFloat("##x2", &line.p2.x, 1.0f, 0.0f, 0.0f, "%.0f");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("线条 X 2");
+            ImGui::SetTooltip("Line X 2");
         }
         ImGui::SameLine(0.0f, spacing);
 
         markers_changed |= ImGui::DragFloat("##y2", &line.p2.y, 1.0f, 0.0f, 0.0f, "%.0f");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("线条 Y 2");
+            ImGui::SetTooltip("Line Y 2");
         }
         ImGui::SameLine(0.0f, spacing);
 
         markers_changed |= ImGui::ColorButtonPicker("##color", &line.color);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("线条颜色");
+            ImGui::SetTooltip("Line Color");
         }
         ImGui::SameLine(0.0f, spacing);
 
@@ -363,20 +363,20 @@ void CustomRenderer::DrawLineSettings()
         markers_changed |= ImGui::InputText("##name", line.name, 128);
         ImGui::PopItemWidth();
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("名称");
+            ImGui::SetTooltip("Name");
         }
         ImGui::SameLine(0.0f, spacing);
 
         markers_changed |= ImGui::Checkbox("##draw_on_terrain", &line.draw_on_terrain);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("在游戏内地形上绘制");
+            ImGui::SetTooltip("Draw on in-game terrain");
         }
         ImGui::SameLine(0.0f, spacing);
 
         if (i > 0) {
             const bool move_up = ImGui::Button(ICON_FA_ARROW_UP, ImVec2(BTN_WIDTH, 0));
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("上移");
+                ImGui::SetTooltip("Move up");
             }
             if (move_up) {
                 std::swap(lines[i], lines[i - 1]);
@@ -391,7 +391,7 @@ void CustomRenderer::DrawLineSettings()
         if (i < n_lines - 1) {
             const bool move_down = ImGui::Button(ICON_FA_ARROW_DOWN, ImVec2(BTN_WIDTH, 0));
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("下移");
+                ImGui::SetTooltip("Move down");
             }
             if (move_down) {
                 std::swap(lines[i], lines[i + 1]);
@@ -405,7 +405,7 @@ void CustomRenderer::DrawLineSettings()
 
         const bool remove = ImGui::Button("x##delete", ImVec2(BTN_WIDTH, 0));
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("删除");
+            ImGui::SetTooltip("Delete");
         }
         ImGui::PopID();
         if (remove) {
@@ -414,15 +414,15 @@ void CustomRenderer::DrawLineSettings()
         }
     }
     ImGui::PopID();
-    if (ImGui::Button("添加线条")) {
+    if (ImGui::Button("Add Line")) {
         char buf[32];
-        snprintf(buf, 32, "线条%zu", lines.size());
+        snprintf(buf, 32, "line%zu", lines.size());
         lines.push_back(new CustomLine(buf));
         markers_changed = true;
     }
     ImGui::SameLine();
     bool sort_lines = false;
-    if (ImGui::ConfirmButton("按名称排序 A-Z##lines", &sort_lines, "按名称字母顺序排序所有线条？\n此操作不可撤销。")) {
+    if (ImGui::ConfirmButton("Sort A-Z##lines", &sort_lines, "Sort all lines alphabetically by name?\nThis cannot be undone.")) {
         std::sort(lines.begin(), lines.end(), [](const CustomLine* a, const CustomLine* b) {
             return strcmp(a->name, b->name) < 0;
         });
@@ -430,7 +430,7 @@ void CustomRenderer::DrawLineSettings()
     }
     ImGui::SameLine();
     bool sort_lines_by_map = false;
-    if (ImGui::ConfirmButton("按地图排序##lines", &sort_lines_by_map, "按地图 ID 排序所有线条？\n此操作不可撤销。")) {
+    if (ImGui::ConfirmButton("Sort by Map##lines", &sort_lines_by_map, "Sort all lines by map ID?\nThis cannot be undone.")) {
         std::sort(lines.begin(), lines.end(), [](const CustomLine* a, const CustomLine* b) {
             if (a->map != b->map)
                 return static_cast<uint32_t>(a->map) < static_cast<uint32_t>(b->map);
@@ -442,7 +442,7 @@ void CustomRenderer::DrawLineSettings()
 
 void CustomRenderer::DrawMarkerSettings()
 {
-    if (Colors::DrawSettingHueWheel("颜色", &color)) {
+    if (Colors::DrawSettingHueWheel("Color", &color)) {
         Invalidate();
     }
     const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
@@ -454,40 +454,40 @@ void CustomRenderer::DrawMarkerSettings()
         ImGui::PushID(static_cast<int>(i));
         marker_changed |= ImGui::Checkbox("##visible", &marker.visible);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("可见");
+            ImGui::SetTooltip("Visible");
         }
         ImGui::SameLine(0.0f, spacing);
         ImGui::PushItemWidth(input_item_width);
         marker_changed |= ImGui::DragFloat("##x", &marker.pos.x, 1.0f, 0.0f, 0.0f, "%.0f");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("标记 X 位置");
+            ImGui::SetTooltip("Marker X Position");
         }
         ImGui::SameLine(0.0f, spacing);
         marker_changed |= ImGui::DragFloat("##y", &marker.pos.y, 1.0f, 0.0f, 0.0f, "%.0f");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("标记 Y 位置");
+            ImGui::SetTooltip("Marker Y Position");
         }
         ImGui::SameLine(0.0f, spacing);
         marker_changed |= ImGui::DragFloat("##size", &marker.size, 1.0f, 0.0f, 0.0f, "%.0f");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("大小");
+            ImGui::SetTooltip("Size");
         }
         ImGui::SameLine(0.0f, spacing);
 
-        constexpr const char* types[] = {"圆形", "填充圆形"};
+        constexpr const char* types[] = {"Circle", "FillCircle"};
         marker_changed |= ImGui::Combo("##type", reinterpret_cast<int*>(&marker.shape), types, 2);
         ImGui::SameLine(0.0f, spacing);
 
         marker_changed |= ImGui::ColorButtonPicker("##colorsub", &marker.color_sub);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("此多边形内敌对单位的颜色。\n注意：Alpha 通道为 0 将禁用此颜色。");
+            ImGui::SetTooltip("Color in which hostile agents inside this polygon are drawn.\nNOTE: An alpha channel of 0 will disable this color.");
         }
         ImGui::SameLine(0.0f, spacing);
 
         marker_changed |= ImGui::ColorButtonPicker("##color", &marker.color);
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip(
-                "圆形的颜色。\n注意：Alpha 通道为 0 将回退到默认颜色。");
+                "Color of the circle.\nNOTE: An alpha channel of 0 will fall back to the default color.");
         }
         ImGui::SameLine(0.0f, spacing);
 
@@ -501,20 +501,20 @@ void CustomRenderer::DrawMarkerSettings()
         marker_changed |= ImGui::InputText("##name", marker.name, 128);
         ImGui::PopItemWidth();
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("名称");
+            ImGui::SetTooltip("Name");
         }
         ImGui::SameLine(0.0f, spacing);
 
         markers_changed |= ImGui::Checkbox("##draw_on_terrain", &marker.draw_on_terrain);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("在游戏内地形上绘制");
+            ImGui::SetTooltip("Draw on in-game terrain");
         }
         ImGui::SameLine(0.0f, spacing);
 
         if (i > 0) {
             const bool move_up = ImGui::Button(ICON_FA_ARROW_UP, ImVec2(BTN_WIDTH, 0));
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("上移");
+                ImGui::SetTooltip("Move up");
             }
             if (move_up) {
                 std::swap(markers[i], markers[i - 1]);
@@ -529,7 +529,7 @@ void CustomRenderer::DrawMarkerSettings()
         if (i < markers.size() - 1) {
             const bool move_down = ImGui::Button(ICON_FA_ARROW_DOWN, ImVec2(BTN_WIDTH, 0));
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("下移");
+                ImGui::SetTooltip("Move down");
             }
             if (move_down) {
                 std::swap(markers[i], markers[i + 1]);
@@ -543,7 +543,7 @@ void CustomRenderer::DrawMarkerSettings()
 
         const bool remove = ImGui::Button("x##delete", ImVec2(BTN_WIDTH, 0));
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("删除");
+            ImGui::SetTooltip("Delete");
         }
         ImGui::PopID();
         if (marker_changed) {
@@ -559,11 +559,11 @@ void CustomRenderer::DrawMarkerSettings()
         }
     }
     ImGui::PopID();
-    if (ImGui::Button("添加标记")) {
+    if (ImGui::Button("Add Marker")) {
         char buf[32];
-        snprintf(buf, 32, "标记%zu", markers.size());
+        snprintf(buf, 32, "marker%zu", markers.size());
         markers.push_back(CustomMarker(buf));
-        // 向量大小增加并重新分配数组时使标记失效
+        // invalidate in crease vector size increased and reallocated array
         for (auto& mark : markers) {
             mark.Invalidate();
         }
@@ -571,7 +571,7 @@ void CustomRenderer::DrawMarkerSettings()
     }
     ImGui::SameLine();
     bool sort_markers = false;
-    if (ImGui::ConfirmButton("按名称排序 A-Z##markers", &sort_markers, "按名称字母顺序排序所有标记？\n此操作不可撤销。")) {
+    if (ImGui::ConfirmButton("Sort A-Z##markers", &sort_markers, "Sort all markers alphabetically by name?\nThis cannot be undone.")) {
         std::sort(markers.begin(), markers.end(), [](const CustomMarker& a, const CustomMarker& b) {
             return strcmp(a.name, b.name) < 0;
         });
@@ -582,7 +582,7 @@ void CustomRenderer::DrawMarkerSettings()
     }
     ImGui::SameLine();
     bool sort_markers_by_map = false;
-    if (ImGui::ConfirmButton("按地图排序##markers", &sort_markers_by_map, "按地图 ID 排序所有标记？\n此操作不可撤销。")) {
+    if (ImGui::ConfirmButton("Sort by Map##markers", &sort_markers_by_map, "Sort all markers by map ID?\nThis cannot be undone.")) {
         std::sort(markers.begin(), markers.end(), [](const CustomMarker& a, const CustomMarker& b) {
             if (a.map != b.map)
                 return static_cast<uint32_t>(a.map) < static_cast<uint32_t>(b.map);
@@ -620,7 +620,7 @@ void CustomRenderer::DrawPolygonSettings()
         ImGui::PushID(signed_idx);
         polygon_changed |= ImGui::Checkbox("##visible", &polygon.visible);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("可见");
+            ImGui::SetTooltip("Visible");
         }
         ImGui::SameLine(0.0f, spacing);
         ImGui::PushItemWidth(input_item_width);
@@ -629,7 +629,7 @@ void CustomRenderer::DrawPolygonSettings()
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
         }
         char show_points_label_buf[40];
-        snprintf(show_points_label_buf, sizeof(show_points_label_buf), "显示点（%d）##show_polygon_details", polygon.points.size());
+        snprintf(show_points_label_buf, sizeof(show_points_label_buf), "Show Points (%d)##show_polygon_details", polygon.points.size());
         if (ImGui::Button(show_points_label_buf, ImVec2(input_item_width * 3 + spacing * 2, 0.f))) {
             show_polygon_details = show_details ? -1 : signed_idx;
         }
@@ -640,19 +640,19 @@ void CustomRenderer::DrawPolygonSettings()
 
         polygon_changed |= ImGui::Checkbox("##filled", &polygon.filled);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("填充 - 仅对最多 {} 个点生效！", CustomPolygon::max_points_filled);
+            ImGui::SetTooltip("Filled - this is only respected for a maximum of {} points!", CustomPolygon::max_points_filled);
         }
         ImGui::SameLine(0.0f, spacing);
 
         polygon_changed |= ImGui::ColorButtonPicker("##colorsub", &polygon.color_sub);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("此多边形内敌对单位的颜色。\n\n注意：Alpha 通道为 0 将禁用此颜色。");
+            ImGui::SetTooltip("Color in which hostile agents inside this polygon are drawn.\n\nNOTE: An alpha channel of 0 will disable this color.");
         }
         ImGui::SameLine(0.0f, spacing);
 
         polygon_changed |= ImGui::ColorButtonPicker("##color", &polygon.color);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("地图上多边形的颜色。\n注意：Alpha 通道为 0 将禁用此颜色。");
+            ImGui::SetTooltip("Color of the polygon on the map.\nNOTE: An alpha channel of 0 will disable this color.");
         }
         ImGui::SameLine(0.0f, spacing);
 
@@ -666,21 +666,21 @@ void CustomRenderer::DrawPolygonSettings()
         ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - spacing * 4 - BTN_WIDTH * 4);
         markers_changed |= ImGui::InputText("##name", polygon.name, 128);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("名称");
+            ImGui::SetTooltip("Name");
         }
         ImGui::PopItemWidth();
 
         ImGui::SameLine(0.0f, spacing);
         markers_changed |= ImGui::Checkbox("##draw_on_terrain", &polygon.draw_on_terrain);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("在游戏内地形上绘制");
+            ImGui::SetTooltip("Draw on in-game terrain");
         }
         ImGui::SameLine(0.0f, spacing);
 
         if (i > 0) {
             const bool move_up = ImGui::Button(ICON_FA_ARROW_UP, ImVec2(BTN_WIDTH, 0));
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("上移");
+                ImGui::SetTooltip("Move up");
             }
             if (move_up) {
                 std::swap(polygons[i], polygons[i - 1]);
@@ -695,7 +695,7 @@ void CustomRenderer::DrawPolygonSettings()
         if (i < polygons.size() - 1) {
             const bool move_down = ImGui::Button(ICON_FA_ARROW_DOWN, ImVec2(BTN_WIDTH, 0));
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("下移");
+                ImGui::SetTooltip("Move down");
             }
             if (move_down) {
                 std::swap(polygons[i], polygons[i + 1]);
@@ -709,12 +709,12 @@ void CustomRenderer::DrawPolygonSettings()
 
         const bool remove = ImGui::Button("x##delete", ImVec2(BTN_WIDTH, 0));
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("删除");
+            ImGui::SetTooltip("Delete");
         }
 
         if (show_details) {
             ImGui::Indent();
-            if (polygon.points.size() < CustomPolygon::max_points && ImGui::Button("添加多边形点##add")) {
+            if (polygon.points.size() < CustomPolygon::max_points && ImGui::Button("Add Polygon Point##add")) {
                 if (const auto player = GW::Agents::GetControlledCharacter()) {
                     polygon.points.emplace_back(player->pos);
                     polygon_changed = true;
@@ -751,11 +751,11 @@ void CustomRenderer::DrawPolygonSettings()
         markers_changed |= polygon_changed;
     }
     ImGui::PopID();
-    if (ImGui::Button("添加多边形")) {
+    if (ImGui::Button("Add Polygon")) {
         char buf[32];
-        snprintf(buf, 32, "多边形%zu", polygons.size());
+        snprintf(buf, 32, "polygon%zu", polygons.size());
         polygons.emplace_back(buf);
-        // 向量大小增加并重新分配数组时使多边形失效
+        // invalidate in crease vector size increased and reallocated array
         for (auto& poly : polygons) {
             poly.Invalidate();
         }
@@ -763,7 +763,7 @@ void CustomRenderer::DrawPolygonSettings()
     }
     ImGui::SameLine();
     bool sort_polygons = false;
-    if (ImGui::ConfirmButton("按名称排序 A-Z##polygons", &sort_polygons, "按名称字母顺序排序所有多边形？\n此操作不可撤销。")) {
+    if (ImGui::ConfirmButton("Sort A-Z##polygons", &sort_polygons, "Sort all polygons alphabetically by name?\nThis cannot be undone.")) {
         std::sort(polygons.begin(), polygons.end(), [](const CustomPolygon& a, const CustomPolygon& b) {
             return strcmp(a.name, b.name) < 0;
         });
@@ -774,7 +774,7 @@ void CustomRenderer::DrawPolygonSettings()
     }
     ImGui::SameLine();
     bool sort_polygons_by_map = false;
-    if (ImGui::ConfirmButton("按地图排序##polygons", &sort_polygons_by_map, "按地图 ID 排序所有多边形？\n此操作不可撤销。")) {
+    if (ImGui::ConfirmButton("Sort by Map##polygons", &sort_polygons_by_map, "Sort all polygons by map ID?\nThis cannot be undone.")) {
         std::sort(polygons.begin(), polygons.end(), [](const CustomPolygon& a, const CustomPolygon& b) {
             if (a.map != b.map)
                 return static_cast<uint32_t>(a.map) < static_cast<uint32_t>(b.map);
@@ -789,19 +789,19 @@ void CustomRenderer::DrawPolygonSettings()
 
 void CustomRenderer::DrawSettings()
 {
-    if (ImGui::TreeNodeEx("英雄标记圆圈", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+    if (ImGui::TreeNodeEx("Hero Flag Circles", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
         bool changed = false;
         const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
         ImGui::PushItemWidth(60.f);
         changed |= ImGui::DragFloat("##hero_flag_thickness", &hero_flag_line_thickness_, 0.1f, 0.1f, 20.f, "%.1fpx");
         ImGui::PopItemWidth();
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("线条粗细（像素）");
+            ImGui::SetTooltip("Line thickness (pixels)");
         }
         ImGui::SameLine(0.f, spacing);
         changed |= ImGui::ColorButtonPicker("##hero_flag_color", &color_hero_flags_);
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("英雄标记圆圈颜色");
+            ImGui::SetTooltip("Hero flag circle color");
         }
         if (changed) {
             hero_circles_.Invalidate();
@@ -809,23 +809,23 @@ void CustomRenderer::DrawSettings()
         ImGui::TreePop();
     }
     const auto draw_note = [] {
-        ImGui::Text("注意：自定义标记存储在设置文件夹的 'Markers.json' 中。你可以与其他玩家共享此文件，或将他人的标记粘贴到其中。");
+        ImGui::Text("Note: custom markers are stored in 'Markers.json' in settings folder. You can share the file with other players or paste other people's markers into it.");
     };
-    if (ImGui::TreeNodeEx("自定义线条", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+    if (ImGui::TreeNodeEx("Custom Lines", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
         ImGui::BeginChild("##custom_lines", {0.f, std::min(ImGui::GetWindowSize().y * 0.7f, 75.f + lines.size() * 25.f)});
         draw_note();
         DrawLineSettings();
         ImGui::EndChild();
         ImGui::TreePop();
     }
-    if (ImGui::TreeNodeEx("自定义圆形", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+    if (ImGui::TreeNodeEx("Custom Circles", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
         ImGui::BeginChild("##custom_circles", {0.f, std::min(ImGui::GetWindowSize().y * 0.7f, 75.f + markers.size() * 25.f)});
         draw_note();
         DrawMarkerSettings();
         ImGui::EndChild();
         ImGui::TreePop();
     }
-    if (ImGui::TreeNodeEx("自定义多边形", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+    if (ImGui::TreeNodeEx("Custom Polygons", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
         ImGui::BeginChild("##custom_polygons", {0.f, std::min(ImGui::GetWindowSize().y * 0.7f, 50.f + polygons.size() * 25.f)});
         draw_note();
         DrawPolygonSettings();
@@ -988,7 +988,8 @@ void CustomRenderer::Render(IDirect3DDevice9* device)
         marker_file_dirty = true;
         markers_changed = false;
         Invalidate();
-        // 不要返回：下面的绘制会在本帧重新上传缓冲区。跳过它会在清除并重新添加路径时导致一帧闪烁。
+        // Don't return: the draw below re-uploads the buffer this frame. Skipping it blinks the
+        // lines for one frame when a quest path is cleared and re-added.
     }
 
     DrawCustomMarkers(device);
@@ -1028,7 +1029,7 @@ void CustomRenderer::DrawCustomMarkers(IDirect3DDevice9* device)
 
 void CustomRenderer::DrawCustomLines(const IDirect3DDevice9*)
 {
-    // 以 30fps 重建，而非每帧：重建将缓冲区标记为脏并强制 Lock/memcpy 重新上传。
+    // Rebuild at 30fps, not every frame: a rebuild marks the buffer dirty and forces a Lock/memcpy re-upload.
     static clock_t last_check = 0;
     if (!ToolboxUtils::FrameRateCheck(last_check, 30)) return;
 

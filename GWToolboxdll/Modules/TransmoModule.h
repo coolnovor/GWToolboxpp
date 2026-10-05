@@ -13,8 +13,8 @@ public:
         return instance;
     }
 
-    [[nodiscard]] const char* Name() const override { return "外观变换"; }
-    [[nodiscard]] const char* SettingsName() const override { return "聊天设置"; }
+    [[nodiscard]] const char* Name() const override { return "Transmo"; }
+    [[nodiscard]] const char* SettingsName() const override { return "Chat Settings"; }
 
     // Persisted shape of one transmo NPC list entry
     struct TransmoEntrySetting {

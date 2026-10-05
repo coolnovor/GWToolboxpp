@@ -73,7 +73,7 @@ namespace {
     struct SpecialNPCToAdd {
         SpecialNPCToAdd(const char* _alias, const int _model_id, const GW::Constants::MapID _map_id) : alias(_alias), model_id(static_cast<uint32_t>(_model_id)), map_id(_map_id) {};
         std::string alias;
-        const char* GetMapName() { return map_id > GW::Constants::MapID::None ? Resources::GetMapName(map_id)->string().c_str() : "任意"; }
+        const char* GetMapName() { return map_id > GW::Constants::MapID::None ? Resources::GetMapName(map_id)->string().c_str() : "Any"; }
         uint32_t model_id = 0;
         GW::Constants::MapID map_id = GW::Constants::MapID::None;
     };
@@ -222,7 +222,7 @@ namespace {
             if (user_defined_npc->model_id == model_id) {
                 delete user_defined_npc;
                 user_defined_npc = nullptr;
-                // 不直接调用 erase() 因为很危险，而是设为 nullptr。
+                // Don't actually call erase() because its mad dodgy, but set to nullptr instead.
                 break;
             }
         }
@@ -243,31 +243,31 @@ namespace {
     void LoadDefaults() {
         ClearSpecialNPCs();
 
-        AddSpecialNPC({"溪谷友好灵魂 1", GW::Constants::ModelID::UW::TorturedSpirit1, GW::Constants::MapID::The_Underworld});
-        AddSpecialNPC({"溪谷友好灵魂 2", GW::Constants::ModelID::UW::TorturedSpirit1 + 1, GW::Constants::MapID::The_Underworld});
-        AddSpecialNPC({"深坑友好灵魂 1", GW::Constants::ModelID::UW::PitsSoul1, GW::Constants::MapID::The_Underworld});
-        AddSpecialNPC({"深坑友好灵魂 2", GW::Constants::ModelID::UW::PitsSoul2, GW::Constants::MapID::The_Underworld});
-        AddSpecialNPC({"深坑友好灵魂 3", GW::Constants::ModelID::UW::PitsSoul3, GW::Constants::MapID::The_Underworld});
-        AddSpecialNPC({"深坑友好灵魂 4", GW::Constants::ModelID::UW::PitsSoul4, GW::Constants::MapID::The_Underworld});
+        AddSpecialNPC({"Vale friendly spirit 1", GW::Constants::ModelID::UW::TorturedSpirit1, GW::Constants::MapID::The_Underworld});
+        AddSpecialNPC({"Vale friendly spirit 2", GW::Constants::ModelID::UW::TorturedSpirit1 + 1, GW::Constants::MapID::The_Underworld});
+        AddSpecialNPC({"Pits friendly spirit 1", GW::Constants::ModelID::UW::PitsSoul1, GW::Constants::MapID::The_Underworld});
+        AddSpecialNPC({"Pits friendly spirit 2", GW::Constants::ModelID::UW::PitsSoul2, GW::Constants::MapID::The_Underworld});
+        AddSpecialNPC({"Pits friendly spirit 3", GW::Constants::ModelID::UW::PitsSoul3, GW::Constants::MapID::The_Underworld});
+        AddSpecialNPC({"Pits friendly spirit 4", GW::Constants::ModelID::UW::PitsSoul4, GW::Constants::MapID::The_Underworld});
 
-        AddSpecialNPC({"火岛狮鹫", GW::Constants::ModelID::FoW::Griffons, GW::Constants::MapID::The_Fissure_of_Woe});
-        AddSpecialNPC({"火岛锻造大师", GW::Constants::ModelID::FoW::Forgemaster, GW::Constants::MapID::The_Fissure_of_Woe});
+        AddSpecialNPC({"FoW Griffs", GW::Constants::ModelID::FoW::Griffons, GW::Constants::MapID::The_Fissure_of_Woe});
+        AddSpecialNPC({"FoW Forgemaster", GW::Constants::ModelID::FoW::Forgemaster, GW::Constants::MapID::The_Fissure_of_Woe});
 
-        AddSpecialNPC({"穆萨特元素使（变形）", GW::Constants::ModelID::PolymockSummon::MursaatElementalist, GW::Constants::MapID::None});
-        AddSpecialNPC({"火焰巨灵（变形）", GW::Constants::ModelID::PolymockSummon::FlameDjinn, GW::Constants::MapID::None});
-        AddSpecialNPC({"冰魔像（变形）", GW::Constants::ModelID::PolymockSummon::IceImp, GW::Constants::MapID::None});
-        AddSpecialNPC({"纳迦萨满（变形）", GW::Constants::ModelID::PolymockSummon::NagaShaman, GW::Constants::MapID::None});
+        AddSpecialNPC({"Mursaat Elementalist (Polymock)", GW::Constants::ModelID::PolymockSummon::MursaatElementalist, GW::Constants::MapID::None});
+        AddSpecialNPC({"Flame Djinn (Polymock)", GW::Constants::ModelID::PolymockSummon::FlameDjinn, GW::Constants::MapID::None});
+        AddSpecialNPC({"Ice Imp (Polymock)", GW::Constants::ModelID::PolymockSummon::IceImp, GW::Constants::MapID::None});
+        AddSpecialNPC({"Naga Shaman (Polymock)", GW::Constants::ModelID::PolymockSummon::NagaShaman, GW::Constants::MapID::None});
 
-        AddSpecialNPC({"黑檀先锋刺客", GW::Constants::ModelID::EbonVanguardAssassin, GW::Constants::MapID::None});
+        AddSpecialNPC({"Ebon Vanguard Assassin", GW::Constants::ModelID::EbonVanguardAssassin, GW::Constants::MapID::None});
 
-        AddSpecialNPC({"Ben Wolfson 前传", 1512, GW::Constants::MapID::None});
+        AddSpecialNPC({"Ben Wolfson Pre-Searing", 1512, GW::Constants::MapID::None});
 
-        // 任务重要NPC
-        AddSpecialNPC({"盖拉孵化场攻城龟", 3582, GW::Constants::MapID::Gyala_Hatchery_outpost_mission});
-        AddSpecialNPC({"Rornak Stonesledge（奖励NPC）", 1559, GW::Constants::MapID::The_Frost_Gate});
-        AddSpecialNPC({"Oink（奖励NPC）", 1710, GW::Constants::MapID::Gates_of_Kryta});
-        AddSpecialNPC({"不安之灵（奖励NPC）", 1965, GW::Constants::MapID::Sanctum_Cay});
-        AddSpecialNPC({"Besuz队长（奖励NPC）", 5271, GW::Constants::MapID::Blacktide_Den});
+        // Important NPCs for missions
+        AddSpecialNPC({"Gyala Hatchery siege turtle", 3582, GW::Constants::MapID::Gyala_Hatchery_outpost_mission});
+        AddSpecialNPC({"Rornak Stonesledge (Bonus NPC)", 1559, GW::Constants::MapID::The_Frost_Gate});
+        AddSpecialNPC({"Oink (Bonus NPC)", 1710, GW::Constants::MapID::Gates_of_Kryta});
+        AddSpecialNPC({"Restless Spirit (Bonus NPC)", 1965, GW::Constants::MapID::Sanctum_Cay});
+        AddSpecialNPC({"Captain Besuz (Bonus NPC)", 5271, GW::Constants::MapID::Blacktide_Den});
     }
 
     void ClearAddedAllies()
@@ -280,10 +280,10 @@ namespace {
     bool ShouldAddAgentToPartyWindow(const uint32_t agent_type)
     {
         if ((agent_type & 0x20000000) == 0) {
-            return false; // 不是NPC
+            return false; // Not an NPC
         }
         if (GW::Map::GetInstanceType() != GW::Constants::InstanceType::Explorable) {
-            return false; // 不在可探索区域
+            return false; // Not in an explorable area
         }
         const GW::Constants::MapID map_id = GW::Map::GetMapID();
         const uint32_t player_number = agent_type ^ 0x20000000;
@@ -304,7 +304,7 @@ namespace {
             return false;
         }
         if (a->GetIsDead() || a->GetIsDeadByTypeMap() || a->allegiance == GW::Constants::Allegiance::Enemy) {
-            return false; // 不添加已死亡的NPC
+            return false; // Dont add dead NPCs.
         }
         if (std::ranges::contains(allies_added_to_party, a->agent_id)) {
             return false;
@@ -355,13 +355,13 @@ namespace {
     {
         const auto* a = static_cast<GW::AgentLiving*>(GW::Agents::GetAgentByID(agent_id));
         if (!a || !a->GetIsLivingType() || !(a->type_map & 0x20000)) {
-            return false; // 不在队伍窗口中
+            return false; // Not in party window
         }
         for (const unsigned int i : allies_added_to_party) {
             if (a->agent_id != i) {
                 continue;
             }
-            // 盟友变为敌人，或已死亡。
+            // Ally turned enemy, or is dead.
             return a->allegiance == GW::Constants::Allegiance::Enemy || a->GetIsDead() || a->GetIsDeadByTypeMap();
         }
         return false;
@@ -437,7 +437,7 @@ namespace {
     struct PartySorting {
         GW::Constants::MapID map_id;
         uint32_t party_size;
-        std::vector<uint16_t> sorting_by_profession; // 这是 (uint8_t)主职业 | (uint8_t)副职业
+        std::vector<uint16_t> sorting_by_profession; // This is (uint8_t)primary | (uint8_t)secondary
     };
 
     std::vector<PartySorting> party_sortings;
@@ -471,10 +471,10 @@ namespace {
 
                 int match_quality = 0;
                 if (sorting_primary != GW::Constants::ProfessionByte::None && sorting_primary == agent->primary) {
-                    match_quality++; // 主职业匹配价值2分
+                    match_quality++; // Primary match is worth 2 points
                 }
                 if (sorting_secondary != GW::Constants::ProfessionByte::None && sorting_secondary == agent->secondary) {
-                    match_quality++; // 副职业匹配价值1分
+                    match_quality++; // Secondary match is worth 1 point
                 }
 
                 if (match_quality > *match_quality_out || (match_quality == *match_quality_out && i < *sort_pos_out)) {
@@ -484,31 +484,31 @@ namespace {
             }
         };
         size_t p1_sort_pos = SIZE_MAX;
-        int p1_match_quality = -1; // 越大匹配越好
+        int p1_match_quality = -1; // Higher = better match
         CalcSortPos(p1, &p1_sort_pos, &p1_match_quality);
 
         size_t p2_sort_pos = SIZE_MAX;
         int p2_match_quality = -1;
         CalcSortPos(p2, &p2_sort_pos, &p2_match_quality);
 
-        // 如果两者均不匹配任何排序条件，则保持原顺序
+        // If neither player matches any sorting criteria, maintain original order
         if (p1_sort_pos == SIZE_MAX && p2_sort_pos == SIZE_MAX) {
             return 0;
         }
 
-        // 无匹配的玩家排到末尾
+        // Players with no match go to the end
         if (p1_sort_pos == SIZE_MAX) return 1;
         if (p2_sort_pos == SIZE_MAX) return 0;
 
-        // 比较排序位置 - 位置靠前优先
+        // Compare sort positions - lower position comes first
         if (p1_sort_pos < p2_sort_pos) return 0;
         if (p1_sort_pos > p2_sort_pos) return 1;
 
-        // 相同位置 - 使用匹配质量作为决胜因素
+        // Same position - use match quality as tiebreaker
         if (p1_match_quality > p2_match_quality) return 0;
         if (p1_match_quality < p2_match_quality) return 1;
 
-        // 相同位置和质量 - 保持原顺序
+        // Same position and quality - maintain original order
         return wcscmp(GW::Agents::GetAgentEncName(p1->agent_id), GW::Agents::GetAgentEncName(p2->agent_id)) > 0;
     }
 
@@ -575,15 +575,15 @@ namespace {
     }
 
     void DrawCustomNPCSettings() {
-        ImGui::TextDisabled("仅适用于可探索区域。仅适用于NPC；不适用于敌人、仆从或精灵。");
+        ImGui::TextDisabled("Only works in an explorable area. Only works on NPCs; not enemies, minions or spirits.");
         const float font_scale = ImGui::FontScale();
         const float cols[3] = {256.0f * font_scale, 352.0f * font_scale, 448.0f * font_scale};
 
-        ImGui::Text("名称");
+        ImGui::Text("Name");
         ImGui::SameLine(cols[0]);
-        ImGui::Text("模型ID");
+        ImGui::Text("Model ID");
         ImGui::SameLine(cols[1]);
-        ImGui::Text("地图");
+        ImGui::Text("Map");
         ImGui::Separator();
         ImGui::BeginChild("user_defined_npcs_to_add_scroll", ImVec2(0, 200.0f));
         for (const auto& npc : user_defined_npcs) {
@@ -603,7 +603,7 @@ namespace {
             const bool clicked = ImGui::Button(" X ");
             ImGui::PopID();
             if (clicked) {
-                Log::Flash("已移除特殊NPC %s (%d)", npc->alias.c_str(), npc->model_id);
+                Log::Flash("Removed special NPC %s (%d)", npc->alias.c_str(), npc->model_id);
                 RemoveSpecialNPC(npc->model_id);
                 CheckMap();
                 break;
@@ -612,32 +612,32 @@ namespace {
         ImGui::EndChild();
         ImGui::Separator();
         bool submitted = false;
-        ImGui::Text("添加新NPC：");
-        ImGui::InputText("名称", new_npc_alias, 128);
-        ImGui::InputInt("模型ID", &new_npc_model_id);
-        ImGui::InputInt("地图ID (0 = 任意)", &new_npc_map_id);
-        submitted |= ImGui::Button("添加");
+        ImGui::Text("Add new:");
+        ImGui::InputText("Name", new_npc_alias, 128);
+        ImGui::InputInt("Model ID", &new_npc_model_id);
+        ImGui::InputInt("Map ID (0 = Any)", &new_npc_map_id);
+        submitted |= ImGui::Button("Add");
         if (submitted) {
             if (new_npc_model_id < 1) {
-                return Log::Error("无效的模型ID");
+                return Log::Error("Invalid model id");
             }
             if (new_npc_map_id < 0 || new_npc_map_id > static_cast<int>(GW::Constants::MapID::Count)) {
-                return Log::Error("无效的地图ID");
+                return Log::Error("Invalid map id");
             }
             const std::string alias_str(new_npc_alias);
             if (alias_str.empty()) {
-                return Log::Error("名称为空");
+                return Log::Error("Empty value for Name");
             }
             const auto it = user_defined_npcs_by_model_id.find(static_cast<uint32_t>(new_npc_model_id));
             if (it != user_defined_npcs_by_model_id.end()) {
-                return Log::Error("特殊NPC %s 已为模型ID %d 定义", it->second->alias.c_str(), new_npc_model_id);
+                return Log::Error("Special NPC %s is already defined for model_id %d", it->second->alias.c_str(), new_npc_model_id);
             }
             AddSpecialNPC({alias_str.c_str(), new_npc_model_id, static_cast<GW::Constants::MapID>(new_npc_map_id)});
-            Log::Flash("已添加特殊NPC %s (%d)", alias_str.c_str(), new_npc_model_id);
+            Log::Flash("Added special NPC %s (%d)", alias_str.c_str(), new_npc_model_id);
             CheckMap();
         }
         bool reset = false;
-        if (ImGui::ConfirmButton("重置", &reset, "这将重置您的NPC列表为默认示例。\n确定要继续吗？")) 
+        if (ImGui::ConfirmButton("Reset", &reset, "This will reset your npc list to the default examples.\nAre you sure you want to continue?")) 
             LoadDefaults();
     }
 
@@ -652,13 +652,13 @@ namespace {
         float offset = 0.f;
         const float sort_cols[3] = {(offset += 200.f) * fontScale, (offset += 100.f) * fontScale, ImGui::GetContentRegionAvail().x - 100.0f * fontScale};
 
-        ImGui::Text("地图");
+        ImGui::Text("Map");
         ImGui::SameLine(sort_cols[0]);
-        ImGui::Text("队伍大小");
+        ImGui::Text("Party Size");
         ImGui::SameLine(sort_cols[1]);
-        ImGui::Text("排序顺序");
+        ImGui::Text("Sort Order");
         ImGui::SameLine(sort_cols[2]);
-        ImGui::Text("操作");
+        ImGui::Text("Actions");
         ImGui::Separator();
 
         ImGui::BeginChild("party_sorting_scroll", ImVec2(0, 200.0f));
@@ -674,7 +674,7 @@ namespace {
                 }
                 else {
                     static char map_id_str[32];
-                    snprintf(map_id_str, sizeof(map_id_str), "地图 %d", static_cast<int>(sorting.map_id));
+                    snprintf(map_id_str, sizeof(map_id_str), "Map %d", static_cast<int>(sorting.map_id));
                     map_name = map_id_str;
                 }
             }
@@ -682,7 +682,7 @@ namespace {
             ImGui::SameLine(sort_cols[0]);
 
             if (sorting.party_size == 0) {
-                ImGui::Text("任意");
+                ImGui::Text("Any");
             }
             else {
                 ImGui::Text("%u", sorting.party_size);
@@ -728,7 +728,7 @@ namespace {
 
 
         const bool is_editing = (edit_sorting_index >= 0);
-        ImGui::Text(is_editing ? "编辑队伍排序：" : "添加新队伍排序：");
+        ImGui::Text(is_editing ? "Edit Party Sorting:" : "Add New Party Sorting:");
 
         ImGui::Text("Map ID (0 = Any):");
         ImGui::SameLine(200.0f * fontScale);
@@ -814,7 +814,7 @@ namespace {
 
         if (ImGui::Button(is_editing ? "Save Changes" : "Add Sorting")) {
             if (edit_profession_order.empty()) {
-                Log::Error("至少需要一个职业条目");
+                Log::Error("At least one profession entry is required");
             }
             else {
                 PartySorting new_sorting;
@@ -824,12 +824,12 @@ namespace {
 
                 if (is_editing) {
                     party_sortings[edit_sorting_index] = new_sorting;
-                    Log::Flash("已更新队伍排序");
+                    Log::Flash("Updated party sorting");
                     edit_sorting_index = -1;
                 }
                 else {
                     party_sortings.push_back(new_sorting);
-                    Log::Flash("已添加新队伍排序");
+                    Log::Flash("Added new party sorting");
                 }
 
                 edit_map_id = 0;
@@ -842,7 +842,7 @@ namespace {
 
         if (is_editing) {
             ImGui::SameLine();
-            if (ImGui::Button("取消")) {
+            if (ImGui::Button("Cancel")) {
                 edit_sorting_index = -1;
                 edit_map_id = 0;
                 edit_party_size = 0;
@@ -858,7 +858,7 @@ void PartyWindowModule::Update(float delta) {
         check_party_search_offline_reminder = false;
         if (TIMER_DIFF(offline_party_search_reminder_last_sent) > 10000 && GW::FriendListMgr::GetMyStatus() == GW::FriendStatus::Offline) {
             offline_party_search_reminder_last_sent = TIMER_INIT();
-            Log::Flash("您当前处于离线状态，将无法收到队伍搜索回复。\n请在聊天中输入 '/online' 将状态设为在线。");
+            Log::Flash("You're currently offline, and won't receive party search responses.\nType '/online' in chat to set your status to Online.");
         }
     }
     while (!summons_pending.empty()) {
@@ -887,19 +887,19 @@ void PartyWindowModule::Initialize()
 {
     ToolboxModule::Initialize();
     SettingsRegistry::Register(this, settings);
-    // 当NPC死亡时从队伍窗口中移除
+    // Remove certain NPCs from party window when dead
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::AgentState>(
         &AgentState_Entry,
         [&](const GW::HookStatus*, const GW::Packet::StoC::AgentState* pak) -> void {
             if (!settings.add_npcs_to_party_window || pak->state != 16) {
-                return; // 未死亡
+                return; // Not dead.
             }
             if (!std::ranges::contains(allies_added_to_party, pak->agent_id)) {
-                return; // 不是由工具箱添加的
+                return; // Not added via toolbox
             }
             pending_remove.push(pak->agent_id);
         });
-    // 当NPC消失时从队伍窗口中移除
+    // Remove certain NPCs from party window when despawned
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::AgentRemove>(
         &AgentRemove_Entry,
         [&](const GW::HookStatus*, const GW::Packet::StoC::AgentRemove* pak) -> void {
@@ -919,11 +919,11 @@ void PartyWindowModule::Initialize()
                 }
             }
             if (std::ranges::find(allies_added_to_party, pak->agent_id) == allies_added_to_party.end()) {
-                return; // 不是由工具箱添加的
+                return; // Not added via toolbox
             }
             pending_remove.push(pak->agent_id);
         });
-    // 当NPC生成时添加到队伍窗口
+    // Add certain NPCs to party window when spawned
     GW::StoC::RegisterPostPacketCallback<GW::Packet::StoC::AgentAdd>(
         &AgentAdd_Entry,
         [&](const GW::HookStatus*, GW::Packet::StoC::AgentAdd* pak) -> void {
@@ -931,14 +931,14 @@ void PartyWindowModule::Initialize()
                 return;
             }
             if (pak->type != 1) {
-                return; // 不是活物代理
+                return; // Not a living agent.
             }
             if (!ShouldAddAgentToPartyWindow(pak->agent_type)) {
                 return;
             }
             pending_add.emplace_back(pak->agent_id, pak->allegiance_bits, pak->agent_type ^ 0x20000000);
         });
-    // 切换地图时闪烁/聚焦窗口（以及一些清理工作）
+    // Flash/focus window on zoning (and a bit of housekeeping)
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::InstanceLoadInfo>(
         &GameSrvTransfer_Entry,
         [&](const GW::HookStatus*, const GW::Packet::StoC::InstanceLoadInfo* pak) -> void {
@@ -949,7 +949,7 @@ void PartyWindowModule::Initialize()
             is_explorable = pak->is_explorable != 0;
             aliased_player_names.clear();
         });
-    // 队伍窗口中的玩家编号
+    // Player numbers in party window
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::PlayerJoinInstance>(
         &GameSrvTransfer_Entry,
         [&](const GW::HookStatus*, GW::Packet::StoC::PlayerJoinInstance* pak) -> void {
@@ -969,7 +969,7 @@ void PartyWindowModule::Initialize()
             }
             AddAllyActual(pending_add[i]);
             pending_add.erase(pending_add.begin() + static_cast<int>(i));
-            break; // 下一帧继续
+            break; // Continue next frame
         }
     });
 
@@ -1032,14 +1032,14 @@ void PartyWindowModule::LoadDefaults()
 
 void PartyWindowModule::DrawSettingsInternal()
 {
-    ImGui::CheckboxWithHelp("向队伍窗口添加玩家编号", &settings.add_player_numbers_to_party_window, "将在下次地图更新时生效");
-    ImGui::CheckboxWithHelp("将天狗和帝国护卫盟友的召唤物重命名为其对应精英技能", &settings.add_elite_skill_to_summons, "仅对新生成的召唤物有效。");
+    ImGui::CheckboxWithHelp("Add player numbers to party window", &settings.add_player_numbers_to_party_window, "Will update on next map");
+    ImGui::CheckboxWithHelp("Rename Tengu and Imperial Guard Ally summons to their respective elite skill", &settings.add_elite_skill_to_summons, "Only works on newly spawned summons.");
     ImGui::Checkbox(
-        "移除已死亡的帝国护卫盟友", &settings.remove_dead_imperials);
-    if (ImGui::Checkbox("将特殊NPC添加到队伍窗口", &settings.add_npcs_to_party_window)) {
+        "Remove dead imperial guard allies", &settings.remove_dead_imperials);
+    if (ImGui::Checkbox("Add special NPCs to party window", &settings.add_npcs_to_party_window)) {
         CheckMap();
     }
-    ImGui::ShowHelp("在罗盘范围内将特殊NPC添加到队伍窗口的“盟友”部分。");
+    ImGui::ShowHelp("Adds special NPCs to the Allies section of the party window within compass range.");
     if (settings.add_npcs_to_party_window) {
         ImGui::Indent();
         DrawCustomNPCSettings();
@@ -1047,10 +1047,10 @@ void PartyWindowModule::DrawSettingsInternal()
     }
     ImGui::Separator();
 
-    if (ImGui::Checkbox("为队伍窗口添加自定义排序", &settings.custom_sort_party_window)) {
+    if (ImGui::Checkbox("Add custom sorting to party window", &settings.custom_sort_party_window)) {
         RefreshPartySortHandler();
     }
-    ImGui::ShowHelp("根据职业和/或地图自动对队伍窗口中的玩家进行排序");
+    ImGui::ShowHelp("Automatically sort players in your party window depending on profession and/or map");
     if (settings.custom_sort_party_window) {
         ImGui::Indent();
         DrawCustomPartySortingSettings();
@@ -1106,7 +1106,7 @@ void PartyWindowModule::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
             char* p;
             long model_id = strtol(key.pItem, &p, 10);
             if (!p || model_id < 1) {
-                continue; // 不是模型ID
+                continue; // Not a model_id
             }
             std::string value(legacy->GetValue(Name(), key.pItem, ""));
             if (value.empty()) {
@@ -1123,7 +1123,7 @@ void PartyWindowModule::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
             p = nullptr;
             long map_id = strtol(value.substr(name_end_pos + 1).c_str(), &p, 10);
             if (!p || map_id < 0 || map_id >= static_cast<long>(GW::Constants::MapID::Count)) {
-                continue; // 无效的地图ID
+                continue; // Invalid map_id
             }
             AddSpecialNPC({alias.c_str(), model_id, static_cast<GW::Constants::MapID>(map_id)});
         }

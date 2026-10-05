@@ -61,7 +61,7 @@ glz::generic ObserverExportWindow::ToJSON_V_0_1()
             json_party["party_id"] = party->party_id;
             json_party["stats"] = shared_stats_to_json(party->stats);
             
-            // 队伍总体生命值快照（每 15 秒记录一次）
+            // Party aggregate health snapshots (recorded every 15 seconds)
             json_party["health_snapshots"] = glz::generic::array_t{};
             for (const auto& snapshot : party->health_snapshots) {
                 glz::generic snapshot_json;
@@ -126,9 +126,9 @@ glz::generic ObserverExportWindow::ToJSON_V_0_1()
 
                         const char* res_type_str = "unknown";
                         switch (rez.resurrection_type) {
-                            case ObserverModule::ResurrectionType::Skill: res_type_str = "技能"; break;
-                            case ObserverModule::ResurrectionType::BaseResurrection: res_type_str = "基础复活"; break;
-                            default: res_type_str = "未知"; break;
+                            case ObserverModule::ResurrectionType::Skill: res_type_str = "skill"; break;
+                            case ObserverModule::ResurrectionType::BaseResurrection: res_type_str = "base_resurrection"; break;
+                            default: res_type_str = "unknown"; break;
                         }
                         rez_json["resurrection_type"] = res_type_str;
 
@@ -163,7 +163,7 @@ glz::generic ObserverExportWindow::ToJSON_V_1_0()
     glz::generic json;
     ObserverModule& om = ObserverModule::Instance();
 
-    // 名称通过遍历队伍构建
+    // name is built by iterating over the parties
     bool name_prepend_vs = false;
     std::string name = "";
 
@@ -251,7 +251,7 @@ glz::generic ObserverExportWindow::ToJSON_V_1_0()
     const std::vector<uint32_t>& party_ids = om.GetObservablePartyIds();
     const std::vector<GW::Constants::SkillID>& skill_ids = om.GetObservableSkillIds();
 
-    // 实验（glaze 7.6）：更广泛的 STL 支持 — 尝试直接 vector 和 {}
+    // EXPERIMENT (glaze 7.6): broader STL support — try direct vector and {}
     json["guilds"]["ids"] = guild_ids;
     json["guilds"]["by_id"] = glz::generic::object_t{};
     for (uint32_t guild_id : guild_ids) {
@@ -371,7 +371,7 @@ glz::generic ObserverExportWindow::ToJSON_V_1_0()
             json["parties"]["by_id"][party_id_s]["tower_captures"].get_array().push_back(tower_json);
         }
         
-        // 队伍总体生命值快照（每 15 秒记录一次）
+        // Party aggregate health snapshots (recorded every 15 seconds)
         json["parties"]["by_id"][party_id_s]["health_snapshots"] = glz::generic::array_t{};
         for (const auto& snapshot : party->health_snapshots) {
             glz::generic snapshot_json;
@@ -405,7 +405,7 @@ glz::generic ObserverExportWindow::ToJSON_V_1_0()
         json["agents"]["by_id"][agent_id_s]["guild_id"] = agent->guild_id;
         json["agents"]["by_id"][agent_id_s]["stats"] = shared_stats_to_json(agent->stats);
 
-        // 攻击
+        // attacks
 
         for (auto& [target_id, action] : agent->stats.attacks_dealt_to_agents) {
             std::string target_id_s = std::to_string(target_id);
@@ -425,7 +425,7 @@ glz::generic ObserverExportWindow::ToJSON_V_1_0()
             json["agents"]["by_id"][agent_id_s]["stats"]["attacks_received_from_agents"][caster_id_s] = action_to_json(*action);
         }
 
-        // 技能
+        // skills
 
         json["agents"]["by_id"][agent_id_s]["stats"]["skill_ids_used"] = agent->stats.skill_ids_used;
         for (auto skill_id : agent->stats.skill_ids_used) {
@@ -569,9 +569,9 @@ glz::generic ObserverExportWindow::ToJSON_V_1_0()
             
             const char* res_type_str = "unknown";
             switch (rez.resurrection_type) {
-                case ObserverModule::ResurrectionType::Skill: res_type_str = "技能"; break;
-                case ObserverModule::ResurrectionType::BaseResurrection: res_type_str = "基础复活"; break;
-                default: res_type_str = "未知"; break;
+                case ObserverModule::ResurrectionType::Skill: res_type_str = "skill"; break;
+                case ObserverModule::ResurrectionType::BaseResurrection: res_type_str = "base_resurrection"; break;
+                default: res_type_str = "unknown"; break;
             }
             rez_json["resurrection_type"] = res_type_str;
             
@@ -596,12 +596,12 @@ void ObserverExportWindow::ExportToGWRank()
     ObserverModule& observer_module = ObserverModule::Instance();
     
     if (!observer_module.match_finished) {
-        GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, L"<c=#FF0000>比赛尚未结束。无法导出到 GWRank.com。</c>");
+        GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, L"<c=#FF0000>Match is not finished yet. Cannot export to GWRank.com.</c>");
         return;
     }
     
     if (settings.gwrank_api_key.empty()) {
-        GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, L"<c=#FF0000>未配置 API 密钥。请在观战导出设置中设置。</c>");
+        GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, L"<c=#FF0000>API key not configured. Please set it in the Observer Export settings.</c>");
         return;
     }
     
@@ -609,7 +609,7 @@ void ObserverExportWindow::ExportToGWRank()
     json["verson"] = "1.0";
     std::string json_str = glz::write<glz::opts{.prettify = true}>(json).value_or(std::string{});
     
-    // 构建一个 multipart/form-data 请求体，包含一个 "json_file" 部分
+    // Build a multipart/form-data body containing a single "json_file" part.
     const std::string boundary = "----GWToolboxBoundary7d8e6f4c2a1b";
     std::string body;
     body.append("--");
@@ -634,22 +634,22 @@ void ObserverExportWindow::ExportToGWRank()
     client.SetVerifyPeer(false);
     client.SetVerifyHost(false);
 
-    GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, L"<c=#00FF00>正在上传比赛数据到 GWRank.com...</c>");
+    GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, L"<c=#00FF00>Uploading match data to GWRank.com...</c>");
     client.Execute();
 
     const int status_code = client.GetStatusCode();
     if (client.GetStatus() != ResponseStatus::Completed) {
         wchar_t error_msg[512];
-        swprintf(error_msg, 512, L"<c=#FF0000>上传失败：%S</c>", client.GetStatusStr());
+        swprintf(error_msg, 512, L"<c=#FF0000>Failed to upload: %S</c>", client.GetStatusStr());
         GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, error_msg);
     }
     else if (status_code >= 200 && status_code < 300) {
-        GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, L"<c=#00FF00>成功上传比赛到 GWRank.com！</c>");
+        GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, L"<c=#00FF00>Successfully uploaded match to GWRank.com!</c>");
     }
     else {
         const std::string& response_data = client.GetContent();
         wchar_t error_msg[256];
-        swprintf(error_msg, 256, L"<c=#FF0000>上传失败，HTTP 状态 %d。响应：%S</c>",
+        swprintf(error_msg, 256, L"<c=#FF0000>Upload failed with HTTP status %d. Response: %S</c>",
                  status_code, response_data.substr(0, 100).c_str());
         GW::Chat::WriteChat(GW::Chat::Channel::CHANNEL_GWCA1, error_msg);
     }
@@ -677,7 +677,7 @@ void ObserverExportWindow::ExportToJSON(Version version)
             json["verson"] = "1.0";
             json["exported_at_local"] = export_time;
             std::string name = glz::write_json(json["name"]).value_or(std::string{});
-            // 移除引号（来自 json.dump()）
+            // remove quotation marks (come in from json.dump())
             std::erase(name, '"');
             std::ranges::transform(name, name.begin(), [](const unsigned char c) {
                 return static_cast<unsigned char>(c == ' ' ? '_' : c);
@@ -710,7 +710,7 @@ void ObserverExportWindow::ExportToJSON(Version version)
         if (!i) {
             break;
         }
-        // 双反斜杠转义
+        // Double escape backsashes
         if (i == '\\') {
             file_location_wc[msg_len++] = i;
         }
@@ -721,7 +721,7 @@ void ObserverExportWindow::ExportToJSON(Version version)
     }
     file_location_wc[msg_len] = 0;
     wchar_t chat_message[1024];
-    swprintf(chat_message, _countof(chat_message), L"比赛已导出到 <a=1>\x200C%s</a>", file_location_wc);
+    swprintf(chat_message, _countof(chat_message), L"Match exported to <a=1>\x200C%s</a>", file_location_wc);
     WriteChat(GW::Chat::CHANNEL_GLOBAL, chat_message);
 }
 
@@ -737,7 +737,7 @@ void ObserverExportWindow::Draw(IDirect3DDevice9*)
         return ImGui::End();
     }
 
-    ImGui::Text("比赛信息");
+    ImGui::Text("Match Information");
     ImGui::Spacing();
     
     const char* match_types[] = { "AT A", "AT B", "AT C", "MAT", "Ladder", "Scrim" };
@@ -752,7 +752,7 @@ void ObserverExportWindow::Draw(IDirect3DDevice9*)
         }
     }
     
-    if (ImGui::BeginCombo("比赛类型", current_match_type >= 0 ? match_types[current_match_type] : "选择...")) {
+    if (ImGui::BeginCombo("Match Type", current_match_type >= 0 ? match_types[current_match_type] : "Select...")) {
         for (int i = 0; i < 6; i++) {
             const bool is_selected = (current_match_type == i);
             if (ImGui::Selectable(match_types[i], is_selected)) {
@@ -779,7 +779,7 @@ void ObserverExportWindow::Draw(IDirect3DDevice9*)
             }
         }
         
-        if (ImGui::BeginCombo("MAT 轮次", current_mat_round >= 0 ? mat_rounds[current_mat_round] : "选择...")) {
+        if (ImGui::BeginCombo("MAT Round", current_mat_round >= 0 ? mat_rounds[current_mat_round] : "Select...")) {
             for (int i = 0; i < 5; i++) {
                 const bool is_selected = (current_mat_round == i);
                 if (ImGui::Selectable(mat_rounds[i], is_selected)) {
@@ -796,22 +796,22 @@ void ObserverExportWindow::Draw(IDirect3DDevice9*)
     
     char date_buf[64];
     strncpy_s(date_buf, settings.match_date.c_str(), 63);
-    if (ImGui::InputText("比赛日期", date_buf, 64)) {
+    if (ImGui::InputText("Match Date", date_buf, 64)) {
         settings.match_date = date_buf;
     }
-    ImGui::ShowHelp("格式：YYYY-MM-DD（例如 2026-02-22）");
+    ImGui::ShowHelp("Format: YYYY-MM-DD (e.g., 2026-02-22)");
     
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
-    ImGui::Text("将观战比赛导出为 JSON");
+    ImGui::Text("Export Observer matches to JSON");
 
-    if (ImGui::Button("导出为 JSON（版本 0.1）")) {
+    if (ImGui::Button("Export to JSON (Version 0.1)")) {
         ExportToJSON(Version::V_0_1);
     }
 
-    if (ImGui::Button("导出为 JSON（版本 1.0）")) {
+    if (ImGui::Button("Export to JSON (Version 1.0)")) {
         ExportToJSON(Version::V_1_0);
     }
 
@@ -819,22 +819,22 @@ void ObserverExportWindow::Draw(IDirect3DDevice9*)
     ImGui::Separator();
     ImGui::Spacing();
 
-    ImGui::Text("上传到 GWRank.com");
+    ImGui::Text("Upload to GWRank.com");
     
     ObserverModule& observer_module = ObserverModule::Instance();
     bool can_export = observer_module.match_finished && !settings.gwrank_api_key.empty();
     
     if (!observer_module.match_finished) {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "比赛未结束");
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Match not finished");
     } else if (settings.gwrank_api_key.empty()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "未配置 API 密钥");
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "API key not configured");
     }
     
     if (!can_export) {
         ImGui::BeginDisabled();
     }
     
-    if (ImGui::Button("导出到 GWRank.com")) {
+    if (ImGui::Button("Export to GWRank.com")) {
         ExportToGWRank();
     }
     
@@ -868,8 +868,8 @@ void ObserverExportWindow::SaveSettings(SettingsDoc& doc)
 
 void ObserverExportWindow::DrawSettingsInternal()
 {
-    ImGui::TextUnformatted("GWRank.com API 集成");
-    ImGui::Text("配置 API 凭证以将比赛导出到 GWRank.com");
+    ImGui::TextUnformatted("GWRank.com API Integration");
+    ImGui::Text("Configure API credentials for exporting matches to GWRank.com");
     ImGui::Spacing();
     
     char api_key_buf[256];
@@ -877,13 +877,13 @@ void ObserverExportWindow::DrawSettingsInternal()
     strncpy_s(api_key_buf, settings.gwrank_api_key.c_str(), 255);
     strncpy_s(endpoint_buf, settings.gwrank_endpoint.c_str(), 255);
     
-    if (ImGui::InputText("API 密钥", api_key_buf, 256, ImGuiInputTextFlags_Password)) {
+    if (ImGui::InputText("API Key", api_key_buf, 256, ImGuiInputTextFlags_Password)) {
         settings.gwrank_api_key = api_key_buf;
     }
-    ImGui::ShowHelp("输入你的 GWRank.com API 密钥以进行身份验证");
+    ImGui::ShowHelp("Enter your GWRank.com API key for authentication");
     
-    if (ImGui::InputText("API 端点", endpoint_buf, 256)) {
+    if (ImGui::InputText("API Endpoint", endpoint_buf, 256)) {
         settings.gwrank_endpoint = endpoint_buf;
     }
-    ImGui::ShowHelp("GWRank.com API 端点 URL（默认：https://gwrank.com/api/v1/matches）");
+    ImGui::ShowHelp("URL for the GWRank.com API endpoint (default: https://gwrank.com/api/v1/matches)");
 }

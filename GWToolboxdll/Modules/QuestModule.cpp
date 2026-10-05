@@ -34,14 +34,17 @@
 namespace {
     QuestModule::Settings settings;
 
-    // 任务路径依赖于（现为可选的）寻路模块；若无此模块，则无路由API可调用。
-    // 无锁标志（非 GWToolbox::IsModuleEnabled）以保持在每帧 Update 路径上的轻量级。
+    // Quest pathing depends on the (now optional) Pathfinding module; without it there's no route API to call.
+    // Lock-free flag (not GWToolbox::IsModuleEnabled) so this stays cheap on the per-frame Update path.
     bool QuestPathingAvailable() { return PathfindingWindow::IsPathingEnabled(); }
 
     bool fetch_missing_quest_info_queued = false;
-    // 任务消息和地图加载仅标记刷新；QuestModule::Update() 在加载屏幕和寻路保护之后消耗它，
-    // 因此我们绝不会在转换期间对地图数据中启动路线计算。
+    // Quest messages and map loads only flag a refresh; QuestModule::Update() consumes it behind the loading-screen and
+    // pathing guards, so we never kick a route calc off against transitional map data mid-load.
     bool refresh_all_quest_paths_queued = false;
+    bool was_loading = true;
+    bool map_load_in_progress = false;
+    uint64_t next_quest_path_calculation_id = 0;
 
     std::vector<QuestModule::CustomMarkerChangedCallback> custom_marker_callbacks;
 
@@ -61,7 +64,7 @@ namespace {
 
     GW::UI::UIInteractionCallback QuestLogRow_UICallback_Func = nullptr, QuestLogRow_UICallback_Ret = nullptr;
 
-    // 如果双击任务条目，传送到最近的前哨站
+    // If double clicked on a quest entry, teleport to nearest outpost
     void OnQuestLogRow_UICallback(GW::UI::InteractionMessage* message, void* wParam, void* lParam)
     {
         GW::Hook::EnterHook();
@@ -70,7 +73,7 @@ namespace {
               GW::UI::BelongsToFrame(GW::UI::GetFrameByLabel(L"Quest"), GW::UI::GetFrameById(message->frame_id))))
             return GW::Hook::LeaveHook();
         const auto packet = (GW::UI::UIPacket::kMouseAction*)wParam;
-        if (!(packet->current_state == GW::UI::UIPacket::ActionState::MouseClick && (packet->child_offset_id & 0xffff0000) == 0x80000000)) return GW::Hook::LeaveHook(); // 不是双击任务条目
+        if (!(packet->current_state == GW::UI::UIPacket::ActionState::MouseClick && (packet->child_offset_id & 0xffff0000) == 0x80000000)) return GW::Hook::LeaveHook(); // Not a double click on a quest entry
         if (last_quest_clicked && TIMER_DIFF(last_quest_clicked) < 250) {
             const auto quest_id = static_cast<GW::Constants::QuestID>(packet->child_offset_id & 0xffff);
             const auto quest = GW::QuestMgr::GetQuest(quest_id);
@@ -93,9 +96,9 @@ namespace {
         if (!questlog || !active_quest) return false;
         if (quest_id == active_quest->quest_id) return true;
         if (!settings.show_paths_to_all_quests) return false;
-        // 去重指向同一地点的其他任务！
+        // De-duplicate other quests that are pointing to the same place!
         const auto quest = GW::QuestMgr::GetQuest(quest_id);
-        if (!quest) return false; // 任务刚刚被移除？
+        if (!quest) return false; // Quest has just been removed?
         for (const auto q : *questlog) {
             if (quest->marker == q.marker) {
                 return q.quest_id == quest_id;
@@ -115,29 +118,42 @@ namespace {
         CalculatedQuestPath& operator=(CalculatedQuestPath&&) = delete;
 
         std::vector<CustomRenderer::CustomLine*> minimap_lines{};
-        GW::Vec2f calculated_from{}; // 上次重算的游戏坐标锚点（用于移动检测）
-        GW::Vec2f calculated_to{};   // 世界地图目标点
+        GW::Vec2f calculated_from{}; // game-coord anchor of last recalc (move detection)
+        GW::Vec2f calculated_to{};   // world-map goal
         clock_t calculated_at = 0;
-        clock_t route_failed_at = 0; // 避免重试无法路由的标记
-        clock_t last_check = 0;      // 每个路径的 Update() 节流（共享静态会饿死其他路径）
+        clock_t route_failed_at = 0; // backs off retries of an unroutable marker
+        clock_t last_check = 0;      // per-path Update() throttle (a shared static here starves every other path)
         GW::Constants::QuestID quest_id{};
         clock_t calculating = 0;
+        uint64_t calculation_id = 0;
         GW::Vec2f goal_world{};
-        bool has_full_route = false;
         bool goal_cross_map = false;
-        std::vector<GW::Vec2f> route_world{}; // 世界地图坐标（地图之间的 PATH_BREAK）
+        std::vector<GW::Vec2f> route_world{}; // world-map coords (PATH_BREAK between maps)
         std::vector<GW::GamePos> route_map{};
         bool IsCalculating() { return calculating && TIMER_DIFF(calculating) < 5000; }
 
-        void ClearMinimapLines()
+        uint64_t BeginCalculation()
         {
-            for (const auto l : minimap_lines) {
-                Minimap::Instance().custom_renderer.RemoveCustomLine(l);
-            }
-            minimap_lines.clear();
+            calculating = TIMER_INIT();
+            calculation_id = ++next_quest_path_calculation_id;
+            return calculation_id;
         }
 
-        // 当前地图段绘制在地面表面；地图外段保持世界坐标（世界和任务地图）以避免溢出。
+        void CancelCalculation()
+        {
+            calculating = 0;
+            calculation_id = ++next_quest_path_calculation_id;
+        }
+
+        void ClearMinimapLines()
+        {
+            if (minimap_lines.empty()) return;
+            Minimap::Instance().custom_renderer.RemoveCustomLines(minimap_lines);
+            minimap_lines.clear();
+            GameWorldRenderer::TriggerSyncAllMarkers();
+        }
+
+        // Current-map segments draw on in-game surfaces; off-map segments stay world coords (world & mission map) to avoid overflow.
         void DrawLines()
         {
             ClearMinimapLines();
@@ -164,7 +180,8 @@ namespace {
                 l = Minimap::Instance().custom_renderer.AddCustomLine({route_world[i].x, route_world[i].y, 0}, {route_world[i + 1].x, route_world[i + 1].y, 0}, label.c_str(), true);
                 l->world_coords = true;
                 l->draw_on_terrain = false;
-                // 世界坐标在世界地图、任务地图和罗盘上渲染（每个都将其投影到各自空间）；世界地形无法放置其他地图的位置。
+                // World coords render on the world map, mission map, and compass (each projects them
+                // into its own space); in-world terrain can't place other maps' positions.
                 l->draw_on_minimap = settings.draw_quest_path_on_minimap;
                 l->draw_on_mission_map = settings.draw_quest_path_on_mission_map;
                 l->created_by_toolbox = true;
@@ -185,12 +202,12 @@ namespace {
 
         void RecalculateWorld(const GW::Vec2f& from_world)
         {
-            const auto gw = goal_world;
             calculated_to = goal_world;
-            Resources::EnqueueWorkerTask([qid = quest_id, from_world, gw = calculated_to] {
-                auto pts = new std::vector<GW::Vec2f>(); // 世界地图坐标
+            const auto request_id = BeginCalculation();
+            Resources::EnqueueWorkerTask([qid = quest_id, from_world, gw = calculated_to, request_id] {
+                auto pts = new std::vector<GW::Vec2f>(); // world-map coords
                 const bool ok = PathfindingWindow::CalculateRoute(from_world, gw, pts);
-                auto route_map = new std::vector<GW::GamePos>(); // 游戏坐标
+                auto route_map = new std::vector<GW::GamePos>(); // game coords
                 if (ok) {
                     size_t route_map_end_idx;
                     GW::GamePos gp;
@@ -198,35 +215,40 @@ namespace {
                     const auto data = pts->data();
                     for (route_map_end_idx = 0; route_map_end_idx < pts->size(); route_map_end_idx++) {
                         if (PathfindingWindow::IsRouteBreak(data[route_map_end_idx])) {
-                            // 路线中断（例如传送门）：仍绘制下一点以便玩家通过。
+                            // route break (e.g. portal): still plot the next point so the player traverses through.
                             passed_route_break = true;
                             continue;
                         }
-                        // @cleanup: 此操作在工作线程上安全吗？！
+                        // @cleanup: is this bit safe to run on a worker thread?!
                         if (!(PathfindingWindow::IsWorldPosOnMap(data[route_map_end_idx]) && WorldMapWidget::WorldMapToGamePos(data[route_map_end_idx], gp))) break;
                         route_map->push_back(gp);
                         if (passed_route_break) break;
                     }
                     if (route_map_end_idx) pts->erase(pts->begin(), pts->begin() + route_map_end_idx);
                 }
-                Resources::EnqueueMainTask([qid, route_map, pts, ok, gw] {
+                Resources::EnqueueMainTask([qid, route_map, pts, ok, gw, request_id] {
                     const auto cqp = GetCalculatedQuestPath(qid, false);
-                    if (cqp && cqp->goal_world != gw) {
-                        // 计算过程中标记移动了 — 此路线属于旧目标。丢弃它并强制为当前目标重新规划（设置 calculated_at=0 使 Update 在下一帧无论玩家移动与否都重新计算）。
-                        cqp->calculating = 0;
+                    if (!(cqp && cqp->calculation_id == request_id)) {
+                        delete pts;
+                        delete route_map;
+                        return;
+                    }
+                    if (cqp->goal_world != gw) {
+                        // Marker moved mid-calculation — this route is for the old goal. Drop it and force a re-plot for
+                        // the current goal (calculated_at=0 makes Update recalc next tick regardless of player movement).
+                        cqp->CancelCalculation();
                         cqp->calculated_at = 0;
                     }
-                    else if (cqp && ok) {
+                    else if (ok) {
                         cqp->route_world = std::move(*pts);
                         cqp->route_map = std::move(*route_map);
-                        cqp->has_full_route = true;
                         if (const auto self = GW::Agents::GetControlledCharacter()) cqp->TrimLeadingWaypoints(self->pos);
                         cqp->calculated_at = TIMER_INIT();
                         cqp->route_failed_at = 0;
                         cqp->calculating = 0;
                         cqp->UpdateUI();
                     }
-                    else if (cqp) {
+                    else {
                         cqp->calculating = 0;
                         cqp->calculated_at = TIMER_INIT();
                         cqp->route_failed_at = TIMER_INIT();
@@ -239,66 +261,45 @@ namespace {
 
         void RecalculateMap(const GW::GamePos& from)
         {
-            // 直接单地图 A* 到地图内端点（目标点，或路线离开此地图的位置）。
-            const bool same_map = PathfindingWindow::IsWorldPosOnMap(goal_world) && !goal_cross_map;
             GW::GamePos target{};
-            if (same_map) {
-                if (!WorldMapWidget::WorldMapToGamePos(goal_world, target)) {
-                    // Nothing enqueued, so clear the in-flight flag — leaving it set blocks every Update for 5s.
-                    calculating = 0;
-                    calculated_at = 0;
-                    return;
-                }
+            if (!WorldMapWidget::WorldMapToGamePos(goal_world, target)) {
+                calculating = 0;
+                calculated_at = 0;
+                return;
             }
-            else {
-                if (route_world.empty() || route_map.empty()) {
-                    // No cross-map route to walk toward: bailing left `calculating` set with no work queued, freezing the path.
-                    has_full_route = false;
-                    GW::Vec2f from_world{};
-                    WorldMapWidget::GamePosToWorldMap(from, from_world);
-                    RecalculateWorld(from_world);
-                    return;
-                }
-                target = route_map.back();
-            }
-            // RecalculateSegment's game-coord leg keeps the A* per-waypoint zplane (a world-coord round-trip would zero it), so the line drapes on the real surface.
-            Resources::EnqueueWorkerTask([qid = quest_id, from, target, same_map, gw = goal_world] {
+            const auto request_id = BeginCalculation();
+            Resources::EnqueueWorkerTask([qid = quest_id, from, target, gw = goal_world, request_id] {
                 auto pts = new std::vector<GW::Vec2f>();         // required out-param; unused here
                 auto route_map = new std::vector<GW::GamePos>(); // current-map game coords with carried zplane
                 const bool ok = PathfindingWindow::RecalculateSegment(static_cast<GW::Constants::MapID>(0), from, target, pts, route_map);
-                Resources::EnqueueMainTask([qid, from, route_map, pts, ok, same_map, gw] {
+                Resources::EnqueueMainTask([qid, from, route_map, pts, ok, gw, request_id] {
                     const auto cqp = GetCalculatedQuestPath(qid, false);
-                    if (cqp && cqp->goal_world != gw) {
-                        // 计算过程中标记移动了 — 旧段已过时。丢弃它并强制为当前目标重新规划。
-                        cqp->calculating = 0;
+                    if (!(cqp && cqp->calculation_id == request_id)) {
+                        delete pts;
+                        delete route_map;
+                        return;
+                    }
+                    if (cqp->goal_world != gw) {
+                        cqp->CancelCalculation();
                         cqp->calculated_at = 0;
                         delete pts;
                         delete route_map;
                         return;
                     }
-                    if (cqp && ok) {
+                    if (ok) {
                         cqp->route_map = std::move(*route_map);
-                        if (same_map) {
-                            cqp->route_world.clear(); // 整条路线都在地图内
-                            cqp->has_full_route = true;
-                        }
+                        cqp->route_world.clear();
                         if (const auto self = GW::Agents::GetControlledCharacter()) cqp->TrimLeadingWaypoints(self->pos);
                         cqp->calculated_at = TIMER_INIT();
                         cqp->route_failed_at = 0;
                         cqp->calculating = 0;
                         cqp->UpdateUI();
                     }
-                    else if (cqp && same_map) {
+                    else {
                         cqp->goal_cross_map = true;
                         GW::Vec2f from_world{};
                         WorldMapWidget::GamePosToWorldMap(from, from_world);
-                        cqp->calculating = TIMER_INIT();
                         cqp->RecalculateWorld(from_world);
-                    }
-                    else if (cqp) {
-                        cqp->calculating = 0;
-                        cqp->calculated_at = TIMER_INIT();
-                        cqp->route_failed_at = TIMER_INIT();
                     }
                     delete pts;
                     delete route_map;
@@ -306,7 +307,6 @@ namespace {
             });
         }
 
-        // 一次计算到 goal_world 的完整路线；后续移动仅重走当前地图段，其余部分保持不变。
         void Recalculate(const GW::GamePos& from)
         {
             if (IsCalculating()) return;
@@ -321,17 +321,12 @@ namespace {
 
             if (calculated_from == from_game && calculated_to == goal_world) return;
 
-            calculating = TIMER_INIT();
             const bool goal_changed = calculated_to != goal_world;
-            if (goal_changed) {
-                goal_cross_map = false; // new goal — re-test whether it's reachable on the current map
-                has_full_route = false; // and plot it from scratch instead of re-walking the old route's leg
-            }
+            if (goal_changed) goal_cross_map = false;
             calculated_from = from_game; // anchor for Update's move threshold
             calculated_to = goal_world;
             const bool same_map = PathfindingWindow::IsWorldPosOnMap(goal_world) && !goal_cross_map;
-            // Gate on the route we hold, not on `goal_changed`: a failed plot otherwise left us re-walking a leg that no longer exists.
-            if (!same_map && !has_full_route) {
+            if (!same_map) {
                 RecalculateWorld(from_world);
             }
             else {
@@ -361,7 +356,7 @@ namespace {
 
         bool Update(const GW::GamePos& from)
         {
-            // 每路径节流（成员变量，非共享静态 — 共享静态会饿死所有其他路径的重算）。
+            // Per-path throttle (member, not a shared static — a static here would starve every other path's recalc).
             if (TIMER_DIFF(last_check) < 33) return false;
             last_check = TIMER_INIT();
 
@@ -376,10 +371,10 @@ namespace {
                 return false;
             }
             if (TrimLeadingWaypoints(from)) UpdateUI();
-            // 无法路由的标记：退避而不是每帧重新计算（并重新记录）；目标/地图更改通过 RefreshQuestPath 重新规划。
+            // Unroutable marker: back off instead of recomputing (and re-logging) every tick; a goal/map change re-plots via RefreshQuestPath.
             constexpr clock_t failed_route_backoff = 10000;
             if (route_failed_at && TIMER_DIFF(route_failed_at) < failed_route_backoff) return false;
-            // 一旦玩家移动了配置的“路径重算距离”就从锚点重算。
+            // Recalc once the player has moved the configured "Path recalc distance" from the last anchor.
             const GW::Vec2f from_game{from.x, from.y};
             const float d = PathfindingWindow::GetPathRecalcDistance();
             if (GetSquareDistance(from_game, calculated_from) > d * d) Recalculate(from);
@@ -396,7 +391,7 @@ namespace {
     }
 
 
-    // 自定义任务ID大于游戏内计数 — 有些断言不喜欢这样！
+    // Custom quests have ids greater than the count in-game - there are some assertions that don't like this!
     GW::MemoryPatcher bypass_custom_quest_assertion_patch;
 
     std::unordered_map<GW::Constants::QuestID, CalculatedQuestPath*> calculated_quest_paths;
@@ -454,7 +449,7 @@ namespace {
             const auto cqp = GetCalculatedQuestPath(quest_id);
             if (!cqp) return;
 
-            // 解析世界地图目标：自定义标记拥有其世界位置；常规任务使用地图内标记，但当跨地图且地图内标记无效或距离过远（>5000 格林奇）时，回退到目标地图的世界标记。
+            // Resolve world-map goal: custom marker owns its world pos; regular quests use the in-map marker, but fall back to the destination map's world marker when cross-map and the in-map marker is invalid or far off (>5000 gwinches).
             GW::Vec2f goal{};
             bool have_goal = false;
             if (quest_id == custom_quest_id) {
@@ -471,29 +466,21 @@ namespace {
                     have_goal = WorldMapWidget::GamePosToWorldMap(quest->marker, goal);
             }
             if (!have_goal) {
+                cqp->CancelCalculation();
                 cqp->route_world.clear();
                 cqp->route_map.clear();
-                cqp->has_full_route = false;
                 cqp->calculated_at = 0;
                 cqp->route_failed_at = 0;
                 cqp->UpdateUI();
                 return;
             }
             if (GetSquareDistance(goal, cqp->goal_world) > 10.f * 10.f) {
-                cqp->has_full_route = false; // 目标移动 → 重新规划整条路线
-                cqp->route_failed_at = 0;    // 并为新目标提供干净的重试
+                cqp->CancelCalculation();
+                cqp->route_failed_at = 0;
             }
             cqp->goal_world = goal;
             cqp->Recalculate(*pos);
         });
-    }
-
-    void ClearCalculatedQuestPaths()
-    {
-        for (auto quest_path : calculated_quest_paths | std::views::values) {
-            delete quest_path;
-        }
-        calculated_quest_paths.clear();
     }
 
     GW::Constants::QuestID quest_id_before_map_load = GW::Constants::QuestID::None;
@@ -514,24 +501,26 @@ namespace {
                 const auto quest = GW::QuestMgr::GetQuest(*(GW::Constants::QuestID*)wparam);
                 if (!quest) break;
                 if (quest->quest_id == custom_quest_id) {
-                    quest->log_state |= 1; // 避免询问此任务的描述
+                    quest->log_state |= 1; // Avoid asking for description about this quest
                 }
             } break;
             case GW::UI::UIMessage::kStartMapLoad: {
+                map_load_in_progress = true;
+                was_loading = true;
                 const auto q = GW::QuestMgr::GetActiveQuestId();
                 if (q != GW::Constants::QuestID::None) quest_id_before_map_load = q;
             } break;
             case GW::UI::UIMessage::kSendSetActiveQuest: {
                 const auto quest_id = static_cast<GW::Constants::QuestID>((uint32_t)wparam);
                 if (setting_custom_quest_marker) {
-                    // 如果玩家没有任务，或地图刚加载，触发此操作；我们希望通过伪造先前的任务选择（如果有的话）来“撤销”此操作。
+                    // This triggers if the player has no quests, or the map has just loaded; we want to "undo" this by spoofing the previous quest selection if there is one
                     status->blocked = true;
                     QuestModule::SetActiveQuestId(GW::QuestMgr::GetActiveQuestId(), false);
                     return;
                 }
                 player_chosen_quest_id = quest_id;
                 if (quest_id == custom_quest_id) {
-                    // 如果玩家选择了自定义任务，伪造响应而不询问服务器
+                    // If the player has chosen the custom quest, spoof the response without asking the server
                     status->blocked = true;
                     QuestModule::SetActiveQuestId(quest_id, false);
                 }
@@ -544,7 +533,7 @@ namespace {
                 }
             } break;
             case GW::UI::UIMessage::kOnScreenMessage: {
-                // 放置自定义标记时阻止屏幕消息
+                // Block the on-screen message when the custom marker is placed
                 if (setting_custom_quest_marker) {
                     status->blocked = true;
                 }
@@ -552,7 +541,7 @@ namespace {
         }
     }
 
-    // 由任务相关的UI消息调用的回调。发送的所有消息都应将任务ID作为第一个wparam变量。
+    // Callback invoked by quest related ui messages. All messages sent should have the quest id as first wparam variable
     void OnPostUIMessage(GW::HookStatus* status, GW::UI::UIMessage message_id, void* packet, void*)
     {
         if (status->blocked) return;
@@ -562,7 +551,7 @@ namespace {
             case GW::UI::UIMessage::kClientActiveQuestChanged: {
                 const auto quest = GW::QuestMgr::GetQuest(*(GW::Constants::QuestID*)packet);
                 if (quest && settings.keep_current_quest_when_new_quest_added && quest->quest_id != player_chosen_quest_id && GW::QuestMgr::GetQuest(player_chosen_quest_id)) {
-                    // 未经用户交互分配的任务
+                    // Quest assigned without user interaction
                     QuestModule::SetActiveQuestId(player_chosen_quest_id, true);
                 }
                 refresh_all_quest_paths_queued = true;
@@ -572,26 +561,25 @@ namespace {
                 break;
             case GW::UI::UIMessage::kMapLoaded:
                 BlockQuestSound();
+                map_load_in_progress = false;
+                was_loading = true;
                 break;
         }
     }
-
-    bool was_loading = true;
-
 
     void OnMapLoaded()
     {
         if (GW::UI::IsLoadingScreenShown()) return;
         BlockQuestSound();
         QuestModule::FetchMissingQuestInfo();
-        ClearCalculatedQuestPaths();
+        ClearCalculatedPaths();
         if (custom_quest_marker_world_pos.y != 0 || custom_quest_marker_world_pos.x != 0) {
             QuestModule::SetCustomQuestMarker(custom_quest_marker_world_pos, quest_id_before_map_load == custom_quest_id);
         }
         refresh_all_quest_paths_queued = true;
     }
 
-    // 危险地释放GW内存！
+    // Dangerously frees gw memory!
     void RemoveQuest(GW::Constants::QuestID quest_id)
     {
         auto* quest = GW::QuestMgr::GetQuest(quest_id);
@@ -619,7 +607,7 @@ namespace {
         GW::UI::SendUIMessage(GW::UI::UIMessage::kMessage_0x10000152, (void*)&quest_id);
     }
 
-    // 危险地分配GW内存！
+    // Dangerously allocated gw memory!
     GW::Quest* AddQuest(
         GW::Constants::QuestID quest_id, GW::Constants::MapID map_from, GW::Constants::MapID map_to, uint32_t log_state, const GW::GamePos& marker, const wchar_t* name = 0, const wchar_t* location = 0, const wchar_t* description = 0,
         const wchar_t* npc = 0, const wchar_t* objectives = 0
@@ -680,11 +668,12 @@ void QuestModule::SetCustomQuestMarker(const GW::Vec2f& world_pos, bool set_acti
 {
     BlockQuestSound();
     Instance().Initialize();
-    if (!GW::Agents::GetControlledCharacter()) return; // 地图未就绪
+    if (!GW::Agents::GetControlledCharacter()) return; // Map not ready
 
     custom_quest_marker_world_pos = world_pos;
 
     RemoveQuest(custom_quest_id);
+    ClearCalculatedPath(custom_quest_id);
 
     if (custom_quest_marker_world_pos.x == 0 && custom_quest_marker_world_pos.y == 0) {
         for (const auto& cb : custom_marker_callbacks)
@@ -700,20 +689,17 @@ void QuestModule::SetCustomQuestMarker(const GW::Vec2f& world_pos, bool set_acti
 
     auto* quest = AddQuest(
         custom_quest_id, GW::Constants::MapID::Count, map_to, 0x20, marker,
-        L"\x452", // "地图旅行"
-        L"\x564", // "主要任务"
-        L"\x108\x107您已在地图上放置了一个自定义标记。\x1"
+        L"\x452", // "Map Travel"
+        L"\x564", // "Primary Quests"
+        L"\x108\x107You've placed a custom marker on the map.\x1"
     );
     ASSERT(quest);
     if (set_active) {
         QuestModule::SetActiveQuestId(quest->quest_id, false);
     }
 
-    // 路线（可能跨地图）从玩家绘制到此世界位置，并由 CalculatedQuestPath 拥有；
-    // 为其设置目标并强制全新整条路线规划。
     if (auto* cqp = GetCalculatedQuestPath(custom_quest_id)) {
         cqp->goal_world = custom_quest_marker_world_pos;
-        cqp->has_full_route = false;
     }
 
     setting_custom_quest_marker = false;
@@ -789,24 +775,24 @@ ImU32& QuestModule::GetQuestLineColor(GW::Constants::QuestID quest_id)
 void QuestModule::DrawSettingsInternal()
 {
     ImGui::CheckboxWithHelp(
-        "接受新任务时保持当前任务", &settings.keep_current_quest_when_new_quest_added,
-        "默认情况下，激战会将您当前选中的任务更改为您刚从NPC处接受的任务。\n如果您没有注意到任务标记现在将您带往新的目的地，这可能会很烦人！\n勾选此选项可确保在向任务日志添加新任务时也不会更改当前任务指引。"
+        "Keep current quest when accepting a new one", &settings.keep_current_quest_when_new_quest_added,
+        "By default, Guild Wars changes your currently selected quest to the one you've just taken from an NPC.\nThis can be annoying if you don't realise your quest marker is now taking you somewhere different!\nTick this to make sure your current quest isn't changed when a new quest is added to your log."
     );
-    ImGui::Checkbox("在任务日志窗口中双击任务以传送到最近的前哨站", &settings.double_click_to_travel_to_quest);
+    ImGui::Checkbox("Double click a quest in the quest log window to travel to nearest outpost", &settings.double_click_to_travel_to_quest);
     if (QuestPathingAvailable()) {
-        ImGui::Text("在以下位置绘制通往任务标记的路径：");
+        ImGui::Text("Draw path to quest marker on:");
         bool recalc_quest_paths = false;
-        recalc_quest_paths |= ImGui::Checkbox("地面##terrianquestpath", &settings.draw_quest_path_on_terrain);
-        recalc_quest_paths |= ImGui::Checkbox("小地图##minimapquestpath", &settings.draw_quest_path_on_minimap);
-        recalc_quest_paths |= ImGui::Checkbox("任务地图##missionmapquestpath", &settings.draw_quest_path_on_mission_map);
-        ImGui::Checkbox("世界地图##worldmapquestpath", &WorldMapWidget::ShowLinesOnWorldMap());
+        recalc_quest_paths |= ImGui::Checkbox("Terrain##terrianquestpath", &settings.draw_quest_path_on_terrain);
+        recalc_quest_paths |= ImGui::Checkbox("Minimap##minimapquestpath", &settings.draw_quest_path_on_minimap);
+        recalc_quest_paths |= ImGui::Checkbox("Mission Map##missionmapquestpath", &settings.draw_quest_path_on_mission_map);
+        ImGui::Checkbox("World Map##worldmapquestpath", &WorldMapWidget::ShowLinesOnWorldMap());
 #ifdef _DEBUG
-        recalc_quest_paths |= ImGui::Checkbox("显示所有任务的路径##drawallquestpaths", &settings.show_paths_to_all_quests);
+        recalc_quest_paths |= ImGui::Checkbox("Show paths to all quests##drawallquestpaths", &settings.show_paths_to_all_quests);
 #endif
         if (recalc_quest_paths) RefreshAllQuestPaths();
     }
     else {
-        ImGui::TextDisabled("启用寻路模块以绘制通往任务标记的路径。");
+        ImGui::TextDisabled("Enable the Pathfinding module to draw a path to the quest marker.");
     }
 }
 
@@ -847,7 +833,7 @@ void QuestModule::Initialize()
                                                  GW::UI::UIMessage::kServerActiveQuestChanged, GW::UI::UIMessage::kMapLoaded,        GW::UI::UIMessage::kOnScreenMessage,
                                                  GW::UI::UIMessage::kSendSetActiveQuest,       GW::UI::UIMessage::kSendAbandonQuest, GW::UI::UIMessage::kStartMapLoad};
     for (const auto ui_message : ui_messages) {
-        // 后回调，非阻塞
+        // Post callbacks, non blocking
         RegisterUIMessageCallback(&pre_ui_message_entry, ui_message, OnPreUIMessage, -0x4000);
         RegisterUIMessageCallback(&post_ui_message_entry, ui_message, OnPostUIMessage, 0x4000);
     }
@@ -909,13 +895,14 @@ void QuestModule::Update(float)
         was_loading = true;
         return;
     }
+    if (map_load_in_progress) return;
     if (was_loading) {
         if (GW::UI::IsLoadingScreenShown()) return;
         OnMapLoaded();
         was_loading = false;
     }
     if (fetch_missing_quest_info_queued) {
-        // 注意：仅在加载屏幕消失后执行此操作
+        // NB: We only do this once the loading splash screen is gone
         fetch_missing_quest_info_queued = 0;
         GW::GameThread::Enqueue([] {
             const auto quest_log = GW::QuestMgr::GetQuestLog();
@@ -931,14 +918,14 @@ void QuestModule::Update(float)
     }
 
 
-    // 寻路可在运行时关闭；丢弃我们原本会不断重绘的路线。
+    // Pathfinding can be toggled off at runtime; drop any routes we'd otherwise keep recomputing/drawing.
     if (!QuestPathingAvailable()) {
         if (!calculated_quest_paths.empty()) ClearCalculatedPaths();
         return;
     }
 
-    // 消耗由任务消息/地图加载标记的任何刷新。此处已越过加载屏幕和寻路保护，
-    // 因此这里是启动路线计算的唯一位置 — 绝不会在转换期间对地图数据中启动。
+    // Consume any refresh flagged by quest messages / map loads. We're past the loading-screen and pathing guards here,
+    // so this is the one place a route calc kicks off — never against transitional map data mid-load.
     if (refresh_all_quest_paths_queued) {
         refresh_all_quest_paths_queued = false;
         RefreshAllQuestPaths();

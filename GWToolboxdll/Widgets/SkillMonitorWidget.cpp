@@ -7,9 +7,10 @@
 
 #include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
+#include <GWCA/Managers/StoCMgr.h>
 
-#include <GWCA/Packets/StoC.h>
 #include <GWCA/Managers/UIMgr.h>
+#include <GWCA/Packets/StoC.h>
 #include <GWCA/Utilities/Hook.h>
 
 #include <Color.h>
@@ -38,6 +39,14 @@ namespace {
     std::unordered_map<GW::AgentID, std::vector<SkillActivation>> history{};
     std::unordered_map<GW::AgentID, float> casttime_map{};
 
+    // The client always broadcasts kAgentSkillInterrupted for both a genuine interrupt and a plain
+    // self-cancel/stop (kAgentSkillCancelled is never actually posted by the retail client), so the UI
+    // message alone can't tell them apart. The server does send a distinct GenericValue StoC packet
+    // (value_id == interrupted) for a real interrupt, immediately after the attack_skill_stopped/
+    // skill_stopped packet that triggers the UI message - so we track that separately, per-agent, and
+    // consult it when the UI message arrives.
+    std::unordered_map<GW::AgentID, bool> confirmed_interrupted{};
+
     SkillMonitorWidget::Settings settings;
 
     Color GetColor(const SkillActivationStatus status)
@@ -55,16 +64,16 @@ namespace {
         return Colors::Empty();
     }
 
-    void CasttimeCallback(const uint32_t value_id, const uint32_t caster_id, const float value)
-    {
-        if (value_id != GW::Packet::StoC::GenericValueID::casttime) {
-            return;
-        }
+    GW::HookEntry PostUIMessage_Entry;
+    GW::HookEntry GenericValue_Entry;
 
-        casttime_map[caster_id] = value;
+    void OnGenericValue(GW::HookStatus*, GW::Packet::StoC::GenericValue* packet)
+    {
+        if (packet->value_id == GW::Packet::StoC::GenericValueID::interrupted) {
+            confirmed_interrupted[packet->agent_id] = true;
+        }
     }
 
-    GW::HookEntry PostUIMessage_Entry;
     void OnSkillStartedCast(uint32_t agent_id, GW::Constants::SkillID skill_id, float duration)
     {
         const auto skill_history = &history[agent_id];
@@ -104,14 +113,14 @@ namespace {
         else {
             skill_history->push_back({
                 skill_id,
-                CANCELLED,
+                COMPLETED,
                 TIMER_INIT(),
                 TIMER_INIT(),
                 casttime,
             });
         }
     }
-    void OnSkillCancelledOrInterrupted(uint32_t agent_id, GW::Constants::SkillID skill_id)
+    void OnSkillStopped(uint32_t agent_id, GW::Constants::SkillID skill_id, const SkillActivationStatus status)
     {
         const auto skill_history = &history[agent_id];
         if (!skill_history) {
@@ -129,13 +138,13 @@ namespace {
             if (skill) casttime = skill->activation;
         }
         if (casting != skill_history->end()) {
-            casting->status = CANCELLED;
+            casting->status = status;
             casttime_map.erase(agent_id);
         }
         else {
             skill_history->push_back({
                 skill_id,
-                CANCELLED,
+                status,
                 TIMER_INIT(),
                 TIMER_INIT(),
                 casttime,
@@ -154,9 +163,19 @@ namespace {
                 const auto packet = (GW::UI::UIPacket::kAgentSkillPacket*)wparam;
                 OnSkillCompleted(packet->agent_id, packet->skill_id);
             } break;
-            case GW::UI::UIMessage::kAgentSkillCancelled: {
+            case GW::UI::UIMessage::kAgentSkillCancelled:
+            case GW::UI::UIMessage::kAgentSkillInterrupted: {
                 const auto packet = (GW::UI::UIPacket::kAgentSkillPacket*)wparam;
-                OnSkillCancelledOrInterrupted(packet->agent_id, packet->skill_id);
+                // kAgentSkillCancelled is never actually broadcast by the client, and
+                // kAgentSkillInterrupted fires for both real interrupts and plain self-cancels -
+                // use the GenericValue-derived flag (set from the raw StoC "interrupted" packet)
+                // to tell them apart instead of trusting message_id.
+                auto status = CANCELLED;
+                if (const auto it = confirmed_interrupted.find(packet->agent_id); it != confirmed_interrupted.end()) {
+                    status = it->second ? INTERRUPTED : CANCELLED;
+                    confirmed_interrupted.erase(it);
+                }
+                OnSkillStopped(packet->agent_id, packet->skill_id, status);
             } break;
         }
     }
@@ -167,10 +186,11 @@ void SkillMonitorWidget::Initialize()
 {
     SnapsToPartyWindow::Initialize();
     SettingsRegistry::Register(this, settings);
-    GW::UI::UIMessage ui_messages[] = {GW::UI::UIMessage::kAgentSkillActivated, GW::UI::UIMessage::kAgentSkillActivatedInstantly, GW::UI::UIMessage::kAgentSkillCancelled, GW::UI::UIMessage::kAgentSkillStartedCast};
+    GW::UI::UIMessage ui_messages[] = {GW::UI::UIMessage::kAgentSkillActivated, GW::UI::UIMessage::kAgentSkillActivatedInstantly, GW::UI::UIMessage::kAgentSkillCancelled, GW::UI::UIMessage::kAgentSkillInterrupted, GW::UI::UIMessage::kAgentSkillStartedCast};
     for (auto message_id : ui_messages) {
         RegisterUIMessageCallback(&PostUIMessage_Entry, message_id, OnPostUIMessage, 0x4000);
     }
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericValue>(&GenericValue_Entry, OnGenericValue);
 }
 
 void SkillMonitorWidget::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
@@ -189,6 +209,7 @@ void SkillMonitorWidget::Terminate()
 {
     SnapsToPartyWindow::Terminate();
     GW::UI::RemoveUIMessageCallback(&PostUIMessage_Entry);
+    GW::StoC::RemoveCallback<GW::Packet::StoC::GenericValue>(&GenericValue_Entry);
 }
 
 void SkillMonitorWidget::Draw(IDirect3DDevice9*)
@@ -199,7 +220,7 @@ void SkillMonitorWidget::Draw(IDirect3DDevice9*)
     if (settings.hide_in_outpost && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
         return;
     }
-    // @清理：仅在队伍窗口移动或更新时调用
+    // @Cleanup: Only call when the party window has been moved or updated
     if (!(FetchPartyInfo() && RecalculatePartyPositions())) {
         return;
     }
@@ -224,12 +245,12 @@ void SkillMonitorWidget::Draw(IDirect3DDevice9*)
     else {
         window_x = party_health_bars_position.top_left.x - user_offset_x - width;
         if (window_x < 0 || settings.user_offset < 0) {
-            // 右侧放置
+            // Right placement
             window_x = party_health_bars_position.bottom_right.x + user_offset_x;
         }
     }
 
-    // 添加一个窗口来捕获鼠标点击
+    // Add a window to capture mouse clicks.
     ImGui::SetNextWindowPos({ window_x, party_health_bars_position.top_left.y });
     ImGui::SetNextWindowSize({ width, party_health_bars_position.bottom_right.y - party_health_bars_position.top_left.y });
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
@@ -243,9 +264,9 @@ void SkillMonitorWidget::Draw(IDirect3DDevice9*)
         for (auto& [agent_id, party_slot] : party_indeces_by_agent_id) {
 
             if (party_slot >= pets_start_idx && party_slot < allies_start_idx)
-                continue; // 不绘制宠物
+                continue; // Don't draw pets
             if (!settings.show_non_party_members && party_slot >= allies_start_idx)
-                continue; // 不绘制盟友
+                continue; // Don't draw allies
 
             const auto health_bar_pos = GetAgentHealthBarPosition(agent_id);
             if (!health_bar_pos)
@@ -311,53 +332,54 @@ void SkillMonitorWidget::DrawSettingsInternal()
 {
     ImGui::StartSpacedElements(292.f);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("在前哨站隐藏", &settings.hide_in_outpost);
+    ImGui::Checkbox("Hide in outpost", &settings.hide_in_outpost);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("显示非队伍成员（盟友）", &settings.show_non_party_members);
+    ImGui::Checkbox("Show non party-members (allies)", &settings.show_non_party_members);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("翻转历史方向（左/右）", &settings.history_flip_direction);
+    ImGui::Checkbox("Flip history direction (left/right)", &settings.history_flip_direction);
     ImGui::StartSpacedElements(292.f);
     ImGui::NextSpacedElement();
-    ImGui::CheckboxWithHelp("显示在生命条上方", &settings.overlay_party_window, "取消勾选以在队伍窗口左侧（或右侧）显示此小部件。\n勾选以在队伍窗口内队伍生命条上方显示此小部件。");
+    ImGui::CheckboxWithHelp("Show on top of health bars", &settings.overlay_party_window, "Untick to show this widget to the left (or right) of the party window.\nTick to show this widget over the top of the party health bars inside the party window");
     ImGui::NextSpacedElement();
     ImGui::PushItemWidth(120.f);
-    ImGui::DragInt("队伍窗口偏移", &settings.user_offset);
+    ImGui::DragInt("Party window offset", &settings.user_offset);
     ImGui::PopItemWidth();
-    ImGui::ShowHelp("距离队伍窗口的距离");
+    ImGui::ShowHelp("Distance away from the party window");
 
-    ImGui::Text("施法指示器");
-    ImGui::DragInt("阈值", &settings.cast_indicator_threshold, 1.0f, 0, 0, "%d 毫秒");
+    ImGui::Text("Cast Indicator");
+    ImGui::DragInt("Threshold", &settings.cast_indicator_threshold, 1.0f, 0, 0, "%d milliseconds");
     ImGui::ShowHelp(
-        "技能需要达到的最小施法时间才能显示指示器。注意：瞬发技能永远不会显示。");
-    ImGui::InputInt("高度", &settings.cast_indicator_height);
-    Colors::DrawSettingHueWheel("颜色", &settings.cast_indicator_color.value);
+        "Minimum cast time a skill has to have to display the indicator. Note that instantly casted skill will never be displayed.");
+    ImGui::InputInt("Height", &settings.cast_indicator_height);
+    Colors::DrawSettingHueWheel("Color", &settings.cast_indicator_color.value);
 
-    Colors::DrawSettingHueWheel("背景", &settings.background.value, 0);
+    Colors::DrawSettingHueWheel("Background", &settings.background.value, 0);
 
-    ImGui::Text("状态边框");
-    ImGui::InputInt("边框粗细", &settings.status_border_thickness);
-    ImGui::ShowHelp("设为 0 以禁用。");
+    ImGui::Text("Status Border");
+    ImGui::InputInt("Border Thickness", &settings.status_border_thickness);
+    ImGui::ShowHelp("Set to 0 to disable.");
     if (settings.status_border_thickness < 0) {
         settings.status_border_thickness = 0;
     }
     if (settings.status_border_thickness != 0) {
-        if (ImGui::TreeNodeEx("颜色", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
-            Colors::DrawSettingHueWheel("已完成", &settings.status_color_completed.value);
-            Colors::DrawSettingHueWheel("施法中", &settings.status_color_casting.value);
-            Colors::DrawSettingHueWheel("已取消", &settings.status_color_cancelled.value);
-            Colors::DrawSettingHueWheel("已打断", &settings.status_color_interrupted.value);
+        if (ImGui::TreeNodeEx("Colors", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+            Colors::DrawSettingHueWheel("Completed", &settings.status_color_completed.value);
+            Colors::DrawSettingHueWheel("Casting", &settings.status_color_casting.value);
+            Colors::DrawSettingHueWheel("Cancelled", &settings.status_color_cancelled.value);
+            Colors::DrawSettingHueWheel("Interrupted", &settings.status_color_interrupted.value);
             ImGui::TreePop();
         }
     }
 
-    ImGui::Text("历史记录");
-    ImGui::InputInt("长度", &settings.history_length, 0, 25);
+    ImGui::Text("History");
+    ImGui::InputInt("Length", &settings.history_length, 0, 25);
     if (settings.history_length < 0) {
         settings.history_length = 0;
     }
-    ImGui::DragInt("超时", &settings.history_timeout, 1.0f, 0, 0, "%d 毫秒");
-    ImGui::ShowHelp("技能从历史记录中移除的时间阈值。设为 0 以禁用。");
+    ImGui::DragInt("Timeout", &settings.history_timeout, 1.0f, 0, 0, "%d milliseconds");
+    ImGui::ShowHelp("Amount of time after which a skill gets removed from the skill history. Set to 0 to disable.");
     if (settings.history_timeout < 0) {
         settings.history_timeout = 0;
     }
 }
+

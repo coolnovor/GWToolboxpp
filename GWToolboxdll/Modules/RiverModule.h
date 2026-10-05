@@ -13,10 +13,10 @@ public:
         return instance;
     }
 
-    [[nodiscard]] const char* Name() const override { return "河流模块"; }
+    [[nodiscard]] const char* Name() const override { return "Lava Rivers"; }
     [[nodiscard]] const char* Description() const override
     {
-        return "在世界地图上绘制流动的熔岩纹理河流 - 组合在游戏UI下方并被地形遮挡.";
+        return "Draws flowing lava-textured rivers onto the world floor - composited under the in-game UI and occluded by terrain.";
     }
     [[nodiscard]] const char* Icon() const override { return ICON_FA_FIRE; }
 

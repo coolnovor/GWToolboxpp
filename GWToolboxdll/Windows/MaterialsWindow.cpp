@@ -27,7 +27,7 @@ namespace {
     IDirect3DTexture9** tex_powerstone = nullptr;
     IDirect3DTexture9** tex_resscroll = nullptr;
 
-    // 负值具有特殊含义：
+    // Negative values have special meanings:
     static constexpr auto PRICE_DEFAULT = -1;
     static constexpr auto PRICE_COMPUTING_QUEUE = -2;
     static constexpr auto PRICE_COMPUTING_SENT = -3;
@@ -218,7 +218,7 @@ namespace {
             if (!current_transaction)
                 return;
             if (current_transaction->item_id != packet->item_id) {
-                Cancel("收到意外物品的报价");
+                Cancel("Received quote for unexpected item");
                 return;
             }
             current_transaction->price = packet->price;
@@ -287,18 +287,18 @@ namespace {
         const auto p1 = GetPrice(mat1);
         const auto p2 = GetPrice(mat2);
         if (p1 == PRICE_NOT_AVAILABLE || p2 == PRICE_NOT_AVAILABLE) {
-            return "价格: (材料不可用)";
+            return "Price: (Material not available)";
         }
         if (p1 == PRICE_DEFAULT || p2 == PRICE_DEFAULT) {
-            return "价格:  -";
+            return "Price:  -";
         }
         if (p1 == PRICE_COMPUTING_SENT || p2 == PRICE_COMPUTING_SENT) {
-            return "价格: 计算中 (已发送请求)";
+            return "Price: Computing (request sent)";
         }
         if (p1 == PRICE_COMPUTING_QUEUE || p2 == PRICE_COMPUTING_QUEUE) {
-            return "价格: 计算中 (队列中)";
+            return "Price: Computing (in queue)";
         }
-        return std::format("价格: {:.2f} k", (p1 * fac1 + p2 * fac2 + extra) / 1000.0f);
+        return std::format("Price: {:.2f} k", (p1 * fac1 + p2 * fac2 + extra) / 1000.0f);
     }
 
 
@@ -311,15 +311,15 @@ namespace {
         const auto iron = GetPrice(GW::Constants::MaterialSlot::IronIngot);
         const auto bone = GetPrice(GW::Constants::MaterialSlot::Bone);
         if (feather == PRICE_NOT_AVAILABLE || iron == PRICE_NOT_AVAILABLE || dust == PRICE_NOT_AVAILABLE || bone == PRICE_NOT_AVAILABLE) {
-            ImGui::SetTooltip("完整套装价格: (材料不可用)");
+            ImGui::SetTooltip("Full Conset Price: (Material not available)");
             return;
         }
         if (feather < 0 || iron < 0 || dust < 0 || bone < 0) {
-            ImGui::SetTooltip("完整套装价格: -");
+            ImGui::SetTooltip("Full Conset Price: -");
             return;
         }
 
-        const auto tooltip = std::format("完整套装价格: {} k", (iron * 10 + dust * 10 + bone * 5 + feather * 5 + 750) / 1000.f);
+        const auto tooltip = std::format("Full Conset Price: {} k", (iron * 10 + dust * 10 + bone * 5 + feather * 5 + 750) / 1000.f);
         ImGui::SetTooltip(tooltip.c_str());
     }
 }
@@ -339,7 +339,7 @@ void MaterialsWindow::Update(const float)
             return;
         const auto item_id = trans->type == Transaction::Sell ? RequestSellQuote(trans->material) : RequestPurchaseQuote(trans->material);
         if (!item_id) {
-            Cancel("物品询价失败");
+            Cancel("Failed to quote for item");
             return;
         }
         last_transaction = TIMER_INIT();
@@ -349,7 +349,7 @@ void MaterialsWindow::Update(const float)
     case Transaction::State::Quoting: {
         if (trans->price == 0) {
             if (TIMER_DIFF(last_transaction) > 3000)
-                Cancel("等待报价超时");
+                Cancel("Timeout waiting for quote");
             return;
         }
         const auto gold_on_character = GW::Items::GetGoldAmountOnCharacter();
@@ -362,16 +362,16 @@ void MaterialsWindow::Update(const float)
         case Transaction::Type::Buy: {
             if (gold_on_character < trans->price) {
                 if (!(settings.manage_gold && gold_on_character + gold_in_storage >= trans->price && GW::Items::WithdrawGold())) {
-                    Cancel("金币不足");
-                    return; // 不取消，金币不足
+                    Cancel("Not enough gold");
+                    return; // Don't cancel, we're out of gold
                 }
             }
         } break;
         case Transaction::Type::Sell: {
             if (gold_on_character + trans->price > 99999) {
                 if (!(settings.manage_gold && gold_in_storage < 999999 - trans->price && GW::Items::DepositGold())) {
-                    Cancel("金币过多");
-                    return; // 不取消，金币过多
+                    Cancel("Too much gold");
+                    return; // Don't cancel, we're out of gold
                 }
             }
         } break;
@@ -385,21 +385,21 @@ void MaterialsWindow::Update(const float)
         case Transaction::Type::Buy: {
             if (gold_on_character < trans->price) {
                 if (TIMER_DIFF(last_transaction) > 3000)
-                    Cancel("等待金币超时");
+                    Cancel("Timeout waiting for gold");
                 return;
             }
         } break;
         case Transaction::Type::Sell: {
             if (gold_on_character + trans->price > 99999) {
                 if (TIMER_DIFF(last_transaction) > 3000)
-                    Cancel("等待金币超时");
+                    Cancel("Timeout waiting for gold");
                 return;
             }
         } break;
         }
         trans->initial_item_count = CountItemByMaterialSlot(trans->material);
         if (!TryTransaction(trans)) {
-            Cancel("询价后交易物品失败");
+            Cancel("Failed to transact item after quote");
             return;
         }
         trans->state = Transaction::State::Transacting;
@@ -411,7 +411,7 @@ void MaterialsWindow::Update(const float)
             return;
         }
         if (TIMER_DIFF(last_transaction) > 3000)
-            Cancel("等待交易超时");
+            Cancel("Timeout waiting for transaction");
         return;
     } break;
     }
@@ -430,14 +430,14 @@ void MaterialsWindow::Initialize()
     if (material_names.empty()) {
         material_names.reserve(material_enc_strings.size());
         for (const auto& [slot, enc] : material_enc_strings) {
-            material_names.emplace(slot, enc); // EncString(const wchar_t*) — 就地构造
+            material_names.emplace(slot, enc); // EncString(const wchar_t*) — constructs in-place
         }
         for (auto& m : material_names) {
             m.second.string();
         }
     }
 
-    // @清理：这些应该使用 GW::Constants::ModelFileID，而不是硬编码在这里
+    // @Cleanup: these need to be GW::Constants::ModelFileID insted of hard coded here
     tex_essence = GwDatModule::LoadTextureFromFileId(0x458A7);
     tex_grail = GwDatModule::LoadTextureFromFileId(0x24BB);
     tex_armor = GwDatModule::LoadTextureFromFileId(0x458A4);
@@ -494,7 +494,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         ImGui::Image(*tex_essence, ImVec2(50, 50),
                      ImVec2(4.0f / 64, 9.0f / 64), ImVec2(47.0f / 64, 52.0f / 64));
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("迅捷精华\n%s 和 %s", material_names[GW::Constants::MaterialSlot::Feather].string().c_str(), material_names[GW::Constants::MaterialSlot::PileofGlitteringDust].string().c_str());
+            ImGui::SetTooltip("Essence of Celerity\n%s and %s", material_names[GW::Constants::MaterialSlot::Feather].string().c_str(), material_names[GW::Constants::MaterialSlot::PileofGlitteringDust].string().c_str());
         }
         ImGui::SameLine();
         float x = ImGui::GetCursorPosX();
@@ -502,7 +502,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         ImGui::Text(GetPrice(GW::Constants::MaterialSlot::Feather, 5.0f, GW::Constants::MaterialSlot::PileofGlitteringDust, 5.0f, 250).c_str());
         FullConsPriceTooltip();
         ImGui::SameLine(ImGui::GetWindowWidth() - 100.0f - ImGui::GetStyle().WindowPadding.x);
-        if (ImGui::Button("询价##essence", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Price Check##essence", ImVec2(100.0f, 0))) {
             EnqueueQuote(GW::Constants::MaterialSlot::Feather);
             EnqueueQuote(GW::Constants::MaterialSlot::PileofGlitteringDust);
         }
@@ -517,7 +517,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
         ImGui::PopItemWidth();
         ImGui::SameLine();
-        if (ImGui::Button("购买##essence", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Buy##essence", ImVec2(100.0f, 0))) {
             const int feather_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::Feather, stock_start, stock_end);
             const int dust_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::PileofGlitteringDust, stock_start, stock_end);
 
@@ -533,11 +533,11 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
 
         ImGui::Separator();
-        // === 力量圣杯 ===
+        // === Grail ===
         ImGui::Image(*tex_grail, ImVec2(50, 50),
                      ImVec2(3.0f / 64, 11.0f / 64), ImVec2(49.0f / 64, 57.0f / 64));
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("力量圣杯\n%s 和 %s", material_names[GW::Constants::MaterialSlot::IronIngot].string().c_str(), material_names[GW::Constants::MaterialSlot::PileofGlitteringDust].string().c_str());
+            ImGui::SetTooltip("Grail of Might\n%s and %s", material_names[GW::Constants::MaterialSlot::IronIngot].string().c_str(), material_names[GW::Constants::MaterialSlot::PileofGlitteringDust].string().c_str());
         }
         ImGui::SameLine();
         x = ImGui::GetCursorPosX();
@@ -545,7 +545,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         ImGui::Text(GetPrice(GW::Constants::MaterialSlot::IronIngot, 5.0f, GW::Constants::MaterialSlot::PileofGlitteringDust, 5.0f, 250).c_str());
         FullConsPriceTooltip();
         ImGui::SameLine(ImGui::GetWindowWidth() - 100.0f - ImGui::GetStyle().WindowPadding.x);
-        if (ImGui::Button("询价##grail", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Price Check##grail", ImVec2(100.0f, 0))) {
             EnqueueQuote(GW::Constants::MaterialSlot::IronIngot);
             EnqueueQuote(GW::Constants::MaterialSlot::PileofGlitteringDust);
         }
@@ -560,7 +560,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
         ImGui::PopItemWidth();
         ImGui::SameLine();
-        if (ImGui::Button("购买##grail", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Buy##grail", ImVec2(100.0f, 0))) {
             const int iron_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::IronIngot, stock_start, stock_end);
             const int dust_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::PileofGlitteringDust, stock_start, stock_end);
 
@@ -576,11 +576,11 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
 
         ImGui::Separator();
-        // === 救赎护甲 ===
+        // === Armor ===
         ImGui::Image(*tex_armor, ImVec2(50, 50),
                      ImVec2(0, 1.0f / 64), ImVec2(59.0f / 64, 60.0f / 64));
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("救赎护甲\n%s 和 %s", material_names[GW::Constants::MaterialSlot::IronIngot].string().c_str(), material_names[GW::Constants::MaterialSlot::Bone].string().c_str());
+            ImGui::SetTooltip("Armor of Salvation\n%s and %s", material_names[GW::Constants::MaterialSlot::IronIngot].string().c_str(), material_names[GW::Constants::MaterialSlot::Bone].string().c_str());
         }
         ImGui::SameLine();
         x = ImGui::GetCursorPosX();
@@ -588,7 +588,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         ImGui::Text(GetPrice(GW::Constants::MaterialSlot::IronIngot, 5.0f, GW::Constants::MaterialSlot::Bone, 5.0f, 250).c_str());
         FullConsPriceTooltip();
         ImGui::SameLine(ImGui::GetWindowWidth() - 100.0f - ImGui::GetStyle().WindowPadding.x);
-        if (ImGui::Button("询价##armor", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Price Check##armor", ImVec2(100.0f, 0))) {
             EnqueueQuote(GW::Constants::MaterialSlot::IronIngot);
             EnqueueQuote(GW::Constants::MaterialSlot::Bone);
         }
@@ -603,7 +603,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
         ImGui::PopItemWidth();
         ImGui::SameLine();
-        if (ImGui::Button("购买##armor", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Buy##armor", ImVec2(100.0f, 0))) {
             const int iron_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::IronIngot, stock_start, stock_end);
             const int bone_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::Bone, stock_start, stock_end);
 
@@ -619,18 +619,18 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
 
         ImGui::Separator();
-        // === 勇气能量石 ===
+        // === Powerstone ===
         ImGui::Image(*tex_powerstone, ImVec2(50, 50),
                      ImVec2(0, 6.0f / 64), ImVec2(54.0f / 64, 60.0f / 64));
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("勇气能量石\n%s 和 %s", material_names[GW::Constants::MaterialSlot::GraniteSlab].string().c_str(), material_names[GW::Constants::MaterialSlot::PileofGlitteringDust].string().c_str());
+            ImGui::SetTooltip("Powerstone of Courage\n%s and %s", material_names[GW::Constants::MaterialSlot::GraniteSlab].string().c_str(), material_names[GW::Constants::MaterialSlot::PileofGlitteringDust].string().c_str());
         }
         ImGui::SameLine();
         x = ImGui::GetCursorPosX();
         y = ImGui::GetCursorPosY();
         ImGui::Text(GetPrice(GW::Constants::MaterialSlot::GraniteSlab, 10.0f, GW::Constants::MaterialSlot::PileofGlitteringDust, 10.0f, 1000).c_str());
         ImGui::SameLine(ImGui::GetWindowWidth() - 100.0f - ImGui::GetStyle().WindowPadding.x);
-        if (ImGui::Button("询价##pstone", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Price Check##pstone", ImVec2(100.0f, 0))) {
             EnqueueQuote(GW::Constants::MaterialSlot::GraniteSlab);
             EnqueueQuote(GW::Constants::MaterialSlot::PileofGlitteringDust);
         }
@@ -645,7 +645,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
         ImGui::PopItemWidth();
         ImGui::SameLine();
-        if (ImGui::Button("购买##pstone", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Buy##pstone", ImVec2(100.0f, 0))) {
             const int granite_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::GraniteSlab, stock_start, stock_end);
             const int dust_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::PileofGlitteringDust, stock_start, stock_end);
 
@@ -661,18 +661,18 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
 
         ImGui::Separator();
-        // === 复活卷轴 ===
+        // === Res scroll ===
         ImGui::Image(*tex_resscroll, ImVec2(50, 50),
                      ImVec2(1.0f / 64, 4.0f / 64), ImVec2(56.0f / 64, 59.0f / 64));
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("复活卷轴\n%s 和 %s", material_names[GW::Constants::MaterialSlot::PlantFiber].string().c_str(), material_names[GW::Constants::MaterialSlot::Bone].string().c_str());
+            ImGui::SetTooltip("Scroll of Resurrection\n%s and %s", material_names[GW::Constants::MaterialSlot::PlantFiber].string().c_str(), material_names[GW::Constants::MaterialSlot::Bone].string().c_str());
         }
         ImGui::SameLine();
         x = ImGui::GetCursorPosX();
         y = ImGui::GetCursorPosY();
         ImGui::Text(GetPrice(GW::Constants::MaterialSlot::PlantFiber, 2.5f, GW::Constants::MaterialSlot::Bone, 2.5f, 250).c_str());
         ImGui::SameLine(ImGui::GetWindowWidth() - 100.0f - ImGui::GetStyle().WindowPadding.x);
-        if (ImGui::Button("询价##resscroll", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Price Check##resscroll", ImVec2(100.0f, 0))) {
             EnqueueQuote(GW::Constants::MaterialSlot::PlantFiber);
             EnqueueQuote(GW::Constants::MaterialSlot::Bone);
         }
@@ -687,7 +687,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
         ImGui::PopItemWidth();
         ImGui::SameLine();
-        if (ImGui::Button("购买##resscroll", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Buy##resscroll", ImVec2(100.0f, 0))) {
             const int fiber_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::PlantFiber, stock_start, stock_end);
             const int bone_stock = CountItemByMaterialSlot(GW::Constants::MaterialSlot::Bone, stock_start, stock_end);
 
@@ -707,7 +707,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         constexpr float width2 = 100.0f;
         const float width1 = ImGui::GetContentRegionAvail().x - width2 - 100.0f - ImGui::GetStyle().ItemSpacing.x * 2;
 
-        // === 普通材料 ===
+        // === Common materials ===
         static int common_idx = 0;
         static int common_qty = 1;
 
@@ -727,7 +727,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
             common_qty = 1;
         }
         ImGui::SameLine();
-        if (ImGui::Button("购买##common", ImVec2(50.0f - ImGui::GetStyle().ItemSpacing.x / 2, 0))) {
+        if (ImGui::Button("Buy##common", ImVec2(50.0f - ImGui::GetStyle().ItemSpacing.x / 2, 0))) {
             const auto mat = common_materials[common_idx];
             const int material_stock = CountItemByMaterialSlot(mat, stock_start, stock_end);
             const int to_buy = common_qty - (settings.use_stock ? material_stock / 10 : 0);
@@ -736,14 +736,14 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("出售##common", ImVec2(50.0f - ImGui::GetStyle().ItemSpacing.x / 2, 0))) {
+        if (ImGui::Button("Sell##common", ImVec2(50.0f - ImGui::GetStyle().ItemSpacing.x / 2, 0))) {
             const auto mat = common_materials[common_idx];
             for (int i = 0; i < common_qty; i++) {
                 EnqueueSell(mat);
             }
         }
 
-        // === 稀有材料 ===
+        // === Rare materials ===
         static int rare_idx = 0;
         static int rare_qty = 1;
 
@@ -761,7 +761,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
             rare_qty = 1;
         }
         ImGui::SameLine();
-        if (ImGui::Button("购买##rare", ImVec2(50.0f - ImGui::GetStyle().ItemSpacing.x / 2, 0))) {
+        if (ImGui::Button("Buy##rare", ImVec2(50.0f - ImGui::GetStyle().ItemSpacing.x / 2, 0))) {
             const auto mat = rare_materials[rare_idx];
             const int material_stock = CountItemByMaterialSlot(mat, stock_start, stock_end);
             const int to_buy = rare_qty - (settings.use_stock ? material_stock : 0);
@@ -770,7 +770,7 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("出售##rare", ImVec2(50.0f - ImGui::GetStyle().ItemSpacing.x / 2, 0))) {
+        if (ImGui::Button("Sell##rare", ImVec2(50.0f - ImGui::GetStyle().ItemSpacing.x / 2, 0))) {
             const auto mat = rare_materials[rare_idx];
             for (int i = 0; i < rare_qty; i++) {
                 EnqueueSell(mat);
@@ -784,23 +784,23 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
         }
         auto status = "";
         if (cancelled) {
-            status = "已取消";
+            status = "Cancelled";
         }
         else if (trans_done < trans_queued) {
-            status = "处理中";
+            status = "Working";
         }
         else {
-            status = "就绪";
+            status = "Ready";
         }
         ImGui::Text("%s [%d / %d]", status, trans_done, trans_queued);
         ImGui::SameLine(width1 + ImGui::GetStyle().WindowPadding.x + ImGui::GetStyle().ItemSpacing.x);
         ImGui::ProgressBar(progress, ImVec2(width2, 0));
         ImGui::SameLine();
-        if (ImGui::Button("取消", ImVec2(100.0f, 0))) {
+        if (ImGui::Button("Cancel", ImVec2(100.0f, 0))) {
             Cancel();
         }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("取消当前操作队列");
+            ImGui::SetTooltip("Cancel the current queue of operations");
         }
         DrawSettingsInternal();
     }
@@ -810,6 +810,6 @@ void MaterialsWindow::Draw(IDirect3DDevice9*)
 void MaterialsWindow::DrawSettingsInternal()
 {
     ToolboxWindow::DrawSettingsInternal();
-    ImGui::CheckboxWithHelp("自动管理金币", &settings.manage_gold, "购买材料时自动存取金币");
-    ImGui::CheckboxWithHelp("使用库存", &settings.use_stock, "购买材料时会考虑库存和仓库中的材料数量");
+    ImGui::CheckboxWithHelp("Automatically manage gold", &settings.manage_gold, "It will automatically withdraw and deposit gold while buying materials");
+    ImGui::CheckboxWithHelp("Use stock", &settings.use_stock, "Will take materials in inventory and storage into account when buying materials");
 }

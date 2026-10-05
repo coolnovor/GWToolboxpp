@@ -18,11 +18,11 @@
 namespace {
 
     enum class Status {
-        Unknown,        // 未知
-        NotInParty,     // 不在队伍中
-        Disconnected,   // 已断开
-        Connected,      // 已连接
-        Resigned        // 已退出
+        Unknown,
+        NotInParty,
+        Disconnected,
+        Connected,
+        Resigned
     };
     struct PartyMemberStatus {
         Status status = Status::Unknown;
@@ -46,15 +46,15 @@ namespace {
     {
         switch (_status) {
         case Status::Unknown:
-            return "未知";
+            return "Unknown";
         case Status::Disconnected:
-            return "已断开";
+            return "Disconnected";
         case Status::NotInParty:
-            return "不在队伍中";
+            return "Not in Party";
         case Status::Connected:
-            return GW::Map::GetInstanceType() == GW::Constants::InstanceType::Explorable ? "已连接（未退出）" : "已连接";
+            return GW::Map::GetInstanceType() == GW::Constants::InstanceType::Explorable ? "Connected (not resigned)" : "Connected";
         case Status::Resigned:
-            return "已退出";
+            return "Resigned";
         default:
             return "";
         }
@@ -91,7 +91,7 @@ namespace {
         }
         const auto my_player_number = GW::PlayerMgr::GetPlayerNumber();
         if (GetResignStatus(my_player_number) == Status::Resigned) {
-            return; // 我已退出
+            return; // I've resigned
         }
 
         const auto players = GW::PartyMgr::GetPartyPlayers();
@@ -105,13 +105,13 @@ namespace {
             if (GetResignStatus(player.login_number) != Status::Resigned)
                 not_resigned++;
         }
-        if (not_resigned <= 1) { // 未退出的玩家之一是我们
-            Log::Warning("您是唯一尚未退出的人。请在聊天中输入 /resign 以退出。");
+        if (not_resigned <= 1) { // one of the players who hasn't resigned is us
+            Log::Warning("You're the only player left to resign. Type /resign in chat to resign.");
         }
     }
 
     void OnChatMessage(const wchar_t* message) {
-        // 0x107 是“起始字符串”标记
+        // 0x107 is the "start string" marker
         if (wmemcmp(message, L"\x7BFF\xC9C4\xAEAA\x1B9B\x107", 5) != 0)
             return;
         auto start = wcschr(message, 0x107);
@@ -185,12 +185,12 @@ namespace {
     void DrawGameSettings(const std::string&, const bool is_showing)
     {
         if (!is_showing) return;
-        ImGui::Checkbox("当您是最后一个退出者时在聊天中显示消息", &settings.show_last_to_resign_message);
+        ImGui::Checkbox("Show message in chat when you're the last player to resign", &settings.show_last_to_resign_message);
     }
 }
 
 void ResignLogModule::RegisterSettingsContent() {
-    ToolboxModule::RegisterSettingsContent("游戏设置", ICON_FA_GAMEPAD, DrawGameSettings,0.9f);
+    ToolboxModule::RegisterSettingsContent("Game Settings", ICON_FA_GAMEPAD, DrawGameSettings,0.9f);
 }
 
 bool ResignLogModule::PrintResignStatus(const uint32_t player_number, std::wstring& out, bool include_timestamp)

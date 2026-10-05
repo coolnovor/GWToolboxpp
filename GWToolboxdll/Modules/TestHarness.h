@@ -27,7 +27,7 @@ public:
         return instance;
     }
 
-    [[nodiscard]] const char* Name() const override { return "测试工具集"; }
+    [[nodiscard]] const char* Name() const override { return "Test Harness"; }
     [[nodiscard]] const char* Description() const override
     {
         return "Autonomous test driver (debug): file-command channel.";

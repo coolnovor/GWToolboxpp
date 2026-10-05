@@ -148,8 +148,6 @@ public:
         bool show_my_status = true;
         bool add_offline_players_to_friends = true;
         Colors::SettingColor hover_background_color = 0x33999999;
-        bool friend_name_tag_enabled = false;
-        Colors::SettingColor friend_name_tag_color = 0xff6060ff;
     };
 
     static Friend* GetFriend(const wchar_t*);
@@ -164,7 +162,7 @@ public:
 
     static void AddFriendAliasToMessage(wchar_t** message_ptr);
 
-    [[nodiscard]] const char* Name() const override { return "好友列表"; }
+    [[nodiscard]] const char* Name() const override { return "Friend List"; }
     [[nodiscard]] const char* Icon() const override { return ICON_FA_USER_FRIENDS; }
 
     [[nodiscard]] bool IsWidget() const override;

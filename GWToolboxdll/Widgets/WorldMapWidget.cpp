@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 
+#include <GWCA/Constants/Constants.h>
 #include <GWCA/Constants/Maps.h>
 
 #include <GWCA/Utilities/MemoryPatcher.h>
@@ -51,7 +52,6 @@
 #include <Utils/TextUtils.h>
 #include <Windows/Pathfinding/PathfindingWindow.h>
 #include <Windows/Pathfinding/PathingMapDataLoader.h>
-#include <corecrt_math_defines.h>
 
 
 
@@ -66,9 +66,9 @@ namespace {
 
     struct MapFileInfo {
         GW::Continent continent;
-        GW::Vec2f world_pos_start; // 边界左上角
-        GW::Vec2f world_pos_end;   // 边界右下角
-        uint32_t map_file_id;      // 此地图的唯一标识符
+        GW::Vec2f world_pos_start; // top left of bounds
+        GW::Vec2f world_pos_end;   // bottom right of bounds
+        uint32_t map_file_id;      // unique identifier for this map
         GW::Constants::MapID map_id = GW::Constants::MapID::None;
         std::vector<MapPortal> portals;
     };
@@ -134,7 +134,7 @@ namespace {
     WorldMapWidget::Settings settings;
 
     bool show_elite_capture_locations[11];
-    bool show_elite_capture_locations_campaign[4]; // 核心=0, 预言=1, 派系=2, 夜幕=3
+    bool show_elite_capture_locations_campaign[4]; // Core=0, Prophecies=1, Factions=2, Nightfall=3
     bool drawn = false;
 
     GW::MemoryPatcher view_all_outposts_patch;
@@ -150,13 +150,13 @@ namespace {
     const EliteBossLocation* hovered_boss = nullptr;
     const MapPortal* hovered_map_portal = nullptr;
 
-    // 每帧更新的缓存变量；避免在 DrawQuestMarkerOnWorldMap 中重复计算
+    // Cached vars that are updated every draw; avoids having to do the calculation inside DrawQuestMarkerOnWorldMap
     GW::Vec2f player_world_map_pos;
     float player_rotation = .0f;
     GW::Vec2f viewport_offset;
     GW::Vec2f ui_scale;
     float world_map_scale = 1.f;
-    GW::Vec2f world_map_proj_scale = {1.f, 1.f}; // 每世界地图坐标的像素，考虑动画
+    GW::Vec2f world_map_proj_scale = {1.f, 1.f}; // px per world-map coord, animation-aware
     GW::WorldMapContext* world_map_context = nullptr;
     float quest_star_rotation_angle = .0f;
     float quest_icon_size = 24.f;
@@ -171,10 +171,10 @@ namespace {
             case GW::RegionType::MissionOutpost:
             case GW::RegionType::EotnMission:
             case GW::RegionType::CooperativeMission:
-                mission_suffix = "（任务）";
+                mission_suffix = " (Mission)";
                 break;
             case GW::RegionType::Challenge:
-                mission_suffix = "（挑战）";
+                mission_suffix = " (Challenge)";
                 break;
         }
 
@@ -196,11 +196,11 @@ namespace {
         }
 #endif
 
-        ImGui::Text("属性索引：%d", portal->prop_index);
-        ImGui::Text("地图文件 ID：%d", portal->map_file_id);
+        ImGui::Text("Prop Index: %d", portal->prop_index);
+        ImGui::Text("Map File ID: %d", portal->map_file_id);
         if (include_linked) {
             if (const auto linked = portal->linkedPortal()) {
-                ImGui::Text("连接到：");
+                ImGui::Text("Linked with:");
                 ImGui::Separator();
                 DrawMapPortalInfo(linked, false);
             }
@@ -225,14 +225,14 @@ namespace {
 
     bool ContextMenuMarkerButtons()
     {
-        if (ImGui::Button("放置标记")) {
+        if (ImGui::Button("Place Marker")) {
             GW::GameThread::Enqueue([] {
                 QuestModule::SetCustomQuestMarker(world_map_click_pos, true);
             });
             return false;
         }
         if (QuestModule::GetCustomQuestMarker()) {
-            if (ImGui::Button("移除标记")) {
+            if (ImGui::Button("Remove Marker")) {
                 GW::GameThread::Enqueue([] {
                     QuestModule::SetCustomQuestMarker({0, 0});
                 });
@@ -276,9 +276,9 @@ namespace {
         ImGui::PushStyleColor(ImGuiCol_Button, ImColor(0, 0, 0, 0).Value);
         const auto size = ImVec2(250.0f * ImGui::FontScale(), 0);
         ImGui::Separator();
-        const bool set_active = ImGui::Button("设为激活任务", size);
-        const bool travel = ImGui::Button("前往最近的前哨站", size);
-        const bool wiki = ImGui::Button("激战维基", size);
+        const bool set_active = ImGui::Button("Set active quest", size);
+        const bool travel = ImGui::Button("Travel to nearest outpost", size);
+        const bool wiki = ImGui::Button("Guild Wars Wiki", size);
 
         ImGui::PopStyleColor();
         ImGui::PopStyleVar();
@@ -323,12 +323,12 @@ namespace {
         const auto size = ImVec2(250.0f * ImGui::FontScale(), 0);
         ImGui::Separator();
 
-        const bool travel = ImGui::Button("前往最近的前哨站", size);
+        const bool travel = ImGui::Button("Travel to nearest outpost", size);
 
-        const auto boss_label = std::format("在激战维基上查看 {}", boss->boss_name);
+        const auto boss_label = std::format("{} on Guild Wars Wiki", boss->boss_name);
         const bool boss_wiki = ImGui::Button(boss_label.c_str(), size);
 
-        const auto skill_label = std::format("在激战维基上查看 {}", Resources::GetSkillName(boss->skill_id)->string());
+        const auto skill_label = std::format("{} on Guild Wars Wiki", Resources::GetSkillName(boss->skill_id)->string());
         const bool skill_wiki = ImGui::Button(skill_label.c_str(), size);
 
         ImGui::PopStyleColor();
@@ -374,9 +374,9 @@ namespace {
     bool IsTravelPortal(GW::MapProp* prop)
     {
         switch (GetMapPropModelFileId(prop)) {
-            case 0x4e6b2: // Eotn 阿苏拉传送门
-            case 0x3c5ac: // Eotn，夜幕
-            case 0xa825:  // 预言，派系
+            case 0x4e6b2: // Eotn asura gate
+            case 0x3c5ac: // Eotn, Nightfall
+            case 0xa825:  // Prophecies, Factions
                 return true;
         }
         return false;
@@ -424,7 +424,7 @@ namespace {
             if (!GW::Map::HasMapDisplayInfo(map_info) || GW::Map::IsExcludedMapInfo(map_info)) continue;
             if (!map_info->GetIsOnWorldMap()) continue;
             (world_map_point);
-            // TODO：点到矩形的距离
+            // TODO: distance from point to rect
         }
         return GW::Constants::MapID::None;
     }
@@ -511,10 +511,10 @@ namespace {
     void CalculateRotatedPoints(const ImRect& rect, const ImVec2& center, float rotation_angle, ImVec2 out_points[4])
     {
         ImVec2 points[4] = {
-            rect.Min,                 // 左上
-            {rect.Max.x, rect.Min.y}, // 右上
-            rect.Max,                 // 右下
-            {rect.Min.x, rect.Max.y}  // 左下
+            rect.Min,                 // Top-left
+            {rect.Max.x, rect.Min.y}, // Top-right
+            rect.Max,                 // Bottom-right
+            {rect.Min.x, rect.Max.y}  // Bottom-left
         };
 
         for (int i = 0; i < 4; ++i) {
@@ -527,10 +527,10 @@ namespace {
 
     void CalculateUVCoords(float uv_start_x, float uv_end_x, ImVec2 uv_points[4])
     {
-        uv_points[0] = {uv_start_x, 0.0f}; // 左上
-        uv_points[1] = {uv_end_x, 0.0f};   // 右上
-        uv_points[2] = {uv_end_x, 1.0f};   // 右下
-        uv_points[3] = {uv_start_x, 1.0f}; // 左下
+        uv_points[0] = {uv_start_x, 0.0f}; // Top-left
+        uv_points[1] = {uv_end_x, 0.0f};   // Top-right
+        uv_points[2] = {uv_end_x, 1.0f};   // Bottom-right
+        uv_points[3] = {uv_start_x, 1.0f}; // Bottom-left
     }
 
 
@@ -544,19 +544,19 @@ namespace {
     {
         if (!map_info) return {};
         if (map_info->x && map_info->y) {
-            // 如果地图有图标 x 和 y 坐标，将其用作自定义任务标记位置
-            // 注意：GW 将此标记放在前哨站图标的顶部，而非中心 — 可能是为了更容易看到？听起来很蠢，不要模仿。
+            // If the map has an icon x and y coord, use that as the custom quest marker position
+            // NB: GW places this marker at the top of the outpost icon, not the center - probably to make it easier to see? sounds daft, don't copy it.
             return {(float)map_info->x, (float)map_info->y};
         }
         if (map_info->icon_start_x && map_info->icon_start_y) {
-            // 否则使用地图名称标签的中心位置
+            // Otherwise use the center position of the map name label
             return {(float)(map_info->icon_start_x + ((map_info->icon_end_x - map_info->icon_start_x) / 2)), (float)(map_info->icon_start_y + ((map_info->icon_end_y - map_info->icon_start_y) / 2))};
         }
-        // 否则使用地图名称标签的中心位置
+        // Otherwise use the center position of the map name label
         return {(float)(map_info->icon_start_x_dupe + ((map_info->icon_end_x_dupe - map_info->icon_start_x_dupe) / 2)), (float)(map_info->icon_start_y_dupe + ((map_info->icon_end_y_dupe - map_info->icon_start_y_dupe) / 2))};
     }
 
-    // 预计算此帧的一些缓存变量，避免重复计算
+    // Pre-calculate some cached vars for this frame to avoid having to recalculate more than once
     bool PreCalculateFrameVars()
     {
         world_map_context = GW::Map::GetWorldMapContext();
@@ -576,13 +576,13 @@ namespace {
 
         world_map_scale = 1.f;
         if (world_map_context->zoom != 1.0f) {
-            // 如果我们缩放了，世界地图坐标不是 1:1 比例；我们需要找到比例因子
+            // If we're zoomed out, the world map coordinates aren't 1:1 scale; we need to find the scale factor
             if (world_map_context->top_left.y == 0.f) {
-                // 缩放的地图垂直填充
+                // The zoomed out map fills vertically
                 world_map_scale = world_map_zoomed_out_size.y / world_map_size_in_coords.y;
             }
             else {
-                // 缩放的地图水平填充
+                // The zoomed out map fills horizontally
                 world_map_scale = world_map_zoomed_out_size.x / world_map_size_in_coords.x;
             }
         }
@@ -600,7 +600,7 @@ namespace {
 
         constexpr float FULL_ROTATION_TIME = 16.0f;
         const float elapsed_seconds = static_cast<float>(TIMER_INIT()) / CLOCKS_PER_SEC;
-        quest_star_rotation_angle = 2.0f * (float)M_PI * fmod(elapsed_seconds, FULL_ROTATION_TIME) / FULL_ROTATION_TIME;
+        quest_star_rotation_angle = 2.0f * DirectX::XM_PI * fmod(elapsed_seconds, FULL_ROTATION_TIME) / FULL_ROTATION_TIME;
 
         return true;
     }
@@ -644,12 +644,12 @@ namespace {
 
         if (!Resources::GetTextureSize(*texture, &skill_texture_size)) return false;
 
-        const float icon_size = std::lerp(16.f, 32.f, std::clamp(world_map_context->zoom, 0.f, 1.f)); // 随缩放增长
+        const float icon_size = std::lerp(16.f, 32.f, std::clamp(world_map_context->zoom, 0.f, 1.f)); // grow with zoom
         const auto half_size = icon_size / 2.f;
 
-        const auto prof_idx = static_cast<uint32_t>(skill->profession);
-        const auto prof_color = (settings.color_elite_icons_by_profession && prof_idx)
-            ? AgentRenderer::Instance().GetProfessionColor(prof_idx)
+        const auto profession = static_cast<GW::Constants::Profession>(skill->profession);
+        const auto prof_color = (settings.color_elite_icons_by_profession && profession != GW::Constants::Profession::None)
+            ? AgentRenderer::Instance().GetProfessionColor(profession)
             : 0u;
 
         bool hovered = false;
@@ -697,7 +697,7 @@ namespace {
             CalculateRotatedPoints(icon_rect, viewport_quest_pos, quest_star_rotation_angle, rotated_points);
 
             ImVec2 uv_points[4];
-            CalculateUVCoords(0.0f, 0.5f, uv_points); // 精灵地图左侧
+            CalculateUVCoords(0.0f, 0.5f, uv_points); // Left-hand side of the sprite map
 
             draw_list->AddImageQuad(*quest_icon_texture, rotated_points[0], rotated_points[1], rotated_points[2], rotated_points[3], uv_points[0], uv_points[1], uv_points[2], uv_points[3], color & IM_COL32_A_MASK ? color : IM_COL32_WHITE);
 
@@ -715,7 +715,7 @@ namespace {
             const float dx = viewport_quest_pos.x - viewport_player_pos.x;
             const float dy = viewport_quest_pos.y - viewport_player_pos.y;
 
-            // 使用 atan2 计算旋转角度（弧度），指向远离玩家的方向
+            // Calculate the rotation angle in radians using atan2, pointing away from the player
             float rotation_angle = std::atan2f(-dy, -dx);
             rotation_angle += DirectX::XM_PI;
 
@@ -725,14 +725,14 @@ namespace {
             CalculateRotatedPoints(icon_rect, viewport_quest_pos, rotation_angle, rotated_points);
 
             ImVec2 uv_points[4];
-            CalculateUVCoords(0.5f, 1.0f, uv_points); // 精灵地图右侧
+            CalculateUVCoords(0.5f, 1.0f, uv_points); // Right-hand side of the sprite map
 
             draw_list->AddImageQuad(*quest_icon_texture, rotated_points[0], rotated_points[1], rotated_points[2], rotated_points[3], uv_points[0], uv_points[1], uv_points[2], uv_points[3], color & IM_COL32_A_MASK ? color : IM_COL32_WHITE);
 
             return icon_rect.Contains(ImGui::GetMousePos());
         };
 
-        // 任务不在此地图结束；标记图标需要是箭头，实际标记需要定位到目标地图的标签上
+        // The quest doesn't end in this map; the marker icon needs to be an arrow, and the actual marker needs to be positioned onto the label of the destination map
         const auto map_info = GW::Map::GetMapInfo(quest->map_to);
         if (!(map_info && map_info->continent == world_map_context->continent)) return false;
         GW::Vec2f pos;
@@ -758,7 +758,7 @@ namespace {
         if (!world_map_context) return;
 
         for (const auto& [file_id, info] : map_info_by_file_id) {
-            // 过滤到当前在世界地图上显示的大陆。
+            // Filter to the continent currently shown on the world map.
             const auto map_info = GW::Map::GetMapInfo(info.map_id);
             if (!(map_info && map_info->continent == world_map_context->continent)) continue;
 
@@ -861,10 +861,11 @@ void WorldMapWidget::Initialize()
 }
 
 namespace {
-    // 世界地图每单位 96 gwinches，硬编码在 GW 源代码中。
+    // World map is 96 gwinches per unit, hard-coded in the GW source.
     constexpr float gwinches_per_unit = 96.f;
 
-    // `map_id` 的世界地图中点（来自缓存 DAT 的游戏边界）— 两种转换共享的锚点。
+    // World-map mid point for `map_id` (game bounds from the cached DAT) — the single
+    // anchor both conversions share.
     bool GetMapWorldAnchor(GW::Constants::MapID map_id, GW::Vec2f& mid_out)
     {
         if ((uint32_t)map_id == 0) map_id = GW::Map::GetMapID();
@@ -901,7 +902,7 @@ bool WorldMapWidget::WorldMapToGamePos(const GW::Vec2f& world_map_pos, GW::GameP
     if (!GetMapWorldAnchor(map_id, mid)) return false;
 
     game_map_pos.x = (world_map_pos.x - mid.x) * gwinches_per_unit;
-    game_map_pos.y = (world_map_pos.y - mid.y) * gwinches_per_unit * -1.f; // 反转 Y 轴
+    game_map_pos.y = (world_map_pos.y - mid.y) * gwinches_per_unit * -1.f; // Invert Y axis
     return true;
 }
 
@@ -912,7 +913,7 @@ bool WorldMapWidget::GamePosToWorldMap(const GW::GamePos& game_map_pos, GW::Vec2
     if (!GetMapWorldAnchor(map_id, mid)) return false;
 
     world_map_pos.x = (game_map_pos.x / gwinches_per_unit) + mid.x;
-    world_map_pos.y = ((game_map_pos.y * -1.f) / gwinches_per_unit) + mid.y; // 反转 Y 轴
+    world_map_pos.y = ((game_map_pos.y * -1.f) / gwinches_per_unit) + mid.y; // Inverted Y axis
     return true;
 }
 
@@ -1004,7 +1005,8 @@ void WorldMapWidget::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
                 map_info_by_file_id[info.map_file_id] = std::move(info);
             }
         }
-        // 连接传送门跨越地图，因此一旦整个文件加载完成，在第二遍中解析它们。
+        // Linked portals span across maps, so resolve them in a second pass
+        // once the entire file has been loaded.
         for (auto& [_, info] : map_info_by_file_id) {
             for (auto& portal : info.portals) {
                 portal.checkForLinkedPortal(info.continent);
@@ -1060,7 +1062,7 @@ void WorldMapWidget::Draw(IDirect3DDevice9*)
     if (ImGui::Begin(Name(), &visible, GetWinFlags() | ImGuiWindowFlags_AlwaysAutoResize)) {
         window = ImGui::GetCurrentWindowRead();
         bool carto_enabled = CartographerWidget::GetEnabled();
-        if (ImGui::Checkbox("探索绘制", &carto_enabled)) {
+        if (ImGui::Checkbox("Cartographer", &carto_enabled)) {
             GW::GameThread::Enqueue([carto_enabled] {
                 CartographerWidget::SetEnabled(carto_enabled);
             });
@@ -1070,59 +1072,59 @@ void WorldMapWidget::Draw(IDirect3DDevice9*)
             CartographerWidget::DrawWorldMapOptions();
             ImGui::Unindent();
         }
-        if (ImGui::Checkbox("显示所有区域", &settings.showing_all_outposts)) {
+        if (ImGui::Checkbox("Show all areas", &settings.showing_all_outposts)) {
             GW::GameThread::Enqueue([] {
                 ShowAllOutposts(settings.showing_all_outposts);
             });
         }
         if (settings.showing_all_outposts) {
             ImGui::Indent();
-            ImGui::Checkbox("高亮锁定区域", &settings.highlight_locked_areas);
+            ImGui::Checkbox("Highlight locked areas", &settings.highlight_locked_areas);
             if (settings.highlight_locked_areas) {
                 ImGui::SameLine();
-                ImGui::ColorButtonPicker("锁定区域", &settings.locked_area_highlight_color.value, ImGuiColorEditFlags_NoLabel);
+                ImGui::ColorButtonPicker("Locked Areas", &settings.locked_area_highlight_color.value, ImGuiColorEditFlags_NoLabel);
                 if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("此角色未解锁区域的颜色叠加。");
+                    ImGui::SetTooltip("Color overlay for areas that aren't unlocked on this character.");
                 }
             }
             ImGui::Unindent();
         }
         if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
             bool is_hard_mode = GW::PartyMgr::GetIsPartyInHardMode();
-            if (ImGui::Checkbox("困难模式", &is_hard_mode)) {
+            if (ImGui::Checkbox("Hard mode", &is_hard_mode)) {
                 GW::GameThread::Enqueue([] {
                     GW::PartyMgr::SetHardMode(!GW::PartyMgr::GetIsPartyInHardMode());
                 });
             }
         }
-        ImGui::Checkbox("在世界地图上显示工具箱小地图线", &settings.show_lines_on_world_map);
-        if (ImGui::Checkbox("显示所有任务的任务标记", &settings.showing_all_quests)) {
+        ImGui::Checkbox("Show toolbox minimap lines", &settings.show_lines_on_world_map);
+        if (ImGui::Checkbox("Show quest markers for all quests", &settings.showing_all_quests)) {
             QuestModule::FetchMissingQuestInfo();
         }
-        ImGui::Checkbox("应用任务标记颜色叠加", &settings.apply_quest_colors);
+        ImGui::Checkbox("Apply quest marker color overlays", &settings.apply_quest_colors);
         if (settings.apply_quest_colors) {
             ImGui::Indent();
             auto color = &QuestModule::GetQuestColor((GW::Constants::QuestID)0xfff);
-            ImGui::ColorButtonPicker("其他任务", color, ImGuiColorEditFlags_NoLabel);
+            ImGui::ColorButtonPicker("Other Quests", color, ImGuiColorEditFlags_NoLabel);
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("非激活任务的颜色叠加。");
+                ImGui::SetTooltip("Color overlay for quests that aren't active.");
             }
             if (GW::QuestMgr::GetActiveQuestId() != GW::Constants::QuestID::None) {
                 ImGui::SameLine();
                 color = &QuestModule::GetQuestColor(GW::QuestMgr::GetActiveQuestId());
-                ImGui::ColorButtonPicker("激活任务", color, ImGuiColorEditFlags_NoLabel);
+                ImGui::ColorButtonPicker("Active Quest", color, ImGuiColorEditFlags_NoLabel);
                 if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("激活任务的颜色叠加。");
+                    ImGui::SetTooltip("Color overlay for the active quest.");
                 }
             }
             ImGui::Unindent();
         }
     }
-    ImGui::Checkbox("显示精英技能获取位置", &settings.show_any_elite_capture_locations);
+    ImGui::Checkbox("Show elite capture locations", &settings.show_any_elite_capture_locations);
     if (settings.show_any_elite_capture_locations) {
         ImGui::Indent();
-        constexpr const char* campaign_labels[] = {"核心", "预言", "派系", "夜幕"};
-        constexpr const char* campaign_tooltips[] = {"核心", "预言", "派系", "夜幕"};
+        constexpr const char* campaign_labels[] = {"Core", "Proph", "Fac", "NF"};
+        constexpr const char* campaign_tooltips[] = {"Core", "Prophecies", "Factions", "Nightfall"};
         for (size_t i = 0; i < _countof(show_elite_capture_locations_campaign); i++) {
             if (i != 0) ImGui::SameLine();
             ImGui::PushID(100 + (int)i);
@@ -1148,12 +1150,12 @@ void WorldMapWidget::Draw(IDirect3DDevice9*)
             ImGui::PopID();
         }
         ImGui::PopStyleVar();
-        ImGui::Checkbox("隐藏已捕获的精英", &settings.hide_captured_elites);
+        ImGui::Checkbox("Hide elites already captured", &settings.hide_captured_elites);
         if (settings.hide_captured_elites) {
             const auto& completion = CompletionWindow::Instance().GetCharacterCompletion(GW::PlayerMgr::GetPlayerName(), false);
-            if (!completion) ImGui::TextDisabled("如果完成窗口被禁用，则仅限于你的主/副职业");
+            if (!completion) ImGui::TextDisabled("Limited to your primary/secondary profession if Completion Window is disabled");
         }
-        ImGui::Checkbox("按职业为技能图标着色", &settings.color_elite_icons_by_profession);
+        ImGui::Checkbox("Color skill icons by profession", &settings.color_elite_icons_by_profession);
         ImGui::Unindent();
     }
     ImGui::End();
@@ -1209,7 +1211,7 @@ void WorldMapWidget::Draw(IDirect3DDevice9*)
             if (!quest_name.IsDecoding()) quest_name.reset(hovered_quest->name);
             const auto coin_reward = DailyQuests::GetZaishenCoinReward(hovered_quest_id);
             if (coin_reward) {
-                ImGui::SetTooltip("%s\n扎伊圣硬币：%u 普通 / %u 困难", quest_name.string().c_str(), coin_reward->nm, coin_reward->hm);
+                ImGui::SetTooltip("%s\nZaishen Coins: %u NM / %u HM", quest_name.string().c_str(), coin_reward->nm, coin_reward->hm);
             }
             else {
                 ImGui::SetTooltip("%s", quest_name.string().c_str());
@@ -1243,8 +1245,8 @@ void WorldMapWidget::Draw(IDirect3DDevice9*)
         const auto map_id = GW::Map::GetMapID();
         GW::Vec2f line_start;
         GW::Vec2f line_end;
-        // 裁剪到可见视口：加载了许多传送门/路径线时，每帧将离屏线提交给 ImGui（顶点生成）是 FPS 瓶颈。
-        // 廉价的屏幕空间 AABB 剔除只保留可见部分。
+        // Cull to the visible viewport: with many portal/route lines loaded, submitting the off-screen ones to ImGui
+        // (vertex generation) every frame is the FPS sink. A cheap screen-space AABB reject keeps only what's visible.
         const ImVec2 clip_min = draw_list->GetClipRectMin();
         const ImVec2 clip_max = draw_list->GetClipRectMax();
         for (auto& line : lines | std::views::filter([](auto line) {
@@ -1252,7 +1254,7 @@ void WorldMapWidget::Draw(IDirect3DDevice9*)
                           })) {
             if (line->map != map_id) continue;
             if (line->world_coords) {
-                // 已经是世界地图坐标（例如跨地图路径尾部）— 直接使用。
+                // Already in world-map coords (e.g. a cross-map route tail) — use directly.
                 line_start = {line->p1.x, line->p1.y};
                 line_end = {line->p2.x, line->p2.y};
             }
@@ -1264,7 +1266,7 @@ void WorldMapWidget::Draw(IDirect3DDevice9*)
             const auto p1 = CalculateViewportPos(line_start, world_map_context->top_left);
             const auto p2 = CalculateViewportPos(line_end, world_map_context->top_left);
 
-            // 跳过屏幕空间边界框不与可见区域相交的段。
+            // Skip segments whose screen-space bounding box doesn't intersect the visible area.
             if (std::max(p1.x, p2.x) < clip_min.x || std::min(p1.x, p2.x) > clip_max.x || std::max(p1.y, p2.y) < clip_min.y || std::min(p1.y, p2.y) > clip_max.y) continue;
 
             draw_list->AddLine(p1, p2, line->color);
@@ -1282,14 +1284,14 @@ void WorldMapWidget::Draw(IDirect3DDevice9*)
     }
     if (settings.show_any_elite_capture_locations) {
         const auto rect = draw_list->GetClipRectMax();
-        const auto text = "精英技能获取位置提取自 Aylee Sedai 的 MappingOut v4.0.0";
+        const auto text = "Elite capture locations extracted from MappingOut v4.0.0 by Aylee Sedai";
         draw_list->AddText({16.f, rect.y - 28.f}, ImGui::GetColorU32(ImGuiCol_TextDisabled), text);
     }
-    // 跨地图路径可能需要几秒在工作线程上构建；让玩家知道正在计算，而不是什么都没发生。
-    // 位于 MappingOut 署名行上方（左下角）。
+    // A cross-map route can take a few seconds to build on its worker thread; let the player know it's working
+    // rather than that nothing happened. Sits just above the MappingOut attribution line (bottom-left).
     if (PathfindingWindow::IsCalculatingPath()) {
         const auto rect = draw_list->GetClipRectMax();
-        draw_list->AddText({16.f, rect.y - 48.f}, ImGui::GetColorU32(ImGuiCol_Text), "正在计算路径...");
+        draw_list->AddText({16.f, rect.y - 48.f}, ImGui::GetColorU32(ImGuiCol_Text), "Calculating path...");
     }
     for (const auto cb : overlay_callbacks) {
         cb(draw_list);
@@ -1347,5 +1349,5 @@ bool WorldMapWidget::WndProc(const UINT Message, WPARAM, LPARAM lParam)
 
 void WorldMapWidget::DrawSettingsInternal()
 {
-    ImGui::TextDisabled("世界地图选项（显示所有区域、任务标记、精英技能位置等）\n请打开世界地图进行更改。");
+    ImGui::TextDisabled("The world map options (show all areas, quest markers, elite capture locations, ...)\nare drawn on the world map itself - open the world map to change them.");
 }

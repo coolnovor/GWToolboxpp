@@ -38,7 +38,7 @@
 
 #include <Modules/ChatFilter.h>
 
-// 目前商店API不够完善，暂时只支持浏览。
+// API for shops isn't good enough, stick to browsing for now.
 #define GWMARKET_SELLING_ENABLED 0
 
 namespace {
@@ -51,7 +51,7 @@ namespace {
 
     clock_t last_shop_refresh_sent = 0;
 
-    // 连接速率限制
+    // Connection rate limiting
     constexpr uint32_t COST_PER_CONNECTION_MS = 30 * 1000;
     constexpr uint32_t COST_PER_CONNECTION_MAX_MS = 60 * 1000;
 
@@ -66,15 +66,15 @@ namespace {
     {
         switch (currency) {
             case Currency::Platinum:
-                return "白金";
+                return "Plat";
             case Currency::Ecto:
-                return "伊克托";
+                return "Ecto";
             case Currency::Zkeys:
-                return "扎基钥匙";
+                return "Zkeys";
             case Currency::Arms:
-                return "臂铠";
+                return "Arms";
             default:
-                return "未知";
+                return "Unknown";
         }
     }
 
@@ -97,15 +97,15 @@ namespace {
     {
         switch (type) {
             case OrderType::Sell:
-                return "出售";
+                return "SELL";
             case OrderType::Buy:
-                return "求购";
+                return "BUY";
             default:
-                return "出售";
+                return "SELL";
         }
     }
 
-    // 字符串池，减少内存占用
+    // String interning to reduce memory footprint
     std::unordered_set<std::string> string_pool;
 
     const std::string* InternString(const std::string& str)
@@ -127,63 +127,63 @@ namespace {
     GW::Constants::Attribute AttributeFromString(const std::string& str)
     {
         using namespace GW::Constants;
-        // 幻术师
+        // Mesmer
         if (str == "Fast Casting") return Attribute::FastCasting;
         if (str == "Illusion Magic") return Attribute::IllusionMagic;
         if (str == "Domination Magic") return Attribute::DominationMagic;
         if (str == "Inspiration Magic") return Attribute::InspirationMagic;
 
-        // 死灵法师
+        // Necromancer
         if (str == "Blood Magic") return Attribute::BloodMagic;
         if (str == "Death Magic") return Attribute::DeathMagic;
         if (str == "Soul Reaping") return Attribute::SoulReaping;
         if (str == "Curses") return Attribute::Curses;
 
-        // 元素使
+        // Elementalist
         if (str == "Air Magic") return Attribute::AirMagic;
         if (str == "Earth Magic") return Attribute::EarthMagic;
         if (str == "Fire Magic") return Attribute::FireMagic;
         if (str == "Water Magic") return Attribute::WaterMagic;
         if (str == "Energy Storage") return Attribute::EnergyStorage;
 
-        // 僧侣
+        // Monk
         if (str == "Healing Prayers") return Attribute::HealingPrayers;
         if (str == "Smiting Prayers") return Attribute::SmitingPrayers;
         if (str == "Protection Prayers") return Attribute::ProtectionPrayers;
         if (str == "Divine Favor") return Attribute::DivineFavor;
 
-        // 战士
+        // Warrior
         if (str == "Strength") return Attribute::Strength;
         if (str == "Axe Mastery") return Attribute::AxeMastery;
         if (str == "Hammer Mastery") return Attribute::HammerMastery;
         if (str == "Swordsmanship") return Attribute::Swordsmanship;
         if (str == "Tactics") return Attribute::Tactics;
 
-        // 游侠
+        // Ranger
         if (str == "Beast Mastery") return Attribute::BeastMastery;
         if (str == "Expertise") return Attribute::Expertise;
         if (str == "Wilderness Survival") return Attribute::WildernessSurvival;
         if (str == "Marksmanship") return Attribute::Marksmanship;
 
-        // 刺客
+        // Assassin
         if (str == "Dagger Mastery") return Attribute::DaggerMastery;
         if (str == "Deadly Arts") return Attribute::DeadlyArts;
         if (str == "Shadow Arts") return Attribute::ShadowArts;
         if (str == "Critical Strikes") return Attribute::CriticalStrikes;
 
-        // 祭祀
+        // Ritualist
         if (str == "Communing") return Attribute::Communing;
         if (str == "Restoration Magic") return Attribute::RestorationMagic;
         if (str == "Channeling Magic") return Attribute::ChannelingMagic;
         if (str == "Spawning Power") return Attribute::SpawningPower;
 
-        // 圣言者
+        // Paragon
         if (str == "Spear Mastery") return Attribute::SpearMastery;
         if (str == "Command") return Attribute::Command;
         if (str == "Motivation") return Attribute::Motivation;
         if (str == "Leadership") return Attribute::Leadership;
 
-        // 神唤使
+        // Dervish
         if (str == "Scythe Mastery") return Attribute::ScytheMastery;
         if (str == "Wind Prayers") return Attribute::WindPrayers;
         if (str == "Earth Prayers") return Attribute::EarthPrayers;
@@ -241,11 +241,11 @@ namespace {
             std::string out;
             const auto attrib_data = GW::SkillbarMgr::GetAttributeConstantData(attribute);
             if (attrib_data) {
-                out += std::format("需求{} {}", requirement, Resources::DecodeStringId(attrib_data->name_id, GW::Constants::Language::English)->string().c_str());
+                out += std::format("Req.{} {}", requirement, Resources::DecodeStringId(attrib_data->name_id, GW::Constants::Language::English)->string().c_str());
             }
             if (inscribable) {
                 if (!out.empty()) out += ", ";
-                out += "可铭文";
+                out += "Inscribable";
             }
             return out;
         }
@@ -311,7 +311,7 @@ namespace {
             j["description"] = description;
             j["orderType"] = static_cast<int>(orderType);
             j["quantity"] = quantity;
-            j["lastRefresh"] = static_cast<uint64_t>(lastRefresh) * 1000; // 转换为毫秒
+            j["lastRefresh"] = static_cast<uint64_t>(lastRefresh) * 1000; // Convert to milliseconds
 
             if (has_weapon_details()) {
                 j["weaponDetails"] = weaponDetails.ToJson();
@@ -501,13 +501,13 @@ namespace {
         }
 
         if (item->IsInscription()) {
-            // 铭文: "Leaf on the Wind" => Leaf on the Wind
+            // Inscription: "Leaf on the Wind" => Leaf on the Wind
             out = TextUtils::Replace(out, LR"(Inscription: \"([^\"]+)\")", L"$1");
         }
         if (item->type == GW::Constants::ItemType::Dye) {
-            // 染料瓶 => <颜色> 染料
+            // Vial of Dye => <color> Dye
             const auto dye_color = TextUtils::Replace(complete_name_decoded, LR"(.*\[([^\]]+)\].*)", L"$1");
-            out = dye_color + L" 染料";
+            out = dye_color + L" Dye";
         }
 
         return TextUtils::StripTags(out);
@@ -521,17 +521,17 @@ namespace {
 
             std::vector<std::wstring> parts;
 
-            // 去除无关描述，只保留伤害、需求和护甲信息
+            // Remove anything else that doesn't describe damage, requirement or armor
             parts.push_back(TextUtils::Replace(description_decoded, LR"(^(?!.*(Dmg:|Damage:|\(Requires \d|Armor:)).*$)", L""));
-            // 移除 @ItemBasic 或 @ItemDull 行
+            // Remove any @ItemBasic or @ItemDull lines
             parts.push_back(TextUtils::Replace(description_decoded, LR"(^<c=@Item(Basic|Dull).*$\n?)", L""));
 
             std::vector<std::wstring> extras;
             if (item->IsOldSchool()) {
-                extras.push_back(L"旧式");
+                extras.push_back(L"Old School");
             }
             if (item->GetIsInscribable()) {
-                extras.push_back(L"可铭文");
+                extras.push_back(L"Inscribable");
             }
             if (!extras.empty()) {
                 parts.push_back(TextUtils::Join(extras, L", "));
@@ -541,10 +541,10 @@ namespace {
         if (item->type == GW::Constants::ItemType::Rune_Mod) {
             description = description_decoded;
 
-            // 移除 @ItemBasic 或 @ItemDull 行
+            // Remove any @ItemBasic or @ItemDull lines
             description = TextUtils::Replace(description, LR"(^<c=@Item(Basic|Dull).*$\n?)", L"");
         }
-        // 移除铭文详情
+        // Specifically remove inscription detail
         description = TextUtils::Replace(description, LR"(^.*Inscription:.*$)", L"");
         description = TextUtils::Replace(description, LR"(\n+)", L"\n");
         return TextUtils::StripTags(description);
@@ -605,7 +605,7 @@ namespace {
         available_items.clear();
         if (!orders.is_object()) {
             available_items_needs_sort = true;
-            Log::Log("收到 0 个可用物品");
+            Log::Log("Received 0 available items");
             return;
         }
         available_items.reserve(orders.size());
@@ -623,7 +623,7 @@ namespace {
             }
         }
         available_items_needs_sort = true;
-        Log::Log("收到 %zu 个可用物品", available_items.size());
+        Log::Log("Received %zu available items", available_items.size());
     }
 
     void OnGetLastItems(const json& items)
@@ -635,7 +635,7 @@ namespace {
                 last_items.push_back(MarketItem::FromJson(item_json));
             }
         }
-        Log::Log("收到 %zu 条近期列表", last_items.size());
+        Log::Log("Received %zu recent listings", last_items.size());
     }
 
     void OnGetItemOrders(const json& orders)
@@ -662,7 +662,7 @@ namespace {
             }
         }
 
-        Log::Log("收到 %zu 条订单", _orders.size());
+        Log::Log("Received %zu orders", _orders.size());
     }
 
     void SendAskForShop(const std::string& uuid)
@@ -670,7 +670,7 @@ namespace {
         if (!IsSocketIOReady()) return;
         std::string msg = EncodeSocketIOMessage("getPublicShop", uuid);
         market_ws.Send(msg);
-        Log::Log("[发送] %s", msg.c_str());
+        Log::Log("[SEND] %s", msg.c_str());
     }
     void OnShopInfo(const json& data)
     {
@@ -694,7 +694,7 @@ namespace {
     void OnShopError(const json& data)
     {
         if (data.is_string()) {
-            const auto warning = std::format("[市场] {}", data.get<std::string>());
+            const auto warning = std::format("[Market] {}", data.get<std::string>());
             Log::Warning("%s", warning.c_str());
         }
     }
@@ -712,17 +712,17 @@ namespace {
             ping_timeout = static_cast<int>(handshake["pingTimeout"].get<double>());
         }
 
-        Log::Log("握手: ping %dms, 超时 %dms", ping_interval, ping_timeout);
+        Log::Log("Handshake: ping %dms, timeout %dms", ping_interval, ping_timeout);
 
         market_ws.Send("40");
-        Log::Log("[发送] 40 (连接到命名空间)");
+        Log::Log("[SEND] 40 (connecting to namespace)");
 
         last_ping_time = clock();
     }
 
     void OnNamespaceConnected()
     {
-        Log::Log("命名空间已连接，可以发送事件");
+        Log::Log("Namespace connected, ready to send events");
         socket_io_ready = true;
 
         SendSocketStarted();
@@ -738,7 +738,7 @@ namespace {
     {
         if (message.empty()) return;
 
-        Log::Log("[接收] %s", message.c_str());
+        Log::Log("[RECV] %s", message.c_str());
 
         char type = message[0];
 
@@ -747,19 +747,19 @@ namespace {
                 HandleSocketIOHandshake(message);
                 break;
             case '1':
-                Log::Warning("服务器关闭");
+                Log::Warning("Server close");
                 break;
             case '2':
                 market_ws.Send("3");
-                Log::Log("[发送] 3");
+                Log::Log("[SEND] 3");
                 break;
             case '3':
-                Log::Log("收到Pong");
+                Log::Log("Pong received");
                 break;
             case '4':
                 if (message.length() > 1) {
                     if (message[1] == '0') {
-                        Log::Log("命名空间连接确认");
+                        Log::Log("Namespace connect confirmed");
                         OnNamespaceConnected();
                     }
                     else if (message[1] == '2') {
@@ -790,7 +790,7 @@ namespace {
         if (!IsSocketIOReady()) return;
         std::string msg = EncodeSocketIOMessage("SocketStarted");
         market_ws.Send(msg);
-        Log::Log("[发送] %s", msg.c_str());
+        Log::Log("[SEND] %s", msg.c_str());
     }
 
     void SendGetAvailableOrders()
@@ -798,7 +798,7 @@ namespace {
         if (!IsSocketIOReady()) return;
         std::string msg = EncodeSocketIOMessage("getAvailableOrders");
         market_ws.Send(msg);
-        Log::Log("[发送] %s", msg.c_str());
+        Log::Log("[SEND] %s", msg.c_str());
     }
 
     void SendGetLastItemsByFamily(const std::string& family)
@@ -806,7 +806,7 @@ namespace {
         if (!IsSocketIOReady()) return;
         std::string msg = EncodeSocketIOMessage("getLastItemsByFamily", family);
         market_ws.Send(msg);
-        Log::Log("[发送] %s", msg.c_str());
+        Log::Log("[SEND] %s", msg.c_str());
     }
 
     void SendAskForCertification()
@@ -816,20 +816,20 @@ namespace {
 
         std::string msg = EncodeSocketIOMessage("askPlayerCertification", my_shop.uuid);
         market_ws.Send(msg);
-        Log::Log("[发送] %s", msg.c_str());
+        Log::Log("[SEND] %s", msg.c_str());
     }
     void OnShopCertificationSecret(const json& data)
     {
         const auto secret = TextUtils::parseStringFromJson(data, "secret", "");
         const auto uuid = TextUtils::parseStringFromJson(data, "uuid", "");
         if (secret.empty() || uuid.empty()) {
-            Log::Warning("OnShopCertificationSecret: uuid 或 secret 为空！");
+            Log::Warning("OnShopCertificationSecret: uuid or secret empty!");
             return;
         }
         const auto msg = TextUtils::StringToWString(std::format("{}|{}", uuid, secret));
         GW::GameThread::Enqueue([cpy = msg]() {
-            ChatFilter::BlockMessageForMs(L"Gwmarket 认证",500);
-            GW::Chat::SendChat(L"Gwmarket 认证", cpy.c_str());
+            ChatFilter::BlockMessageForMs(L"Gwmarket Auth",500);
+            GW::Chat::SendChat(L"Gwmarket Auth", cpy.c_str());
         });
     }
 
@@ -838,14 +838,14 @@ namespace {
         if (!IsSocketIOReady()) return;
         std::string msg = EncodeSocketIOMessage("getItemOrders", item_name);
         market_ws.Send(msg);
-        Log::Log("[发送] %s", msg.c_str());
+        Log::Log("[SEND] %s", msg.c_str());
     }
 
     void SendPing()
     {
         market_ws.Send("2");
         last_ping_time = clock();
-        Log::Log("[发送] 2");
+        Log::Log("[SEND] 2");
     }
 
     void MigrateShop(const MarketShop& from, MarketShop& to)
@@ -875,7 +875,7 @@ namespace {
 
         std::string msg = EncodeSocketIOMessage("refreshShop", data);
         market_ws.Send(msg);
-        Log::Log("[发送] %s", msg.c_str());
+        Log::Log("[SEND] %s", msg.c_str());
     }
     void DeleteShop(MarketShop& shop)
     {
@@ -890,7 +890,7 @@ namespace {
         if (!IsSocketIOReady() || shop.uuid.empty()) return;
         std::string msg = EncodeSocketIOMessage("closeShop", shop.uuid);
         market_ws.Send(msg);
-        Log::Log("[发送] %s", msg.c_str());
+        Log::Log("[SEND] %s", msg.c_str());
     }
 
     void InitWebSocket()
@@ -901,12 +901,12 @@ namespace {
             OnWebSocketMessage(msg);
         });
         market_ws.SetOnOpen([] {
-            //Log::Log("已连接");
+            //Log::Log("Connected");
             socket_io_ready = false;
             last_ping_time = clock();
         });
         market_ws.SetOnClose([] {
-            //Log::Warning("已断开");
+            //Log::Warning("Disconnected");
             socket_io_ready = false;
         });
     }
@@ -920,7 +920,7 @@ namespace {
 
     void DrawItemList()
     {
-        ImGui::Text("可用列表 (%zu)", available_items.size());
+        ImGui::Text("Available Listings (%zu)", available_items.size());
         ImGui::Separator();
         if (available_items_needs_sort) {
             std::sort(available_items.begin(), available_items.end(), [](const AvailableItem& a, const AvailableItem& b) {
@@ -952,13 +952,13 @@ namespace {
 
             ImGui::SameLine(300);
             if (item.sellOrders > 0 && item.buyOrders > 0) {
-                ImGui::Text("%d 个卖家, %d 个买家", item.sellOrders, item.buyOrders);
+                ImGui::Text("%d  Seller%s, %d Buyer%s", item.sellOrders, item.sellOrders == 1 ? "" : "s", item.buyOrders, item.buyOrders == 1 ? "" : "s");
             }
             else if (item.sellOrders > 0) {
-                ImGui::Text("%d 个卖家", item.sellOrders);
+                ImGui::Text("%d  Seller%s", item.sellOrders, item.sellOrders == 1 ? "" : "s");
             }
             else if (item.buyOrders > 0) {
-                ImGui::Text("%d 个买家", item.buyOrders);
+                ImGui::Text("%d  Buyer%s", item.buyOrders, item.buyOrders == 1 ? "" : "s");
             }
             ImGui::PopID();
         }
@@ -967,7 +967,7 @@ namespace {
     void DrawFavoritesList()
     {
         if (favorite_items.empty()) {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "没有收藏");
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No favorites");
             return;
         }
 
@@ -983,13 +983,13 @@ namespace {
             ImGui::SameLine(300);
             const auto& item = favorite.second;
             if (item.sellOrders > 0 && item.buyOrders > 0) {
-                ImGui::Text("%d 个卖家, %d 个买家", item.sellOrders, item.buyOrders);
+                ImGui::Text("%d  Seller%s, %d Buyer%s", item.sellOrders, item.sellOrders == 1 ? "" : "s", item.buyOrders, item.buyOrders == 1 ? "" : "s");
             }
             else if (item.sellOrders > 0) {
-                ImGui::Text("%d 个卖家", item.sellOrders);
+                ImGui::Text("%d  Seller%s", item.sellOrders, item.sellOrders == 1 ? "" : "s");
             }
             else if (item.buyOrders > 0) {
-                ImGui::Text("%d 个买家", item.buyOrders);
+                ImGui::Text("%d  Buyer%s", item.buyOrders, item.buyOrders == 1 ? "" : "s");
             }
 
             ImGui::PopID();
@@ -1014,20 +1014,20 @@ namespace {
     void DrawItemDetails()
     {
         if (current_viewing_item.empty()) {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "选择一个物品");
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Select an item");
             return;
         }
 
-        ImGui::Text("物品: %s", current_viewing_item.c_str());
+        ImGui::Text("Item: %s", current_viewing_item.c_str());
 
         ImGui::SameLine();
         ImGui::SetNextItemWidth(150.0f);
-        if (ImGui::BeginCombo("##sort_mode", order_sort_mode == OrderSortMode::MostRecent ? "最新" : "货币")) {
-            if (ImGui::Selectable("最新", order_sort_mode == OrderSortMode::MostRecent)) {
+        if (ImGui::BeginCombo("##sort_mode", order_sort_mode == OrderSortMode::MostRecent ? "Most Recent" : "Currency")) {
+            if (ImGui::Selectable("Most Recent", order_sort_mode == OrderSortMode::MostRecent)) {
                 order_sort_mode = OrderSortMode::MostRecent;
                 current_orders_needs_sort = true;
             }
-            if (ImGui::Selectable("货币", order_sort_mode == OrderSortMode::Currency)) {
+            if (ImGui::Selectable("Currency", order_sort_mode == OrderSortMode::Currency)) {
                 order_sort_mode = OrderSortMode::Currency;
                 current_orders_needs_sort = true;
             }
@@ -1035,8 +1035,8 @@ namespace {
         }
         ImGui::SameLine();
         ImGui::SetNextItemWidth(150.0f);
-        if (ImGui::BeginCombo("##view_currency", order_view_currency == Currency::All ? "全部" : GetPriceTypeString(order_view_currency))) {
-            if (ImGui::Selectable("全部", order_view_currency == Currency::All)) {
+        if (ImGui::BeginCombo("##view_currency", order_view_currency == Currency::All ? "All" : GetPriceTypeString(order_view_currency))) {
+            if (ImGui::Selectable("All", order_view_currency == Currency::All)) {
                 order_view_currency = Currency::All;
             }
             for (uint8_t i = 0; i < (uint8_t)Currency::Count; i++) {
@@ -1052,7 +1052,7 @@ namespace {
 
         if (!current_viewing_item.empty()) {
             bool is_favorite = favorite_items.contains(current_viewing_item);
-            std::string fav_label = std::format("{} {}", ICON_FA_STAR, is_favorite ? "取消收藏" : "收藏");
+            std::string fav_label = std::format("{} {}", ICON_FA_STAR, is_favorite ? "Unfavorite" : "Favorite");
             if (ImGui::Button(fav_label.c_str())) {
                 ToggleFavourite(current_viewing_item, !is_favorite);
             }
@@ -1065,7 +1065,7 @@ namespace {
                 });
             }
             ImGui::SameLine();
-            btn_label = std::format("{} 激战Wiki", ICON_FA_GLOBE);
+            btn_label = std::format("{} Guild Wars Wiki", ICON_FA_GLOBE);
             if (ImGui::Button(btn_label.c_str())) {
                 GW::GameThread::Enqueue([]() {
                     auto url = GuiUtils::WikiUrl(current_viewing_item);
@@ -1076,7 +1076,7 @@ namespace {
         }
 
         if (current_item_orders.empty()) {
-            ImGui::Text("加载中...");
+            ImGui::Text("Loading...");
             return;
         }
 
@@ -1098,7 +1098,7 @@ namespace {
 
         const auto font_size = ImGui::CalcTextSize(" ");
         auto DrawOrder = [font_size](const MarketItem& order) {
-            // 注意：API 似乎返回一个价格数组，但网站只显示第一个？
+            // NB: Seems to be an array of prices given by the API, but the website only shows the first one?
             const auto& price = order.prices[0];
             if (order_view_currency != Currency::All && order_view_currency != price.type) return;
 
@@ -1117,7 +1117,7 @@ namespace {
                 ImGui::TextUnformatted(order.description.c_str());
             }
 
-            ImGui::Text("想要 %s %d 个，价格 ", order.orderType == OrderType::Sell ? "出售" : "求购", order.quantity);
+            ImGui::Text("Wants to %s %d for ", order.orderType == OrderType::Sell ? "sell" : "buy", order.quantity);
 
             ImGui::SameLine(0, 0);
             const auto tex = GetCurrencyImage(price.type);
@@ -1136,13 +1136,13 @@ namespace {
             const auto price_per = order.price_per();
             int decimal_places = GuiUtils::DecimalPlaces(price_per);
             char fmt[32];
-            snprintf(fmt, sizeof(fmt), "(%% .%df %s 每个)", decimal_places, GetPriceTypeString(price.type));
-            ImGui::TextDisabled(fmt, price_per);
+            snprintf(fmt, sizeof(fmt), "(%%.%df %%s each)", decimal_places);
+            ImGui::TextDisabled(fmt, price_per, GetPriceTypeString(price.type));
 
             const auto original_cursor_pos = ImGui::GetCursorPos();
 
             ImGui::SetCursorPos({ImGui::GetContentRegionAvail().x - 100.f, top + 5.f});
-            if (ImGui::Button("私聊##seller", {100.f, 0.f})) {
+            if (ImGui::Button("Whisper##seller", {100.f, 0.f})) {
                 if (!order.prices.empty()) {
                     pending_purchase_analytic.player_name = order.player;
                     pending_purchase_analytic.item_name = order.name;
@@ -1160,10 +1160,10 @@ namespace {
                     
                     std::wstring message;
                     if (cpy->orderType == OrderType::Buy) {
-                        message = std::format(L"你好，你还在寻找 {} 吗？", item_ws.c_str());
+                        message = std::format(L"Hi, are you still looking for {}?", item_ws.c_str());
                     }
                     else {
-                        message = std::format(L"你好，你还有 {} 出售吗？", item_ws.c_str());
+                        message = std::format(L"Hi, do you still have {} for sale?", item_ws.c_str());
                     }
                     GW::UI::SendUIMessage(GW::UI::UIMessage::kAppendMessageToChat, (void*)message.c_str());
                     delete cpy;
@@ -1176,14 +1176,14 @@ namespace {
         };
 
 
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "出售订单:");
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "SELL ORDERS:");
         ImGui::Separator();
 
         for (const auto& order : current_item_orders) {
             if (order.orderType == OrderType::Sell && order.valid()) DrawOrder(order);
         }
 
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "求购订单:");
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "BUY ORDERS:");
         ImGui::Separator();
 
         for (const auto& order : current_item_orders) {
@@ -1194,16 +1194,16 @@ namespace {
     void DrawEditWindowMatchingOrders()
     {
         if (edit_window_matching_item_name.empty()) {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "输入物品名称以查看市场价格");
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Enter item name to see market prices");
             return;
         }
 
-        ImGui::Text("市场价格:");
+        ImGui::Text("Market prices for:");
         ImGui::TextWrapped("%s", edit_window_matching_item_name.c_str());
         ImGui::Separator();
 
         if (edit_window_matching_orders.empty()) {
-            ImGui::Text("加载中...");
+            ImGui::Text("Loading...");
             return;
         }
 
@@ -1256,7 +1256,7 @@ namespace {
 
             ImGui::SameLine();
             const auto price_per = order.price_per();
-            ImGui::TextDisabled(price_per == static_cast<int>(price_per) ? "(%.0f %s 每个)" : "(%.1f %s 每个)", price_per, GetPriceTypeString(price.type));
+            ImGui::TextDisabled(price_per == static_cast<int>(price_per) ? "(%.0f %s each)" : "(%.1f %s each)", price_per, GetPriceTypeString(price.type));
 
             ImGui::Separator();
             ImGui::PopID();
@@ -1266,7 +1266,7 @@ namespace {
         for (const auto& order : edit_window_matching_orders) {
             if (order.orderType == OrderType::Sell && order.valid()) {
                 if (!has_sell_orders) {
-                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "出售订单:");
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "SELL ORDERS:");
                     ImGui::Separator();
                     has_sell_orders = true;
                 }
@@ -1278,7 +1278,7 @@ namespace {
         for (const auto& order : edit_window_matching_orders) {
             if (order.orderType == OrderType::Buy && order.valid()) {
                 if (!has_buy_orders) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "求购订单:");
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "BUY ORDERS:");
                     ImGui::Separator();
                     has_buy_orders = true;
                 }
@@ -1287,7 +1287,7 @@ namespace {
         }
 
         if (!has_sell_orders && !has_buy_orders) {
-            ImGui::TextDisabled("没有有效订单");
+            ImGui::TextDisabled("No active orders found");
         }
     }
 
@@ -1353,7 +1353,7 @@ namespace {
         }
 
         ImGui::SameLine(ImGui::GetContentRegionAvail().x - 50);
-        if (ImGui::SmallButton("编辑")) {
+        if (ImGui::SmallButton("Edit")) {
             editing_item_index = index;
             editing_item.LoadFrom(item);
             show_edit_item_window = true;
@@ -1369,12 +1369,12 @@ namespace {
         ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
         if (ImGui::Begin("My Shop", &show_my_shop_window, ImGuiWindowFlags_NoCollapse)) {
             if (!my_shop.uuid.empty() && my_shop.is_certified(GetCurrentPlayerName())) {
-                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "商店状态: 已验证");
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Shop Status: Verified");
             }
             else {
-                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "商店状态: 未验证");
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Shop Status: Not Verified");
                 ImGui::SameLine();
-                if (ImGui::Button("验证商店")) {
+                if (ImGui::Button("Verify Shop")) {
                     SendAskForCertification();
                 }
             }
@@ -1382,16 +1382,16 @@ namespace {
             ImGui::Separator();
 
             if (my_shop.items.empty()) {
-                ImGui::TextDisabled("商店中没有物品");
+                ImGui::TextDisabled("No items in shop");
             }
             else {
                 ImGui::BeginChild("ShopItems", ImVec2(0, -30), true);
 
                 ImGui::Text("Item Name");
                 ImGui::SameLine(250);
-                ImGui::Text("数量");
+                ImGui::Text("Quantity");
                 ImGui::SameLine(350);
-                ImGui::Text("价格");
+                ImGui::Text("Price");
                 ImGui::Separator();
 
                 for (size_t i = 0; i < my_shop.items.size(); i++) {
@@ -1402,13 +1402,13 @@ namespace {
             }
 
             ImGui::Separator();
-            if (ImGui::Button("添加物品", ImVec2(120, 0))) {
+            if (ImGui::Button("Add Item", ImVec2(120, 0))) {
                 editing_item.Reset();
-                editing_item_index = 0xffffffff; // 设置为列表末尾（新物品）
+                editing_item_index = 0xffffffff; // Set to end of list (new item)
                 show_edit_item_window = true;
             }
             ImGui::SameLine();
-            if (ImGui::Button("关闭", ImVec2(120, 0))) {
+            if (ImGui::Button("Close", ImVec2(120, 0))) {
                 show_my_shop_window = false;
             }
         }
@@ -1420,7 +1420,7 @@ namespace {
         if (!show_edit_item_window) return;
 
         const bool is_new_item = editing_item_index >= my_shop.items.size();
-        const char* window_title = is_new_item ? "添加商店物品" : "编辑商店物品";
+        const char* window_title = is_new_item ? "Add Shop Item" : "Edit Shop Item";
 
         ImGui::SetNextWindowSize(ImVec2(900, 500), ImGuiCond_FirstUseEver);
         if (ImGui::Begin(window_title, &show_edit_item_window, ImGuiWindowFlags_NoCollapse)) {
@@ -1445,7 +1445,7 @@ namespace {
             }
 
             const float available_width = ImGui::GetContentRegionAvail().x;
-            const float available_height = ImGui::GetContentRegionAvail().y - 40.f; // 为按钮留出空间
+            const float available_height = ImGui::GetContentRegionAvail().y - 40.f; // Leave space for buttons
             const float left_column_width = available_width * 0.5f - ImGui::GetStyle().ItemSpacing.x * 0.5f;
             const float right_column_width = available_width * 0.5f - ImGui::GetStyle().ItemSpacing.x * 0.5f;
 
@@ -1467,7 +1467,7 @@ namespace {
 
             ImGui::EndChild();
 
-            // 右列 - 匹配的市场订单
+            // Right column - Matching market orders
             ImGui::SameLine();
             ImGui::BeginChild("MatchingOrders", ImVec2(right_column_width, available_height), true);
             DrawEditWindowMatchingOrders();
@@ -1515,7 +1515,7 @@ namespace {
             }
 
             ImGui::SameLine();
-            if (ImGui::Button("取消", ImVec2(120, 0))) {
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
                 editing_item.Reset();
                 edit_window_matching_item_name.clear();
                 edit_window_matching_orders.clear();
@@ -1525,7 +1525,7 @@ namespace {
 
             if (!is_new_item) {
                 ImGui::SameLine();
-                if (ImGui::Button("移除物品", ImVec2(120, 0))) {
+                if (ImGui::Button("Remove Item", ImVec2(120, 0))) {
                     if (editing_item_index < my_shop.items.size()) {
                         my_shop.items.erase(my_shop.items.begin() + editing_item_index);
                         SaveShop(my_shop, true);
@@ -1587,7 +1587,7 @@ namespace {
         if (!(message && *message)) return;
         if (GW::Chat::GetChannel(*message) != GW::Chat::Channel::CHANNEL_WHISPER) return;
 
-        const wchar_t* name_start = message + 1; // 跳过频道操作码
+        const wchar_t* name_start = message + 1; // skip channel opcode
         const wchar_t* sep = wcschr(name_start, L',');
         if (!sep) return;
 
@@ -1703,9 +1703,9 @@ void GWMarketWindow::Update(float delta)
 {
     ToolboxWindow::Update(delta);
 
-    // 如果工作线程已完成，则加入（例如断开连接后）
+    // Join worker thread if it finished (e.g. after a Disconnect())
     if (market_ws.Update()) {
-        // 线程刚停止，重新初始化回调以便下次连接
+        // Thread just stopped cleanly; re-init callbacks for next connect
         InitWebSocket();
     }
 
@@ -1714,7 +1714,7 @@ void GWMarketWindow::Update(float delta)
         return;
     }
 
-    // 当窗口可见时确保 socket 正在连接/已连接
+    // Ensure the socket is connecting/connected whenever the window is visible
     if (market_ws.IsIdle()) {
         InitWebSocket();
         market_ws.Connect();
@@ -1771,7 +1771,7 @@ void GWMarketWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
         }
         return;
     }
-    // 旧版 INI 兼容：以管道符分隔的字符串
+    // Legacy INI fallback: pipe-separated string
     const char* favorites_str = legacy->GetValue(Name(), "favorite_items", "");
     if (favorites_str && strlen(favorites_str) > 0) {
         std::string favorites(favorites_str);
@@ -1784,7 +1784,7 @@ void GWMarketWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
             }
             start = pos + 1;
         }
-        // 添加最后一个（如果没有管道，则是唯一项）
+        // Add the last item (or only item if no pipes found)
         if (start < favorites.length()) {
             std::string item = favorites.substr(start);
             if (!item.empty()) {
@@ -1809,24 +1809,24 @@ void GWMarketWindow::SaveSettings(SettingsDoc& doc)
 
 void GWMarketWindow::DrawSettingsInternal()
 {
-    ImGui::Checkbox("自动刷新", &settings.auto_refresh);
+    ImGui::Checkbox("Auto-refresh", &settings.auto_refresh);
     if (settings.auto_refresh) {
-        ImGui::SliderInt("间隔（秒）", &settings.refresh_interval, 30, 300);
+        ImGui::SliderInt("Interval (sec)", &settings.refresh_interval, 30, 300);
     }
 
     ImGui::Separator();
 
     if (socket_io_ready) {
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "已连接");
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Connected");
     }
     else if (!market_ws.IsIdle()) {
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "连接中...");
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Connecting...");
     }
     else {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "已断开");
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Disconnected");
     }
 
-    if (socket_io_ready && ImGui::Button("刷新")) {
+    if (socket_io_ready && ImGui::Button("Refresh")) {
         Refresh();
     }
 }
@@ -1844,38 +1844,38 @@ void GWMarketWindow::Draw(IDirect3DDevice9*)
     collapsed = !ImGui::Begin(Name(), GetVisiblePtr(), GetWinFlags());
     if (!collapsed) {
         if (socket_io_ready) {
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "已连接");
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Connected");
         }
         else if (!market_ws.IsIdle()) {
-            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "连接中...");
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Connecting...");
         }
         else {
-            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "已断开");
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Disconnected");
         }
 
         ImGui::SameLine();
-        if (ImGui::Button("刷新")) {
+        if (ImGui::Button("Refresh")) {
             Refresh();
         }
 #if (GWMARKET_SELLING_ENABLED)
         ImGui::SameLine();
-        if (ImGui::Button("我的商店")) {
+        if (ImGui::Button("My Shop")) {
             show_my_shop_window = true;
         }
 #endif
 
         ImGui::Separator();
 
-        ImGui::Text("显示:");
+        ImGui::Text("Show:");
         ImGui::SameLine();
-        if (ImGui::RadioButton("全部", filter_mode == SHOW_ALL)) filter_mode = SHOW_ALL;
+        if (ImGui::RadioButton("All", filter_mode == SHOW_ALL)) filter_mode = SHOW_ALL;
         ImGui::SameLine();
-        if (ImGui::RadioButton("出售", filter_mode == SHOW_SELL_ONLY)) filter_mode = SHOW_SELL_ONLY;
+        if (ImGui::RadioButton("WTS", filter_mode == SHOW_SELL_ONLY)) filter_mode = SHOW_SELL_ONLY;
         ImGui::SameLine();
-        if (ImGui::RadioButton("求购", filter_mode == SHOW_BUY_ONLY)) filter_mode = SHOW_BUY_ONLY;
+        if (ImGui::RadioButton("WTB", filter_mode == SHOW_BUY_ONLY)) filter_mode = SHOW_BUY_ONLY;
 
         ImGui::Separator();
-        ImGui::InputText("搜索", search_buffer, sizeof(search_buffer));
+        ImGui::InputText("Search", search_buffer, sizeof(search_buffer));
         ImGui::Separator();
 
         const float available_width = ImGui::GetContentRegionAvail().x;
@@ -1900,18 +1900,18 @@ void GWMarketWindow::Draw(IDirect3DDevice9*)
         ImGui::SetCursorPos(favourites_cursor_pos);
 
         ImGui::BeginChild("FavoritesList", ImVec2(left_column_width, favorites_height), true);
-        ImGui::Text("收藏");
+        ImGui::Text("Favorites");
         ImGui::Separator();
         DrawFavoritesList();
         ImGui::EndChild();
 
 
 
-        /* 网站链接脚注 */
+        /* Link to website footer */
         static char buf[128];
         if (!buf[0]) {
             const auto url = std::format("https://{}", market_host);
-            snprintf(buf, 128, "由 %s 提供", url.c_str());
+            snprintf(buf, 128, "Powered by %s", url.c_str());
         }
 
         if (ImGui::Button(buf, ImVec2(ImGui::GetContentRegionAvail().x, 20.0f))) {

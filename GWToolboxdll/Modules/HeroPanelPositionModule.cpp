@@ -159,15 +159,15 @@ void HeroPanelPositionModule::Update(float)
 void HeroPanelPositionModule::RegisterSettingsContent()
 {
     ToolboxModule::RegisterSettingsContent(
-        "队伍设置", nullptr,
+        "Party Settings", nullptr,
         [](const std::string&, const bool is_showing) {
             if (!is_showing) return;
-            ImGui::Text("按以下方式记住英雄命令面板位置：");
-            ImGui::RadioButton("队伍槽位", &position_key_mode, ByHeroIndex);
-            ImGui::ShowHelp("每个队伍位置保持其面板位置，无论该槽位中是哪个英雄。与游戏原本的设计行为一致。");
+            ImGui::Text("Remember hero command panel positions by:");
+            ImGui::RadioButton("Party slot", &position_key_mode, ByHeroIndex);
+            ImGui::ShowHelp("Each party position keeps its panel placement, regardless of which hero is in that slot. Matches the base game's intended behaviour.");
             ImGui::SameLine();
-            ImGui::RadioButton("英雄", &position_key_mode, ByHeroId);
-            ImGui::ShowHelp("每个英雄保持其面板位置，因此它会跟随英雄跨队伍槽位和角色。");
+            ImGui::RadioButton("Hero", &position_key_mode, ByHeroId);
+            ImGui::ShowHelp("Each hero keeps its panel placement, so it follows the hero across party slots and characters.");
         },
         1.1f
     );

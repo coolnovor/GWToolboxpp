@@ -21,7 +21,7 @@ public:
         return instance;
     }
 
-    const char* Name() const override { return "激战数据模块"; };
+    const char* Name() const override { return "GW Dat Module"; };
     bool HasSettings() override { return false; }
     void Update(float) override;
     void Terminate() override;

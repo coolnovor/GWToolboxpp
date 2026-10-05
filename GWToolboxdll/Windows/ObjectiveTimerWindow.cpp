@@ -22,6 +22,7 @@
 #include <GWCA/Managers/GameThreadMgr.h>
 #include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
+#include <GWCA/Managers/UIMgr.h>
 
 #include <GWToolbox.h>
 #include <Utils/GuiUtils.h>
@@ -44,7 +45,7 @@ namespace {
     GW::Packet::StoC::InstanceLoadFile* InstanceLoadFile = nullptr;
     GW::Packet::StoC::InstanceTimer* InstanceTimer = nullptr;
 
-    // @清理：这些 ID 应该是 wchar_t[] 类型，例如 L"\x8101\x273F"，而 DoA 事件应该使用 wchar_t 比较，而不是自定义方式。
+    //@Cleanup: These IDs should be wchar_t[]'s e.g. L"\x8101\x273F" and the doa event should be a wchar_t comparison instead of something bespoke.
     enum DoA_ObjId : uint32_t {
         Foundry = 0x273F,
         Veil,
@@ -52,61 +53,61 @@ namespace {
         City
     };
 
-    // 与 Kanaxai 每个房间对话框中第一个字符匹配的十六进制值。
+    // Hex values matching the first char of Kanaxai's dialogs in each room.
     //const enum kanaxai_room_dialogs { Room5 = 0x5336, Room6, Room8, Room10, Room12, Room13, Room14, Room15 };
 
 
-    // 房间 1-4 无对话框
-    // 房间 5："Fear not the darkness. It is already within you."
+    // Room 1-4 no dialog
+    // Room 5: "Fear not the darkness. It is already within you."
     constexpr wchar_t kanaxai_dialog_r5[] = L"\x5336\xBEB8\x8555\x7267";
-    // 房间 6 "Is it comforting to know the source of your fears? Or do you fear more now that you see them in front of you."
+    // Room 6 "Is it comforting to know the source of your fears? Or do you fear more now that you see them in front of you."
     constexpr wchar_t kanaxai_dialog_r6[] = L"\x5337\xAA3A\xE96F\x3E34";
-    // 房间 7 无对话框
-    // 房间 8 "Even if you banish me from your sight, I will remain in your mind."
+    // Room 7 no dialog
+    // Room 8 "Even if you banish me from your sight, I will remain in your mind."
     constexpr wchar_t kanaxai_dialog_r8[] = L"\x5338\xFD69\xA162\x3A04";
-    // 房间 9 无对话框
-    // 房间 10 "You mortals may be here to defeat me, but acknowledging my presence only makes the nightmare grow stronger."
+    // Room 9 no dialog
+    // Room 10 "You mortals may be here to defeat me, but acknowledging my presence only makes the nightmare grow stronger."
     constexpr wchar_t kanaxai_dialog_r10[] = L"\x5339\xA7BA\xC67B\x5D81";
-    // 房间 11 无对话框
-    // 房间 12 "So, you have passed through the depths of the Jade Sea, and into the nightmare realm. It is too bad that I must send you back from whence you came."
+    // Room 11 no dialog
+    // Room 12 "So, you have passed through the depths of the Jade Sea, and into the nightmare realm. It is too bad that I must send you back from whence you came."
     constexpr wchar_t kanaxai_dialog_r12[] = L"\x533A\xED06\x815D\x5FFB";
-    // 房间 13 "I am Kanaxai, creator of nightmares. Let me make yours into reality."
+    // Room 13 "I am Kanaxai, creator of nightmares. Let me make yours into reality."
     constexpr wchar_t kanaxai_dialog_r13[] = L"\x533B\xCAA6\xFDA9\x3277";
-    // 房间 14 "I will fill your hearts with visions of horror and despair that will haunt you for all of your days."
+    // Room 14 "I will fill your hearts with visions of horror and despair that will haunt you for all of your days."
     constexpr wchar_t kanaxai_dialog_r14[] = L"\x533C\xDD33\xA330\x4E27";
     // Kanaxai "What gives you the right to enter my lair? I shall kill you for your
     // audacity, after I destroy your mind with my horrifying visions, of course."
     constexpr wchar_t kanaxai_dialog_r15[] = L"\x533D\x9EB1\x8BEE\x2637";
 
     const enum DoorID : uint32_t {
-        // 门开启的 object_id。
+        // object_id's for doors opening.
         Deep_room_1_first = 12669,
-        // 房间 1 完成 = 房间 5 开启
+        // Room 1 Complete = Room 5 open
         Deep_room_1_second = 11692,
-        // 房间 1 完成 = 房间 5 开启
+        // Room 1 Complete = Room 5 open
         Deep_room_2_first = 54552,
-        // 房间 2 完成 = 房间 5 开启
+        // Room 2 Complete = Room 5 open
         Deep_room_2_second = 1760,
-        // 房间 2 完成 = 房间 5 开启
+        // Room 2 Complete = Room 5 open
         Deep_room_3_first = 45425,
-        // 房间 3 完成 = 房间 5 开启
+        // Room 3 Complete = Room 5 open
         Deep_room_3_second = 48290,
-        // 房间 3 完成 = 房间 5 开启
+        // Room 3 Complete = Room 5 open
         Deep_room_4_first = 40330,
-        // 房间 4 完成 = 房间 5 开启
+        // Room 4 Complete = Room 5 open
         Deep_room_4_second = 60114,
-        // 房间 4 完成 = 房间 5 开启
+        // Room 4 Complete = Room 5 open
         Deep_room_5 = 29594,
-        // 房间 5 完成 = 房间 1,2,3,4,6 开启
+        // Room 5 Complete = Room 1,2,3,4,6 open
         Deep_room_6 = 49742,
-        // 房间 6 完成 = 房间 7 开启
+        // Room 6 Complete = Room 7 open
         Deep_room_7 = 55680,
-        // 房间 7 完成 = 房间 8 开启
-        // 注意：房间 8（失败）到房间 10（蝎子），无门。
+        // Room 7 Complete = Room 8 open
+        // NOTE: Room 8 (failure) to room 10 (scorpion), no door.
         Deep_room_9 = 99887,
-        // 利维坦触发？
+        // Trigger on leviathan?
         Deep_room_11 = 28961,
-        // 房间 11 的门始终开启。用于在进入范围时开始房间 11。
+        // Room 11 door is always open. Use to START room 11 when it comes into range.
 
         DoA_foundry_entrance_r1 = 39534,
         DoA_foundry_r1_r2       = 6356,
@@ -131,7 +132,7 @@ namespace {
         DoA_veil_to_gloom       = 3,
         DoA_gloom_to_foundry    = 17955,
         DoA_gloom_rift          = 47069,
-        // 不完全是门，关闭时 animation_type=9
+        // not really a door, has animation type=9 when closed
     };
 
     void PrintTime(char* buf, const size_t size, const DWORD time, const bool show_ms = true)
@@ -202,18 +203,18 @@ namespace {
             if (websocket_server) return;
             EnableWebsocketServer(false);
             websocket_server = new std::thread([]() {
-                // 应用程序需要在处理 WebSocket 连接的线程中创建
+                // The app needs to be created in the thread that is supposed to handle the websocket connections
                 websocket_app = new uWS::App();
                 websocket_app
                     ->ws<int>(
                         "/*",
-                        {/* 设置 */
+                        {/* Settings */
                          .compression = uWS::SHARED_COMPRESSOR,
                          .maxPayloadLength = 16 * 1024,
                          .idleTimeout = 10,
                          .maxBackpressure = 1 * 1024 * 1024,
                          .sendPingsAutomatically = true,
-                         /* 处理器 */
+                         /* Handlers */
                          .upgrade = nullptr,
                          .open =
                              [](auto ws) {
@@ -225,7 +226,7 @@ namespace {
                         settings.websocket_server_port,
                         [](auto* listen_socket) {
                             if (listen_socket) {
-                                Log::Log("EnableWebsocketServer 正在监听端口 %d", settings.websocket_server_port);
+                                Log::Log("EnableWebsocketServer listening on port %d", settings.websocket_server_port);
                             }
                         }
                     )
@@ -237,7 +238,7 @@ namespace {
 
     void WebsocketSendMessage(std::string_view message) {
         if (websocket_app) {
-            // @清理：应该从不同的线程发送到 WebSocket 吗？似乎不太对...
+            // @Cleanup: Should we be sending this from a different thread to the websocket? Doesn't seem right...
             if(websocket_mode == LiveSplitOneJSON) {
                 std::string command = "{\"command\": \"" + std::string(message) + "\"}";
                 websocket_app->publish("objective_events", command, uWS::OpCode::TEXT);
@@ -254,7 +255,7 @@ void ObjectiveTimerWindow::CheckIsMapLoaded()
         return;
     }
     map_load_pending = false;
-    // 使用 TimerWidget 的起始点，默认第一帧为 0% 加载，以符合 GWSCR 计时
+    // use TimerWidgets start point, default first frame of 0% load, to comply with GWSCR timing
     if (TimerWidget::Instance().GetStartPoint() != TIME_UNKNOWN && InstanceLoadInfo && InstanceLoadInfo->is_explorable) {
         AddObjectiveSet(static_cast<GW::Constants::MapID>(InstanceLoadInfo->map_id));
         Event(EventType::InstanceLoadInfo, InstanceLoadInfo->map_id);
@@ -286,13 +287,14 @@ void ObjectiveTimerWindow::Initialize()
     static GW::HookEntry AgentUpdateAllegiance_Entry;
     static GW::HookEntry DoACompleteZone_Entry;
     static GW::HookEntry DisplayDialogue_Entry;
+    static GW::HookEntry WriteToChatLog_Entry;
     static GW::HookEntry MessageServer_Entry;
     static GW::HookEntry InstanceLoadInfo_Entry;
     static GW::HookEntry ManipulateMapObject_Entry;
     static GW::HookEntry DungeonReward_Entry;
     static GW::HookEntry CountdownStart_Enty;
 
-    // 用于创建或操作目标集的包钩子：
+    // packet hooks used to create or manipulate objective sets:
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::PartyDefeated>(
         &PartyDefeated_Entry, [this](GW::HookStatus*, GW::Packet::StoC::PartyDefeated*) { StopObjectives(); });
 
@@ -319,20 +321,20 @@ void ObjectiveTimerWindow::Initialize()
         });
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GameSrvTransfer>(
         &GameSrvTransfer_Entry, [this](GW::HookStatus*, GW::Packet::StoC::GameSrvTransfer* packet) {
-            // 离开地图
+            // Exited map
             const GW::AreaInfo* info = GW::Map::GetMapInfo(static_cast<GW::Constants::MapID>(packet->map_id));
             if (!info) {
-                return; // 应该始终有
+                return; // we should always have this
             }
 
             static bool in_dungeon = false;
             const bool new_in_dungeon = info->type == GW::RegionType::Dungeon;
             if (in_dungeon && !new_in_dungeon) {
-                // 从地城移动到外部
+                // moved from dungeon to outside
                 StopObjectives();
             }
             else if (!packet->is_explorable) {
-                // 传送到前哨站
+                // zoning to outpost
                 StopObjectives();
             }
             in_dungeon = new_in_dungeon;
@@ -340,7 +342,7 @@ void ObjectiveTimerWindow::Initialize()
             static uint32_t map_id = 0;
             Event(EventType::InstanceEnd, map_id);
             map_id = packet->map_id;
-            // 重置加载地图变量（参见 CheckIsMapLoaded）
+            // Reset loading map vars (see CheckIsMapLoaded)
             if (InstanceLoadFile) {
                 delete InstanceLoadFile;
             }
@@ -355,24 +357,30 @@ void ObjectiveTimerWindow::Initialize()
             InstanceTimer = nullptr;
             map_load_pending = true;
         }, -5);
-    // 触发事件的包钩子：
+    // packet hooks that trigger events:
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::MessageServer>(
         &MessageServer_Entry,
         [this](GW::HookStatus*, GW::Packet::StoC::MessageServer*) {
             const GW::Array<wchar_t>* buff = &GW::GetGameContext()->world->message_buff;
             if (!buff || !buff->valid() || !buff->size()) {
-                return; // 消息缓冲区为空！？
+                return; // Message buffer empty!?
             }
             const wchar_t* msg = buff->begin();
-            // 注意：buff->size() 包含空终止符。所有 GW 字符串都以空终止，使用 wcslen 代替
+            // NB: buff->size() includes null terminating char. All GW strings are null terminated, use wcslen instead
             Event(EventType::ServerMessage, wcslen(msg), msg);
         });
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::DisplayDialogue>(
         &DisplayDialogue_Entry,
         [this](GW::HookStatus*, const GW::Packet::StoC::DisplayDialogue* packet) {
-            // 注意：所有 GW 字符串都以空终止，使用 wcslen 避免检查所有 122 个字符
+            // NB: All GW strings are null terminated, use wcslen to avoid having to check all 122 chars
             Event(EventType::DisplayDialogue, wcslen(packet->message), packet->message);
         });
+    GW::UI::RegisterUIMessageCallback(
+        &WriteToChatLog_Entry, GW::UI::UIMessage::kWriteToChatLogWithSender,
+        [this](GW::HookStatus*, GW::UI::UIMessage, void* wparam, void*) {
+            const auto packet = (GW::UI::UIPacket::kWriteToChatLogWithSender*)wparam;
+            Event(EventType::DisplayDialogue, wcslen(packet->message), packet->message);
+        }, 0x4000);
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::ManipulateMapObject>(
         &ManipulateMapObject_Entry, [this](GW::HookStatus*, const GW::Packet::StoC::ManipulateMapObject* packet) {
             if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Explorable) {
@@ -382,7 +390,7 @@ void ObjectiveTimerWindow::Initialize()
                 else if (packet->animation_type == 3 && packet->animation_stage == 2) {
                     Event(EventType::DoorClose, packet->object_id);
                 }
-                // TODO: 也许添加更通用的 ManipulateMapObject 包？
+                // TODO: maybe add a more generic ManipulateMapObject packet?
             }
         });
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::ObjectiveUpdateName>(
@@ -439,12 +447,12 @@ void ObjectiveTimerWindow::Event(const EventType type, const uint32_t id1, const
                 case EventType::ServerMessage:
                 case EventType::DisplayDialogue: {
                     const wchar_t* msg = (wchar_t*)id2;
-                    Log::Info("事件: %d, %d, %x, %x, %x, %x, %x, %x", type, id1,
+                    Log::Info("Event: %d, %d, %x, %x, %x, %x, %x, %x", type, id1,
                               msg[0], msg[1], msg[2], msg[3], msg[4], msg[5]);
                 }
                 break;
                 default:
-                    Log::Info("事件: %d, %d, %d", type, id1, id2);
+                    Log::Info("Event: %d, %d, %d", type, id1, id2);
             }
         }
     }
@@ -455,7 +463,7 @@ void ObjectiveTimerWindow::AddObjectiveSet(const GW::Constants::MapID map_id)
     // clang-format off
     using namespace GW::Constants;
     switch (map_id) {
-        // 精英区域：
+        // elite areas:
         case MapID::Urgozs_Warren:
             AddUrgozObjectiveSet();
             break;
@@ -469,7 +477,7 @@ void ObjectiveTimerWindow::AddObjectiveSet(const GW::Constants::MapID map_id)
             AddUWObjectiveSet();
             break;
 
-        // 地城 - 1 层：
+        // dungeons - 1 level:
         case MapID::Ooze_Pit:
             AddDungeonObjectiveSet({MapID::Ooze_Pit});
             break;
@@ -480,7 +488,7 @@ void ObjectiveTimerWindow::AddObjectiveSet(const GW::Constants::MapID map_id)
             AddDungeonObjectiveSet({MapID::Secret_Lair_of_the_Snowmen});
             break;
 
-        // 地城 - 2 层：
+        // dungeons - 2 levels:
         case MapID::Sepulchre_of_Dragrimmar_Level_1:
             AddDungeonObjectiveSet({MapID::Sepulchre_of_Dragrimmar_Level_1, MapID::Sepulchre_of_Dragrimmar_Level_2});
             break;
@@ -491,7 +499,7 @@ void ObjectiveTimerWindow::AddObjectiveSet(const GW::Constants::MapID map_id)
             AddDungeonObjectiveSet({MapID::Arachnis_Haunt_Level_1, MapID::Arachnis_Haunt_Level_2});
             break;
 
-        // 地城 - 3 层：
+        // dungeons - 3 levels:
         case MapID::Catacombs_of_Kathandrax_Level_1:
             AddDungeonObjectiveSet({MapID::Catacombs_of_Kathandrax_Level_1,
                                     MapID::Catacombs_of_Kathandrax_Level_2,
@@ -551,7 +559,7 @@ void ObjectiveTimerWindow::AddObjectiveSet(const GW::Constants::MapID map_id)
                                     MapID::Forsaken_Tunnels_Presearing_Level3});
             break;
 
-        // 地城 - 5 层：
+        // dungeons - 5 levels:
         case MapID::Frostmaws_Burrows_Level_1:
             AddDungeonObjectiveSet({MapID::Frostmaws_Burrows_Level_1,
                                     MapID::Frostmaws_Burrows_Level_2,
@@ -560,12 +568,12 @@ void ObjectiveTimerWindow::AddObjectiveSet(const GW::Constants::MapID map_id)
                                     MapID::Frostmaws_Burrows_Level_5});
             break;
 
-        // 地城 - 不规则：
+        // dungeons - irregular:
         case MapID::Slavers_Exile_Level_5:
             AddDungeonObjectiveSet({MapID::Slavers_Exile_Level_5});
             break;
 
-        // 其他：
+        // Others:
         case MapID::The_Underworld_PvP:
             if (const GW::AreaInfo* info = GW::Map::GetCurrentMapInfo()) {
                 if (info->type == GW::RegionType::ExplorableZone) {
@@ -620,11 +628,11 @@ void ObjectiveTimerWindow::AddDungeonObjectiveSet(const std::vector<GW::Constant
     os->name = Resources::GetMapName(levels[0])->string();
     for (size_t i = 0; i < levels.size(); i++) {
         char name[256];
-        snprintf(name, sizeof(name), "第 %zu 层", i + 1);
+        snprintf(name, sizeof(name), "Level %zu", i + 1);
         os->AddObjectiveAfterAll(new Objective(name))->AddStartEvent(EventType::InstanceLoadInfo, static_cast<uint32_t>(levels[i]));
     }
-    os->objectives.front()->SetStarted();                         // 开始第一层
-    os->objectives.back()->AddEndEvent(EventType::DungeonReward); // 最后一层以地城奖励结束
+    os->objectives.front()->SetStarted();                         // start first level
+    os->objectives.back()->AddEndEvent(EventType::DungeonReward); // last level finished with dungeon reward
     if (boss_model_id) {
         os->objectives.back()->AddEndEvent(EventType::AgentUpdateAllegiance, boss_model_id, 0x6E6F6E63);
     }
@@ -638,10 +646,10 @@ void ObjectiveTimerWindow::AddDoAObjectiveSet(const GW::Vec2f spawn)
     const auto starting_area = [&] {
         constexpr GW::Vec2f mallyx_spawn(-3931, -6214);
         constexpr GW::Vec2f area_spawns[] = {
-            {-10514, 15231}, // 铸造厂
-            {-18575, -8833}, // 城市
-            {364, -10445},   // 纱幕
-            {16034, 1244},   // 幽暗
+            {-10514, 15231}, // foundry
+            {-18575, -8833}, // city
+            {364, -10445},   // veil
+            {16034, 1244},   // gloom
         };
         double best_dist = GetDistance(spawn, mallyx_spawn);
         int starting_area = -1;
@@ -656,7 +664,7 @@ void ObjectiveTimerWindow::AddDoAObjectiveSet(const GW::Vec2f spawn)
     }();
 
     if (starting_area == -1) {
-        return; // 我们在打玛里克斯，不是 DoA！
+        return; // we're doing mallyx, not doa!
     }
 
     const auto os = new ObjectiveSet;
@@ -665,56 +673,56 @@ void ObjectiveTimerWindow::AddDoAObjectiveSet(const GW::Vec2f spawn)
 
     const std::vector<std::function<void()>> add_doa_obj = {
         [&] {
-            Objective* parent = os->AddObjectiveAfterAll(new Objective("铸造厂"))
+            Objective* parent = os->AddObjectiveAfterAll(new Objective("Foundry"))
                                   ->AddStartEvent(EventType::DoACompleteZone, Gloom)
                                   ->AddStartEvent(EventType::DoorOpen, DoA_foundry_entrance_r1)
                                   ->AddEndEvent(EventType::DoACompleteZone, Foundry);
             if (settings.show_detailed_objectives) {
-                parent->AddChild(os->AddObjective(new Objective("房间 1"), 0)
+                parent->AddChild(os->AddObjective(new Objective("Room 1"), 0)
                                    ->AddStartEvent(EventType::DoorClose, DoA_foundry_entrance_r1)
                                    ->AddEndEvent(EventType::DoorOpen, DoA_foundry_r1_r2));
-                parent->AddChild(os->AddObjective(new Objective("房间 2"), 1)
+                parent->AddChild(os->AddObjective(new Objective("Room 2"), 1)
                                    ->AddStartEvent(EventType::DoorClose, DoA_foundry_r1_r2)
                                    ->AddEndEvent(EventType::DoorOpen, DoA_foundry_r2_r3));
-                parent->AddChild(os->AddObjective(new Objective("房间 3"), 2)
+                parent->AddChild(os->AddObjective(new Objective("Room 3"), 2)
                                    ->AddStartEvent(EventType::DoorClose, DoA_foundry_r2_r3)
                                    ->AddEndEvent(EventType::DoorOpen, DoA_foundry_r3_r4));
-                parent->AddChild(os->AddObjective(new Objective("房间 4"), 3)
+                parent->AddChild(os->AddObjective(new Objective("Room 4"), 3)
                                    ->AddStartEvent(EventType::DoorClose, DoA_foundry_r3_r4)
                                    ->AddEndEvent(EventType::DoorOpen, DoA_foundry_r4_r5));
 
-                // 也许计时蛇怪？（检查它们加入队伍）
+                // maybe time snakes take? (check them being added to party)
 
-                // 也许将 BB 事件改为使用对话框？"None shall escape. Prepare to die."
-                // 将 BB 改为在门开启时开始，在狂怒生成时结束？
-                parent->AddChild(os->AddObjective(new Objective("黑兽"), 4)
+                // maybe change BB event to use the dialog instead? "None shall escape. Prepare to die."
+                // change BB to start at door and finish at fury spawn?
+                parent->AddChild(os->AddObjective(new Objective("Black Beast"), 4)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_foundry_r5_bb)
-                                   ->AddEndEvent(EventType::AgentUpdateAllegiance, 5221, 0x6E6F6E63)); // 所有三个相同
+                                   ->AddEndEvent(EventType::AgentUpdateAllegiance, 5221, 0x6E6F6E63)); // all 3 are the same
 
-                // 0x8101 0x273D 0x98D8 0xB91A 0x47B8 狂怒：啊，你终于来了。我黑暗的主人告诉我
-                // 我可能会有访客....
-                parent->AddChild(os->AddObjective(new Objective("狂怒"), 5)
+                // 0x8101 0x273D 0x98D8 0xB91A 0x47B8 The Fury: Ah, you have finally arrived. My dark master informed me
+                // I might have visitors....
+                parent->AddChild(os->AddObjective(new Objective("Fury"), 5)
                                    ->AddStartEvent(EventType::DisplayDialogue, 4, L"\x8101\x273D\x98DB\xB91A")
                                    ->AddEndEvent(EventType::DoACompleteZone, Foundry));
             }
         },
         [&] {
-            Objective* parent = os->AddObjectiveAfterAll(new Objective("城市"))
+            Objective* parent = os->AddObjectiveAfterAll(new Objective("City"))
                                   ->AddStartEvent(EventType::DoACompleteZone, Foundry)
                                   ->AddEndEvent(EventType::DoACompleteZone, City);
             if (settings.show_detailed_objectives) {
-                parent->AddChild(os->AddObjective(new Objective("外部"), 0)
+                parent->AddChild(os->AddObjective(new Objective("Outside"), 0)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_city_entrance)
                                    ->AddEndEvent(EventType::DoorOpen, DoA_city_wall));
-                parent->AddChild(os->AddObjective(new Objective("内部"), 1)
+                parent->AddChild(os->AddObjective(new Objective("Inside"), 1)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_city_wall)
                                    ->AddEndEvent(EventType::DoACompleteZone, City));
             }
 
-            // TODO: jadoth（在城市结束时开始，在宝箱生成时结束）
+            // TODO: jadoth (starts at end of city, ends when chest spawns)
         },
         [&] {
-            Objective* parent = os->AddObjectiveAfterAll(new Objective("纱幕"))
+            Objective* parent = os->AddObjectiveAfterAll(new Objective("Veil"))
                                   ->AddStartEvent(EventType::DoACompleteZone, City)
                                   ->AddEndEvent(EventType::DoACompleteZone, Veil);
             if (settings.show_detailed_objectives) {
@@ -722,34 +730,34 @@ void ObjectiveTimerWindow::AddDoAObjectiveSet(const GW::Vec2f spawn)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_360_left)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_360_middle)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_360_right));
-                parent->AddChild(os->AddObjective(new Objective("领主之下"), 1)
+                parent->AddChild(os->AddObjective(new Objective("Underlords"), 1)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_ranger)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_derv));
-                parent->AddChild(os->AddObjective(new Objective("领主"), 2)
+                parent->AddChild(os->AddObjective(new Objective("Lords"), 2)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_trench_gloom)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_trench_monk)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_trench_ele)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_trench_mes)
                                    ->AddStartEvent(EventType::DoorOpen, DoA_veil_trench_necro));
-                parent->AddChild(os->AddObjective(new Objective("触须"), 3)
+                parent->AddChild(os->AddObjective(new Objective("Tendrils"), 3)
                                    ->AddStartEvent(EventType::DisplayDialogue, 4, L"\x8101\x34C1\x9FA1\xED8F\x1BE4")
                                    ->AddEndEvent(EventType::DoACompleteZone, Veil));
             }
         },
         [&] {
-            Objective* parent = os->AddObjectiveAfterAll(new Objective("幽暗"))
+            Objective* parent = os->AddObjectiveAfterAll(new Objective("Gloom"))
                                   ->AddStartEvent(EventType::DoACompleteZone, Veil)
                                   ->AddEndEvent(EventType::DoACompleteZone, Gloom);
             if (settings.show_detailed_objectives) {
-                parent->AddChild(os->AddObjective(new Objective("洞穴"), 0)
+                parent->AddChild(os->AddObjective(new Objective("Cave"), 0)
                                    ->AddStartEvent(EventType::DisplayDialogue, 4, L"\x8101\x5765\x9846\xA72B")
                                    ->AddEndEvent(EventType::DisplayDialogue, 4, L"\x8101\x5767\xA547\xB2C2"));
 
-                // TODO: 裂隙可能无法在范围外触发
+                // TODO: rift may not be possible from outside of range
 
-                // TODO: 死亡使者 ?
+                // TODO: deathbringer ?
 
-                parent->AddChild(os->AddObjective(new Objective("黑暗"), 1)
+                parent->AddChild(os->AddObjective(new Objective("Darknesses"), 1)
                                    ->AddStartEvent(EventType::DisplayDialogue, 4, L"\x8101\x273B\xB5DB\x8B13")
                                    ->AddEndEvent(EventType::DoACompleteZone, Gloom));
             }
@@ -769,17 +777,17 @@ void ObjectiveTimerWindow::AddUrgozObjectiveSet()
 {
     const auto os = new ObjectiveSet;
     os->name = Resources::GetMapName(GW::Constants::MapID::Urgozs_Warren)->string();
-    os->AddObjective(new Objective("区域 1 | 虚弱"))->SetStarted();
-    os->AddObjectiveAfterAll(new Objective("区域 2 | 生命吸取"))->AddStartEvent(EventType::DoorOpen, 45420);
-    os->AddObjectiveAfterAll(new Objective("区域 3 | 杠杆"))->AddStartEvent(EventType::DoorOpen, 11692);
-    os->AddObjectiveAfterAll(new Objective("区域 4 | 桥梁狼群"))->AddStartEvent(EventType::DoorOpen, 54552);
-    os->AddObjectiveAfterAll(new Objective("区域 5 | 更多狼群"))->AddStartEvent(EventType::DoorOpen, 1760);
-    os->AddObjectiveAfterAll(new Objective("区域 6 | 能量吸取"))->AddStartEvent(EventType::DoorOpen, 40330);
-    os->AddObjectiveAfterAll(new Objective("区域 7 | 力竭"))->AddStartEvent(EventType::DoorOpen, 60114);
-    os->AddObjectiveAfterAll(new Objective("区域 8 | 支柱"))->AddStartEvent(EventType::DoorOpen, 37191);
-    os->AddObjectiveAfterAll(new Objective("区域 9 | 血饮者"))->AddStartEvent(EventType::DoorOpen, 35500);
-    os->AddObjectiveAfterAll(new Objective("区域 10 | 桥梁"))->AddStartEvent(EventType::DoorOpen, 34278);
-    os->AddObjectiveAfterAll(new Objective("区域 11 | 乌尔戈兹"))
+    os->AddObjective(new Objective("Zone 1 | Weakness"))->SetStarted();
+    os->AddObjectiveAfterAll(new Objective("Zone 2 | Life Drain"))->AddStartEvent(EventType::DoorOpen, 45420);
+    os->AddObjectiveAfterAll(new Objective("Zone 3 | Levers"))->AddStartEvent(EventType::DoorOpen, 11692);
+    os->AddObjectiveAfterAll(new Objective("Zone 4 | Bridge Wolves"))->AddStartEvent(EventType::DoorOpen, 54552);
+    os->AddObjectiveAfterAll(new Objective("Zone 5 | More Wolves"))->AddStartEvent(EventType::DoorOpen, 1760);
+    os->AddObjectiveAfterAll(new Objective("Zone 6 | Energy Drain"))->AddStartEvent(EventType::DoorOpen, 40330);
+    os->AddObjectiveAfterAll(new Objective("Zone 7 | Exhaustion"))->AddStartEvent(EventType::DoorOpen, 60114);
+    os->AddObjectiveAfterAll(new Objective("Zone 8 | Pillars"))->AddStartEvent(EventType::DoorOpen, 37191);
+    os->AddObjectiveAfterAll(new Objective("Zone 9 | Blood Drinkers"))->AddStartEvent(EventType::DoorOpen, 35500);
+    os->AddObjectiveAfterAll(new Objective("Zone 10 | Bridge"))->AddStartEvent(EventType::DoorOpen, 34278);
+    os->AddObjectiveAfterAll(new Objective("Zone 11 | Urgoz"))
       ->AddStartEvent(EventType::DoorOpen, 15529)
       ->AddStartEvent(EventType::DoorOpen, 45631)
       ->AddStartEvent(EventType::DoorOpen, 53071)
@@ -793,23 +801,23 @@ void ObjectiveTimerWindow::AddDeepObjectiveSet()
 {
     const auto os = new ObjectiveSet;
     os->name = Resources::GetMapName(GW::Constants::MapID::The_Deep)->string();
-    os->AddObjective(new Objective("房间 1 | 抚慰"))
+    os->AddObjective(new Objective("Room 1 | Soothing"))
       ->SetStarted()
       ->AddEndEvent(EventType::DoorOpen, Deep_room_1_first)
       ->AddEndEvent(EventType::DoorOpen, Deep_room_1_second);
-    os->AddObjective(new Objective("房间 2 | 死亡"))
+    os->AddObjective(new Objective("Room 2 | Death"))
       ->SetStarted()
       ->AddEndEvent(EventType::DoorOpen, Deep_room_2_first)
       ->AddEndEvent(EventType::DoorOpen, Deep_room_2_second);
-    os->AddObjective(new Objective("房间 3 | 投降"))
+    os->AddObjective(new Objective("Room 3 | Surrender"))
       ->SetStarted()
       ->AddEndEvent(EventType::DoorOpen, Deep_room_3_first)
       ->AddEndEvent(EventType::DoorOpen, Deep_room_3_second);
-    os->AddObjective(new Objective("房间 4 | 暴露"))
+    os->AddObjective(new Objective("Room 4 | Exposure"))
       ->SetStarted()
       ->AddEndEvent(EventType::DoorOpen, Deep_room_4_first)
       ->AddEndEvent(EventType::DoorOpen, Deep_room_4_second);
-    os->AddObjective(new Objective("房间 5 | 痛苦"))
+    os->AddObjective(new Objective("Room 5 | Pain"))
       ->AddStartEvent(EventType::DoorOpen, Deep_room_1_first)
       ->AddStartEvent(EventType::DoorOpen, Deep_room_1_second)
       ->AddStartEvent(EventType::DoorOpen, Deep_room_2_first)
@@ -819,22 +827,22 @@ void ObjectiveTimerWindow::AddDeepObjectiveSet()
       ->AddStartEvent(EventType::DoorOpen, Deep_room_4_first)
       ->AddStartEvent(EventType::DoorOpen, Deep_room_4_second);
 
-    os->AddObjectiveAfterAll(new Objective("房间 6 | 倦怠"))->AddStartEvent(EventType::DoorOpen, Deep_room_5);
-    os->AddObjectiveAfterAll(new Objective("房间 7 | 衰竭"))->AddStartEvent(EventType::DoorOpen, Deep_room_6);
+    os->AddObjectiveAfterAll(new Objective("Room 6 | Lethargy"))->AddStartEvent(EventType::DoorOpen, Deep_room_5);
+    os->AddObjectiveAfterAll(new Objective("Room 7 | Depletion"))->AddStartEvent(EventType::DoorOpen, Deep_room_6);
 
-    // 8 和 9 合并，因为它们之间没有边界
-    os->AddObjectiveAfterAll(new Objective("房间 8-9 | 失败/暗影"))
+    // 8 and 9 together because theres no boundary between
+    os->AddObjectiveAfterAll(new Objective("Room 8-9 | Failure/Shadows"))
       ->AddStartEvent(EventType::DoorOpen, Deep_room_7);
 
-    os->AddObjectiveAfterAll(new Objective("房间 10 | 蝎子"))
+    os->AddObjectiveAfterAll(new Objective("Room 10 | Scorpion"))
       ->AddStartEvent(EventType::DisplayDialogue, 4, kanaxai_dialog_r10);
-    os->AddObjectiveAfterAll(new Objective("房间 11 | 恐惧"))->AddStartEvent(EventType::DoorOpen, Deep_room_11);
-    os->AddObjectiveAfterAll(new Objective("房间 12 | 衰竭"))
+    os->AddObjectiveAfterAll(new Objective("Room 11 | Fear"))->AddStartEvent(EventType::DoorOpen, Deep_room_11);
+    os->AddObjectiveAfterAll(new Objective("Room 12 | Depletion"))
       ->AddStartEvent(EventType::DisplayDialogue, 4, kanaxai_dialog_r12);
-    // 13 和 14 合并，因为它们之间没有边界
-    os->AddObjectiveAfterAll(new Objective("房间 13-14 | 腐朽/折磨"))
+    // 13 and 14 together because theres no boundary between
+    os->AddObjectiveAfterAll(new Objective("Room 13-14 | Decay/Torment"))
       ->AddStartEvent(EventType::DisplayDialogue, 4, kanaxai_dialog_r13);
-    os->AddObjectiveAfterAll(new Objective("房间 15 | 卡纳克赛"))
+    os->AddObjectiveAfterAll(new Objective("Room 15 | Kanaxai"))
       ->AddStartEvent(EventType::DisplayDialogue, 4, kanaxai_dialog_r15)
       ->AddEndEvent(EventType::ServerMessage, 6, L"\x6D4D\x0\x0\x0\x0\x2810")
       ->AddEndEvent(EventType::ServerMessage, 6, L"\x6D4D\x0\x0\x0\x0\x1488");
@@ -847,16 +855,16 @@ void ObjectiveTimerWindow::AddFoWObjectiveSet()
     os->name = Resources::GetMapName(GW::Constants::MapID::The_Fissure_of_Woe)->string();
 
     os->AddQuestObjective("ToC", 309);
-    os->AddQuestObjective("哀嚎之主", 310);
-    os->AddQuestObjective("狮鹫", 311);
-    os->AddQuestObjective("防御", 312);
-    os->AddQuestObjective("熔炉", 313);
-    os->AddQuestObjective("曼泽斯", 314);
-    os->AddQuestObjective("恢复", 315);
-    os->AddQuestObjective("科拜", 316);
+    os->AddQuestObjective("Wailing Lord", 310);
+    os->AddQuestObjective("Griffons", 311);
+    os->AddQuestObjective("Defend", 312);
+    os->AddQuestObjective("Forge", 313);
+    os->AddQuestObjective("Menzies", 314);
+    os->AddQuestObjective("Restore", 315);
+    os->AddQuestObjective("Khobay", 316);
     os->AddQuestObjective("ToS", 317);
-    os->AddQuestObjective("燃烧森林", 318);
-    os->AddQuestObjective("狩猎", 319);
+    os->AddQuestObjective("Burning Forest", 318);
+    os->AddQuestObjective("The Hunt", 319);
     AddObjectiveSet(os);
 }
 
@@ -864,17 +872,17 @@ void ObjectiveTimerWindow::AddUWObjectiveSet()
 {
     const auto os = new ObjectiveSet;
     os->name = Resources::GetMapName(GW::Constants::MapID::The_Underworld)->string();
-    os->AddQuestObjective("密室", 146);
-    os->AddQuestObjective("恢复", 147);
-    os->AddQuestObjective("护送", 148);
+    os->AddQuestObjective("Chamber", 146);
+    os->AddQuestObjective("Restore", 147);
+    os->AddQuestObjective("Escort", 148);
     os->AddQuestObjective("UWG", 149);
-    os->AddQuestObjective("山谷", 150);
-    os->AddQuestObjective("荒原", 151);
-    os->AddQuestObjective("深坑", 152);
-    os->AddQuestObjective("平原", 153);
-    os->AddQuestObjective("山峦", 154);
-    os->AddQuestObjective("水池", 155);
-    os->AddObjective(new Objective("杜姆"))
+    os->AddQuestObjective("Vale", 150);
+    os->AddQuestObjective("Waste", 151);
+    os->AddQuestObjective("Pits", 152);
+    os->AddQuestObjective("Planes", 153);
+    os->AddQuestObjective("Mnts", 154);
+    os->AddQuestObjective("Pools", 155);
+    os->AddObjective(new Objective("Dhuum"))
       ->AddStartEvent(EventType::AgentUpdateAllegiance, GW::Constants::ModelID::UW::Dhuum, 0x6D6F6E31)
       ->AddEndEvent(EventType::ObjectiveDone, 157);
     AddObjectiveSet(os);
@@ -882,14 +890,14 @@ void ObjectiveTimerWindow::AddUWObjectiveSet()
 
 void ObjectiveTimerWindow::AddToPKObjectiveSet()
 {
-    // 预取顶级地图名称
+    // Pre-fetch map names for topk
     Resources::GetMapName(GW::Constants::MapID::Scarred_Earth);
     Resources::GetMapName(GW::Constants::MapID::The_Underworld_PvP);
     Resources::GetMapName(GW::Constants::MapID::The_Courtyard);
     Resources::GetMapName(GW::Constants::MapID::Tomb_of_the_Primeval_Kings);
     Resources::GetMapName(GW::Constants::MapID::The_Hall_of_Heroes);
 
-    // 排队到下一线程以允许地图名称加载
+    // Enqueue for next thread to allow map names to be loaded
     GW::GameThread::Enqueue(
         []() {
             const auto os = new ObjectiveSet;
@@ -922,7 +930,7 @@ void ObjectiveTimerWindow::Update(float)
         current_objective_set->Update();
     }
     if (runs_dirty && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading) {
-        SaveRuns(); // 在地图加载之间保存记录
+        SaveRuns(); // Save runs between map loads
     }
 }
 
@@ -950,7 +958,7 @@ void ObjectiveTimerWindow::Draw(IDirect3DDevice9*)
         ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
         if (ImGui::Begin(Name(), GetVisiblePtr(), GetWinFlags())) {
             if (objective_sets.empty()) {
-                ImGui::Text("进入痛苦领域、火岛、地下世界、深渊、乌尔戈兹或地城以开始计时");
+                ImGui::Text("Enter DoA, FoW, UW, Deep, Urgoz or a Dungeon to begin");
             }
             else {
                 if (display_order_dirty) {
@@ -977,8 +985,9 @@ void ObjectiveTimerWindow::Draw(IDirect3DDevice9*)
                         continue;
                     }
                     if (os->IsCollapsedRow()) {
-                        const float y = ImGui::GetCursorScreenPos().y + (skipped_height > 0.f ? skipped_height + spacing : 0.f);
-                        if (!ImGui::IsRectVisible({0.f, y}, {1.f, y + row_height})) {
+                        const auto cursor = ImGui::GetCursorScreenPos();
+                        const float y = cursor.y + (skipped_height > 0.f ? skipped_height + spacing : 0.f);
+                        if (!ImGui::IsRectVisible({cursor.x, y}, {cursor.x, y + row_height})) {
                             skipped_height = skipped_height > 0.f ? skipped_height + spacing + row_height : row_height;
                             continue;
                         }
@@ -1034,55 +1043,55 @@ void ObjectiveTimerWindow::DrawSettingsInternal()
     // Latched, not assigned: Draw consumes it, and it may run before this settings pass.
     clear_cached_times |= ImGui::Checkbox("Show second decimal", &settings.show_decimal);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("显示“开始”列", &settings.show_start_column);
+    ImGui::Checkbox("Show 'Start' column", &settings.show_start_column);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("显示“结束”列", &settings.show_end_column);
+    ImGui::Checkbox("Show 'End' column", &settings.show_end_column);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("显示“用时”列", &settings.show_time_column);
+    ImGui::Checkbox("Show 'Time' column", &settings.show_time_column);
     ImGui::NextSpacedElement();
-    ImGui::CheckboxWithHelp("显示详细目标", &settings.show_detailed_objectives, "目前仅影响痛苦领域目标");
+    ImGui::CheckboxWithHelp("Show detailed objectives", &settings.show_detailed_objectives, "Currently only affects DoA objectives");
     ImGui::NextSpacedElement();
-    ImGui::CheckboxWithHelp("调试：记录事件", &show_debug_events,
-        "将在聊天中输出目标计时器使用的事件。\n用于调试和请求添加更多内容");
+    ImGui::CheckboxWithHelp("Debug: log events", &show_debug_events,
+        "Will spam your chat with the events used in the objective timer. \nUse for debugging and to ask for more stuff to be added");
     ImGui::NextSpacedElement();
     clear_cached_times |= ImGui::Checkbox("Show run start date/time", &settings.show_start_date_time);
     ImGui::NextSpacedElement();
-    ImGui::CheckboxWithHelp("在独立窗口中显示当前记录", &settings.show_current_run_window, "通过聊天切换：/tb_setting show_current_run_window");
+    ImGui::CheckboxWithHelp("Show current run in separate window", &settings.show_current_run_window, "Toggle via chat: /tb_setting show_current_run_window");
     ImGui::NextSpacedElement();
-    if (ImGui::Checkbox("保存/加载记录到磁盘", &settings.save_to_disk)) {
+    if (ImGui::Checkbox("Save/Load runs to disk", &settings.save_to_disk)) {
         SaveRuns();
     }
     ImGui::ShowHelp(
-        "将记录以 JSON 格式保存到磁盘，并在启动 GWToolbox 时从磁盘加载过往记录。");
+        "Keep a record or your runs in JSON format on disk, and load past runs from disk when starting GWToolbox.");
     ImGui::NextSpacedElement();
-    ImGui::CheckboxWithHelp("显示过往记录", &settings.show_past_runs, "在目标计时器窗口中显示以前日期的记录。");
+    ImGui::CheckboxWithHelp("Show past runs", &settings.show_past_runs, "Display from previous days in the Objective Timer window.");
     ImGui::NextSpacedElement();
-    ImGui::CheckboxWithHelp("完成时自动 /age", &settings.auto_send_age,
-        "当最终目标完成时，立即向游戏服务器发送 /age 命令以获取服务器端完成时间。");
+    ImGui::CheckboxWithHelp("Automatic /age on completion", &settings.auto_send_age,
+        "As soon as final objective is complete, send /age command to game server to receive server-side completion time.");
     ComputeNColumns();
 
     bool enable_websocket_server = websocket_mode != WebsocketMode::None;
-    if (ImGui::Checkbox("启用 LiveSplit WebSocket 服务器", &enable_websocket_server)) {
+    if (ImGui::Checkbox("Enable LiveSplit websocket server", &enable_websocket_server)) {
         websocket_mode = enable_websocket_server ? WebsocketMode::LiveSplitOneJSON : WebsocketMode::None;
         EnableWebsocketServer(enable_websocket_server);
     }
     if (enable_websocket_server) {
         ImGui::Indent();
-        if (ImGui::InputInt("LiveSplit WebSocket 服务器端口", &settings.websocket_server_port)) {
+        if (ImGui::InputInt("LiveSplit Websocket server port", &settings.websocket_server_port)) {
             EnableWebsocketServer(false);
             EnableWebsocketServer(enable_websocket_server);
         }
         ImGui::Text("LiveSplit Server status: %s", websocket_app && websocket_server ? "Running" : "Stopped");
         if (websocket_app && websocket_server) {
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "(端口 %d)", settings.websocket_server_port);
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "(Port %d)", settings.websocket_server_port);
         }
-        if (ImGui::SmallButton("重启")) {
+        if (ImGui::SmallButton("Restart")) {
             EnableWebsocketServer(false);
             EnableWebsocketServer(enable_websocket_server);
         }
-        ImGui::RadioButton("LiveSplit One JSON 格式", (int*)&websocket_mode, static_cast<int>(WebsocketMode::LiveSplitOneJSON));
-        ImGui::RadioButton("LiveSplit 服务器命令格式", (int*)&websocket_mode, static_cast<int>(WebsocketMode::LiveSplitServerCommand));
+        ImGui::RadioButton("LiveSplit One JSON Format", (int*)&websocket_mode, static_cast<int>(WebsocketMode::LiveSplitOneJSON));
+        ImGui::RadioButton("LiveSplit Server Command Format", (int*)&websocket_mode, static_cast<int>(WebsocketMode::LiveSplitServerCommand));
         ImGui::Unindent();
     }
 
@@ -1116,7 +1125,8 @@ void ObjectiveTimerWindow::LoadRuns()
     if (!settings.save_to_disk) {
         return;
     }
-    // 由于这会进行大量文件读取和 JSON 解码，放在单独的线程中；可能会延迟渲染数秒
+    // Because this does a load of file reads and JSON decoding, its on a separate thread; it could delay rendering by
+    // seconds
     while (loading) {
         Sleep(10);
     }
@@ -1154,7 +1164,7 @@ void ObjectiveTimerWindow::LoadRuns()
                             ObjectiveSet* os = ObjectiveSet::FromJson(elem);
                             if (instance.objective_sets.contains(os->system_time)) {
                                 delete os;
-                                continue; // 不加载已存在的记录
+                                continue; // Don't load in a run that already exists
                             }
                             os->StopObjectives();
                             os->need_to_collapse = true;
@@ -1166,7 +1176,7 @@ void ObjectiveTimerWindow::LoadRuns()
                     file.close();
                 }
             } catch (const std::exception&) {
-                Log::Error("从 JSON 加载 ObjectiveSets 失败");
+                Log::Error("Failed to load ObjectiveSets from json");
             }
         }
         loading = false;
@@ -1189,7 +1199,7 @@ void ObjectiveTimerWindow::SaveRuns()
         wchar_t filename[36];
         for (auto& os : instance.objective_sets) {
             if (os.second->from_disk) {
-                continue; // 无需重新保存已有记录
+                continue; // No need to re-save a run.
             }
             time_t tt = os.second->system_time;
             const tm* structtime = gmtime(&tt);
@@ -1213,7 +1223,7 @@ void ObjectiveTimerWindow::SaveRuns()
                     file.close();
                 }
             } catch (const std::exception&) {
-                Log::Error("保存 ObjectiveSets 到 JSON 失败");
+                Log::Error("Failed to save ObjectiveSets to json");
             }
         }
         runs_dirty = false;
@@ -1284,8 +1294,8 @@ ObjectiveTimerWindow::Objective* ObjectiveTimerWindow::Objective::SetStarted()
     if (IsStarted()) {
         return this;
     }
-    start_time_point = time_point_ms();                      // 运行开始时间点
-    start = start_time_point - parent->run_start_time_point; // 从运行开始起的毫秒数
+    start_time_point = time_point_ms();                      // run_started_time_point
+    start = start_time_point - parent->run_start_time_point; // Ms since run start
     PrintTime(cached_start, sizeof(cached_start), start);
     status = Status::Started;
     return this;
@@ -1298,13 +1308,13 @@ ObjectiveTimerWindow::Objective* ObjectiveTimerWindow::Objective::SetDone()
     }
     if (done == TIME_UNKNOWN) {
         done_time_point = time_point_ms();
-        // 注意：目标可能没有触发开始点。
+        // NB: Objective may not have triggered a start point.
         done = done_time_point - parent->run_start_time_point;
     }
     PrintTime(cached_done, sizeof(cached_done), done);
 
-    // 可能在目标“开始”之前调用此方法。
-    // 适用于没有持续时间的情况，我们保持 start == TIME_UNKNOWN。
+    // it's possible to have this called before the objective is "started".
+    // This is for things that don't have a duration, and we leave start == TIME_UNKNOWN.
     if (start != TIME_UNKNOWN) {
         duration = done - start;
         PrintTime(cached_duration, sizeof(cached_duration), duration);
@@ -1369,7 +1379,7 @@ DWORD ObjectiveTimerWindow::Objective::GetDuration()
             return duration = time_point_ms() - start_time_point;
         case Status::Completed:
             ASSERT(done != TIME_UNKNOWN);
-        // 注意：如果后续目标已开始，目标可能被标记为完成而未开始。
+        // NB: An objective can be flagged as completed without being started if a following objective has been started.
             if (start != TIME_UNKNOWN) {
                 return duration = done - start;
             }
@@ -1379,7 +1389,7 @@ DWORD ObjectiveTimerWindow::Objective::GetDuration()
 
 void ObjectiveTimerWindow::Objective::Update()
 {
-    // 缓存时间等移至 Draw 和 GetDuration 函数
+    // Cached times etc moved into Draw and GetDuration functions
 }
 
 void ObjectiveTimerWindow::Objective::InvalidateCachedStrings()
@@ -1417,7 +1427,7 @@ void ObjectiveTimerWindow::Objective::Draw()
     }
     if (ImGui::Button(name, ImVec2(label_width - indent * style.IndentSpacing, 0))) {
         char buf[256];
-        sprintf(buf, "[%s] ~ 开始: %s ~ 结束: %s ~ 用时: %s", name, GetStartTimeStr(), GetEndTimeStr(), GetDurationStr());
+        sprintf(buf, "[%s] ~ Start: %s ~ End: %s ~ Time: %s", name, GetStartTimeStr(), GetEndTimeStr(), GetDurationStr());
         GW::Chat::SendChat('#', buf);
     }
     style.ButtonTextAlign.x = 0.5f;
@@ -1431,7 +1441,7 @@ void ObjectiveTimerWindow::Objective::Draw()
         ImGui::SameLine(offset);
         ImGui::TextUnformatted(GetStartTimeStr());
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("开始");
+            ImGui::SetTooltip("Start");
         }
         offset += ts_width;
     }
@@ -1439,7 +1449,7 @@ void ObjectiveTimerWindow::Objective::Draw()
         ImGui::SameLine(offset);
         ImGui::TextUnformatted(GetEndTimeStr());
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("结束");
+            ImGui::SetTooltip("End");
         }
         offset += ts_width + style.ItemSpacing.x;
     }
@@ -1447,7 +1457,7 @@ void ObjectiveTimerWindow::Objective::Draw()
         ImGui::SameLine(offset);
         ImGui::TextUnformatted(GetDurationStr());
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("用时");
+            ImGui::SetTooltip("Time");
         }
     }
     for (auto i = 0; i < indent; i++) {
@@ -1473,7 +1483,7 @@ void ObjectiveTimerWindow::ObjectiveSet::Event(const EventType type, const uint3
             return false;
         }
         switch (type) {
-            // 对于这些，使用 id2 作为 wchar_t*
+            // for these, use id2 as a wchar_t*
             case EventType::ServerMessage:
             case EventType::DisplayDialogue: {
                 const wchar_t* msg1 = (wchar_t*)id2;
@@ -1508,7 +1518,7 @@ void ObjectiveTimerWindow::ObjectiveSet::Event(const EventType type, const uint3
     for (size_t i = 0; i < objectives.size(); i++) {
         Objective& obj = *objectives[i];
         if (obj.IsDone()) {
-            continue; // 无需检查
+            continue; // nothing to check
         }
 
         if (!obj.IsStarted()) {
@@ -1560,7 +1570,7 @@ void ObjectiveTimerWindow::ObjectiveSet::CheckSetDone()
 {
     if (!std::ranges::any_of(objectives, [](const Objective* obj) { return obj->done == TIME_UNKNOWN; })) {
         duration = GetDuration();
-        // 确保没有更晚完成的目标
+        // make sure there isn't an objective finishing later
         const auto max = std::max_element(objectives.begin(), objectives.end(),
                                           [](const Objective* a, const Objective* b) { return a->done < b->done; });
         duration = std::max((*max)->done, duration);
@@ -1653,7 +1663,7 @@ const char* ObjectiveTimerWindow::ObjectiveSet::GetStartTimeStr()
         const tm* nowinfo = localtime(&now);
         int cached_str_offset = 0;
         if (timeinfo.tm_yday != nowinfo->tm_yday || timeinfo.tm_year != nowinfo->tm_year) {
-            const char* months[] = {"一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"};
+            const char* months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
             cached_str_offset += snprintf(&cached_start[cached_str_offset], sizeof(cached_start) - cached_str_offset,
                                           "%s %02d, ", months[timeinfo.tm_mon], timeinfo.tm_mday);
         }
@@ -1677,7 +1687,7 @@ DWORD ObjectiveTimerWindow::ObjectiveSet::GetDuration()
         if (!last_objective_done || last_objective_done->done < objective->done)
             last_objective_done = objective;
     }
-    // ... 但对于已完成的记录，我们可以从目标中计算出来。
+    // ... but for completed runs, we can figure this out from the objectives.
     return last_objective_done ? last_objective_done->done : TIME_UNKNOWN;
 }
 

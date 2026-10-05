@@ -17,7 +17,7 @@
 namespace {
     std::wstring pluginsfoldername;
 
-    const char* plugins_enabled_section = "已启用插件";
+    const char* plugins_enabled_section = "Plugins Enabled";
 
     std::vector<PluginModule::Plugin*> plugins_available;
 
@@ -33,7 +33,7 @@ namespace {
             plugin.terminating = true;
         }
         if (plugin.instance && !plugin.instance->CanTerminate()) {
-            return false; // 挂起
+            return false; // Pending
         }
 
         if (plugin.instance) {
@@ -65,16 +65,16 @@ namespace {
             const auto name = TextUtils::PrintFilename(filename.wstring());
             std::wstring detail;
             if ((err == ERROR_VIRUS_INFECTED || err == ERROR_VIRUS_DELETED) && FindRecentDefenderBlock(filename.wstring(), 15, detail))
-                Log::ErrorW(L"加载插件 %s 失败 - Windows Defender 阻止了它：%s", name.c_str(), detail.c_str());
+                Log::ErrorW(L"Failed to load plugin %s - Windows Defender blocked it: %s", name.c_str(), detail.c_str());
             else
-                Log::ErrorW(L"加载插件 %s 失败 (LoadLibraryW)", name.c_str());
+                Log::ErrorW(L"Failed to load plugin %s (LoadLibraryW)", name.c_str());
             return false;
         }
         using ToolboxPluginInstanceFn = ToolboxPlugin* (*)();
         const auto instance_fn = reinterpret_cast<ToolboxPluginInstanceFn>(GetProcAddress(plugin.dll, "ToolboxPluginInstance"));
         if (!instance_fn) {
             UnloadPlugin(plugin_ptr);
-            Log::Error("加载插件 %s 失败 (ToolboxPluginInstance)", TextUtils::PrintFilename(plugin.path.filename().string()).c_str());
+            Log::Error("Failed to load plugin %s (ToolboxPluginInstance)", TextUtils::PrintFilename(plugin.path.filename().string()).c_str());
             return false;
         }
 
@@ -106,8 +106,8 @@ namespace {
 
     void RefreshDlls()
     {
-        // 刷新时，如何将已加载的模块映射到磁盘上的模块？
-        // DLL文件可能已更改
+        // when we refresh, how do we map the modules that were already loaded to the ones on disk?
+        // the dll file may have changed
         namespace fs = std::filesystem;
 
         const fs::path plugin_folder = pluginsfoldername;
@@ -159,7 +159,7 @@ void PluginModule::DrawSettingsInternal()
         const bool is_showing = has_settings ? ImGui::CollapsingHeader(buf, ImGuiTreeNodeFlags_AllowOverlap) : ImGui::CollapsingHeader(buf, ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_AllowOverlap);
 
         if (const auto icon = plugin->initialized ? plugin->instance->Icon() : nullptr) {
-            const float text_offset_x = ImGui::GetTextLineHeightWithSpacing() + 4.0f; // TODO: 寻找合适的数值
+            const float text_offset_x = ImGui::GetTextLineHeightWithSpacing() + 4.0f; // TODO: find a proper number
             ImGui::GetWindowDrawList()->AddText(
                 ImVec2(pos.x + text_offset_x, pos.y + style.ItemSpacing.y / 2),
                 ImColor(style.Colors[ImGuiCol_Text]), icon);
@@ -168,7 +168,7 @@ void PluginModule::DrawSettingsInternal()
         style.Colors[ImGuiCol_Header] = origin_header_col;
 
         ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::GetTextLineHeight() - ImGui::GetStyle().FramePadding.x - 128.f);
-        snprintf(buf, _countof(buf), "%s###load_unload", plugin->instance ? "卸载" : "加载");
+        snprintf(buf, _countof(buf), "%s###load_unload", plugin->instance ? "Unload" : "Load");
         if (ImGui::Button(buf)) {
             if (!plugin->instance) {
                 LoadPlugin(plugin);
@@ -181,7 +181,7 @@ void PluginModule::DrawSettingsInternal()
             ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::GetTextLineHeight() - ImGui::GetStyle().FramePadding.x);
             ImGui::Checkbox("##check", plugin->instance->GetVisiblePtr());
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("可见");
+                ImGui::SetTooltip("Visible");
             }
         }
 
@@ -192,7 +192,7 @@ void PluginModule::DrawSettingsInternal()
         ImGui::Separator();
     }
 
-    if (ImGui::Button("刷新")) {
+    if (ImGui::Button("Refresh")) {
         RefreshDlls();
     }
 
@@ -274,7 +274,7 @@ void PluginModule::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
             plugins_enabled_from_settings.push_back(plugin);
         }
     }
-    // 查找当前已加载但不应加载的插件
+    // Find any plugins that are currently loaded but not supposed to be
     auto to_unload = std::views::filter(plugins_loaded, [&](auto plugin) {
         return !std::ranges::contains(plugins_enabled_from_settings, plugin);
     }) | std::ranges::to<std::vector>();
@@ -300,15 +300,15 @@ void PluginModule::Update(const float delta)
     if (!plugins_loaded.empty() && !message_displayed) {
         GW::Chat::WriteChat(
             GW::Chat::Channel::CHANNEL_GWCA2,
-            L"<c=#FFFF00>检测到插件，这些插件可能不安全，且未得到 GWToolbox++ 开发者的官方支持。\n"
-            "如果您信任作者，请自行承担使用风险。\n"
-            "请勿在启用插件游玩时报告错误。</c>", GWTOOLBOX_SENDER, true);
+            L"<c=#FFFF00>Plugins detected, these may be unsafe to use and are not officially supported by GWToolbox++ developers.\n"
+            "Use at your own risk if you trust the author.\n"
+            "Do not report bugs that occur while you play with plugins.</c>", GWTOOLBOX_SENDER, true);
         GW::Chat::WriteChat(
             GW::Chat::Channel::CHANNEL_GWCA2,
-            L"<c=#FF0000>ArenaNet 不允许使用插件。</c>", GWTOOLBOX_SENDER, true);
+            L"<c=#FF0000>Plugins are NOT permitted by ArenaNet.</c>", GWTOOLBOX_SENDER, true);
         GW::Chat::WriteChat(
             GW::Chat::Channel::CHANNEL_WARNING,
-            L"ArenaNet 不允许使用插件。", nullptr, true);
+            L"Plugins are NOT permitted by ArenaNet.", nullptr, true);
         message_displayed = true;
     }
     for (const auto plugin : plugins_loaded) {
@@ -317,7 +317,7 @@ void PluginModule::Update(const float delta)
         plugin->instance->Update(delta);
         if (plugin->terminating) {
             if (UnloadPlugin(plugin)) {
-                break; // plugins_loaded 向量已更改，跳过一帧
+                break; // plugins_loaded vector changed, skip a frame
             }
         }
     }

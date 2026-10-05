@@ -19,7 +19,7 @@ namespace {
         return static_cast<uint64_t>(ticks * 1000000 / freq.QuadPart);
     }
 
-    // Present 钩子
+    // Present hook
     typedef HRESULT(__stdcall* Present_pt)(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
     Present_pt Present_Func = nullptr, Present_Ret = nullptr;
     uint64_t present_time_us = 0;
@@ -94,21 +94,21 @@ namespace {
         std::map<uint32_t, Stats> ui_msgs;
     };
 
-    // 1 秒快照的环形缓冲区
+    // Ring buffer of 1-second snapshots
     Stats hist_frame[WINDOW_SECONDS], hist_tb_update[WINDOW_SECONDS], hist_tb_draw[WINDOW_SECONDS], hist_present[WINDOW_SECONDS];
     std::map<std::string, ModuleStats, std::less<>> hist_modules[WINDOW_SECONDS];
     int hist_index = 0;
 
-    // 显示的统计（合并自环形缓冲区）
+    // Displayed stats (merged from ring buffer)
     Stats displayed_frame, displayed_tb_update, displayed_tb_draw, displayed_present;
     std::map<std::string, ModuleStats, std::less<>> displayed_modules;
 
-    // 当前 1 秒窗口的累积统计
+    // Accumulating stats (current 1s window)
     Stats acc_frame, acc_tb_update, acc_tb_draw, acc_present;
     std::map<std::string, ModuleStats, std::less<>> acc_modules;
     DWORD window_start_tick = 0;
 
-    // 原始 1 秒累加器值，便于离线重新计算真实平均值
+    // Raw 1s accumulator values, so true averages can be recomputed offline
     void AppendCsvRow(std::string& out, DWORD tick, const char* category, const char* name, const char* metric, const Stats& s)
     {
         if (s.count == 0) return;
@@ -121,7 +121,8 @@ namespace {
         out += line;
     }
 
-    // 识别生成 CSV 的编译器，使 MSVC 和 clang 的输出分到不同文件
+    // Identifies the build that produced a CSV, so MSVC and clang runs land in
+    // separate files instead of appending into one another.
     std::wstring CompilerTag()
     {
 #ifdef __clang__
@@ -133,17 +134,18 @@ namespace {
 #endif
     }
 
-    // 设置文件夹（非根目录），使文件位于“打开当前设置文件夹”指向的位置
+    // Settings folder (not the computer root) so the file lands where "Open current
+    // settings folder" points and where the Compare tab looks for it.
     std::filesystem::path CsvPath() { return Resources::GetSettingFile(L"performance_log_" + CompilerTag() + L".csv"); }
 
-    // 在工作线程中运行，避免绘制循环访问磁盘
+    // Runs on a worker thread so the draw loop never touches the disk
     void WriteCsvRows(const std::string& rows)
     {
         static std::mutex csv_mutex;
         std::scoped_lock lock(csv_mutex);
         std::ofstream file(CsvPath(), std::ios::app);
         if (!file.is_open()) return;
-        // 仅在全新文件时写入表头；追加模式保留之前的运行记录
+        // Header only for a fresh file; appending preserves earlier runs
         if (file.tellp() == 0)
             file << "tick_ms,category,name,metric,count,sum_us,min_us,max_us\n";
         file << rows;
@@ -223,7 +225,7 @@ namespace {
         ImGui::TableNextColumn(); ImGui::TextColored(ImColor(ColorForTime(s.max_us)).Value, "%llu", s.max_us);
     }
 
-    // ── 比较选项卡支持 ──────────────────────────────────────────────────
+    // ── Compare tab support ──────────────────────────────────────────────────
     template <typename T>
     T ParseNum(std::string_view s)
     {
@@ -232,8 +234,8 @@ namespace {
         return v;
     }
 
-    // 将导出 CSV 中的每一秒行归并为每个 "category/name/metric" 的总计
-    //（count/sum/min/max），以便在整个运行期间重新计算真实平均值。
+    // Pools every 1s row in an exported CSV into per-"category/name/metric" totals
+    // (count/sum/min/max), so true averages can be recomputed across the whole run.
     std::map<std::string, Stats> LoadCsvAggregate(const std::filesystem::path& file)
     {
         std::map<std::string, Stats> out;
@@ -241,7 +243,7 @@ namespace {
         if (!in.is_open()) return out;
 
         std::string line;
-        std::getline(in, line); // 表头：tick_ms,category,name,metric,count,sum_us,min_us,max_us
+        std::getline(in, line); // header: tick_ms,category,name,metric,count,sum_us,min_us,max_us
         while (std::getline(in, line)) {
             if (line.empty()) continue;
             std::string_view f[8];
@@ -335,8 +337,8 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
 
     if (ImGui::BeginTabBar("##perf_tabs")) {
 
-        // ── 选项卡 1：模块（帧概览 + 各模块更新/绘制） ──────────
-        if (ImGui::BeginTabItem("模块")) {
+        // ── Tab 1: Modules (frame overview + per-module update/draw) ──────────
+        if (ImGui::BeginTabItem("Modules")) {
 
             if (displayed_frame.count > 0) {
                 const auto& f = displayed_frame;
@@ -348,24 +350,24 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
                 if (ImGui::BeginTable("##frame_timing", 3,
                         ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
                     ImGui::TableSetupColumn("");
-                    ImGui::TableSetupColumn("平均 (微秒)");
-                    ImGui::TableSetupColumn("最大 (微秒)");
+                    ImGui::TableSetupColumn("avg (us)");
+                    ImGui::TableSetupColumn("max (us)");
                     ImGui::TableHeadersRow();
 
                     ImGui::TableNextRow();
-                    ImGui::TableNextColumn(); ImGui::Text("帧 (%.1f FPS)", fps);
+                    ImGui::TableNextColumn(); ImGui::Text("Frame (%.1f fps)", fps);
                     ImGui::TableNextColumn(); ImGui::Text("%llu", f.Avg());
                     ImGui::TableNextColumn(); ImGui::Text("%llu", f.max_us);
 
                     if (tu.count > 0) {
                         ImGui::TableNextRow();
-                        ImGui::TableNextColumn(); ImGui::TextUnformatted("  工具箱更新");
+                        ImGui::TableNextColumn(); ImGui::TextUnformatted("  TB Update");
                         ImGui::TableNextColumn(); ImGui::Text("%llu", tu.Avg());
                         ImGui::TableNextColumn(); ImGui::Text("%llu", tu.max_us);
                     }
                     if (td.count > 0) {
                         ImGui::TableNextRow();
-                        ImGui::TableNextColumn(); ImGui::TextUnformatted("  工具箱绘制");
+                        ImGui::TableNextColumn(); ImGui::TextUnformatted("  TB Draw");
                         ImGui::TableNextColumn(); ImGui::Text("%llu", td.Avg());
                         ImGui::TableNextColumn(); ImGui::Text("%llu", td.max_us);
                     }
@@ -379,7 +381,7 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
                     const uint64_t known_avg = tu.Avg() + td.Avg() + p.Avg();
                     const uint64_t gw_avg = f.Avg() > known_avg ? f.Avg() - known_avg : 0;
                     ImGui::TableNextRow();
-                    ImGui::TableNextColumn(); ImGui::TextUnformatted("  激战");
+                    ImGui::TableNextColumn(); ImGui::TextUnformatted("  GW");
                     ImGui::TableNextColumn(); ImGui::Text("~%llu", gw_avg);
                     ImGui::TableNextColumn();
 
@@ -397,13 +399,13 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
                     ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp
                     | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortTristate,
                     ImGui::GetContentRegionAvail())) {
-                ImGui::TableSetupColumn("模块",   ImGuiTableColumnFlags_DefaultSort, 0.f, MCN);
-                ImGui::TableSetupColumn("更新最小",  ImGuiTableColumnFlags_NoSort,      0.f, MCUpdMin);
-                ImGui::TableSetupColumn("更新平均",  0,                                 0.f, MCUpdAvg);
-                ImGui::TableSetupColumn("更新最大",  0,                                 0.f, MCUpdMax);
-                ImGui::TableSetupColumn("绘制最小", ImGuiTableColumnFlags_NoSort,      0.f, MCDrawMin);
-                ImGui::TableSetupColumn("绘制平均", 0,                                 0.f, MCDrawAvg);
-                ImGui::TableSetupColumn("绘制最大", 0,                                 0.f, MCDrawMax);
+                ImGui::TableSetupColumn("Module",   ImGuiTableColumnFlags_DefaultSort, 0.f, MCN);
+                ImGui::TableSetupColumn("Upd min",  ImGuiTableColumnFlags_NoSort,      0.f, MCUpdMin);
+                ImGui::TableSetupColumn("Upd avg",  0,                                 0.f, MCUpdAvg);
+                ImGui::TableSetupColumn("Upd max",  0,                                 0.f, MCUpdMax);
+                ImGui::TableSetupColumn("Draw min", ImGuiTableColumnFlags_NoSort,      0.f, MCDrawMin);
+                ImGui::TableSetupColumn("Draw avg", 0,                                 0.f, MCDrawAvg);
+                ImGui::TableSetupColumn("Draw max", 0,                                 0.f, MCDrawMax);
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableHeadersRow();
 
@@ -448,9 +450,9 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
             ImGui::EndTabItem();
         }
 
-        // ── 选项卡 2：UI 消息（各模块、各消息 ID 的回调耗时） ──────
-        if (ImGui::BeginTabItem("UI 消息")) {
-            ImGui::TextUnformatted("各模块、各消息 ID 的回调耗时（微秒，最近 5 秒）。");
+        // ── Tab 2: UI Messages (per-module, per-message-ID callback timing) ──────
+        if (ImGui::BeginTabItem("UI Messages")) {
+            ImGui::TextUnformatted("Per-module, per-message-ID callback time (us, over last 5s).");
             ImGui::Separator();
 
             struct UIMessageEntry {
@@ -471,19 +473,19 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
             }
 
             if (ui_entries.empty()) {
-                ImGui::TextDisabled("尚无 UI 消息回调数据。消息触发后才会显示数据。");
+                ImGui::TextDisabled("No UI message callback data yet. Data appears once messages fire.");
             }
             else {
                 if (ImGui::BeginTable("##ui_msg_timing", 6,
                         ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp
                         | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortTristate,
                         ImGui::GetContentRegionAvail())) {
-                    ImGui::TableSetupColumn("模块",  ImGuiTableColumnFlags_DefaultSort, 0.f, UCMOD);
-                    ImGui::TableSetupColumn("消息 ID",  0,                                 0.f, UCMSG);
-                    ImGui::TableSetupColumn("最小",     ImGuiTableColumnFlags_NoSort,      0.f, UCMin);
-                    ImGui::TableSetupColumn("平均",     0,                                 0.f, UCAvg);
-                    ImGui::TableSetupColumn("最大",     0,                                 0.f, UCMax);
-                    ImGui::TableSetupColumn("调用次数",   0,                                 0.f, UCCount);
+                    ImGui::TableSetupColumn("Module",  ImGuiTableColumnFlags_DefaultSort, 0.f, UCMOD);
+                    ImGui::TableSetupColumn("Msg ID",  0,                                 0.f, UCMSG);
+                    ImGui::TableSetupColumn("min",     ImGuiTableColumnFlags_NoSort,      0.f, UCMin);
+                    ImGui::TableSetupColumn("avg",     0,                                 0.f, UCAvg);
+                    ImGui::TableSetupColumn("max",     0,                                 0.f, UCMax);
+                    ImGui::TableSetupColumn("calls",   0,                                 0.f, UCCount);
                     ImGui::TableSetupScrollFreeze(0, 1);
                     ImGui::TableHeadersRow();
 
@@ -529,8 +531,8 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
             ImGui::EndTabItem();
         }
 
-        // ── 选项卡 3：比较（对比两个导出的 CSV，例如 MSVC vs clang） ──────────
-        if (ImGui::BeginTabItem("比较")) {
+        // ── Tab 3: Compare (diff two exported CSVs, e.g. MSVC vs clang) ──────────
+        if (ImGui::BeginTabItem("Compare")) {
             static std::vector<std::filesystem::path> csv_files;
             static std::vector<std::string> csv_names;
             static int sel_a = -1, sel_b = -1;
@@ -552,13 +554,14 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
             };
             if (csv_files.empty()) refresh_files();
 
-            ImGui::TextWrapped("比较两个导出 CSV 中各模块的耗时。%% 表示 B 相对于 A 的变化；负数（绿色）表示 B 更快。");
-            if (ImGui::Button("刷新文件列表")) refresh_files();
+            ImGui::TextWrapped("Compare per-module timings from two exported CSVs. "
+                               "%% is B relative to A; negative (green) means B is faster.");
+            if (ImGui::Button("Refresh file list")) refresh_files();
             ImGui::SameLine();
-            ImGui::TextDisabled("（找到 %d 个）", static_cast<int>(csv_files.size()));
+            ImGui::TextDisabled("(%d found)", static_cast<int>(csv_files.size()));
 
             auto file_combo = [](const char* label, int& sel) {
-                const char* preview = (sel >= 0 && sel < static_cast<int>(csv_names.size())) ? csv_names[sel].c_str() : "(无)";
+                const char* preview = (sel >= 0 && sel < static_cast<int>(csv_names.size())) ? csv_names[sel].c_str() : "(none)";
                 if (ImGui::BeginCombo(label, preview)) {
                     for (int i = 0; i < static_cast<int>(csv_names.size()); i++) {
                         const bool selected = sel == i;
@@ -571,7 +574,7 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
             file_combo("A##cmp_a", sel_a);
             file_combo("B##cmp_b", sel_b);
 
-            if (ImGui::Button("加载 / 比较")) {
+            if (ImGui::Button("Load / Compare")) {
                 agg_a.clear();
                 agg_b.clear();
                 label_a.clear();
@@ -596,12 +599,12 @@ void PerformanceWindow::Draw(IDirect3DDevice9* device)
                 if (ImGui::BeginTable("##cmp_table", 6,
                         ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY,
                         ImGui::GetContentRegionAvail())) {
-                    ImGui::TableSetupColumn("分类/名称/指标");
-                    ImGui::TableSetupColumn("A 平均");
-                    ImGui::TableSetupColumn("B 平均");
-                    ImGui::TableSetupColumn("平均 %");
-                    ImGui::TableSetupColumn("A 最大");
-                    ImGui::TableSetupColumn("B 最大");
+                    ImGui::TableSetupColumn("category/name/metric");
+                    ImGui::TableSetupColumn("A avg");
+                    ImGui::TableSetupColumn("B avg");
+                    ImGui::TableSetupColumn("avg %");
+                    ImGui::TableSetupColumn("A max");
+                    ImGui::TableSetupColumn("B max");
                     ImGui::TableSetupScrollFreeze(0, 1);
                     ImGui::TableHeadersRow();
 
@@ -668,10 +671,11 @@ void PerformanceWindow::Terminate()
 
 void PerformanceWindow::DrawSettingsInternal()
 {
-    ImGui::InputInt("慢模块阈值（微秒）", &settings.slow_threshold_us, 100, 1000);
+    ImGui::InputInt("Slow module threshold (us)", &settings.slow_threshold_us, 100, 1000);
     settings.slow_threshold_us = std::max(settings.slow_threshold_us, 0);
 
-    ImGui::Checkbox("将计时数据流式写入 CSV", &settings.stream_to_csv);
-    ImGui::ShowHelp("性能窗口打开时，每秒计时数据追加到设置文件夹中的 performance_log_<编译器>.csv。\n"
-                    "每个编译器写入自己的文件；在比较选项卡中加载两个文件可对比不同编译器（如 MSVC vs clang）的构建性能。");
+    ImGui::Checkbox("Stream timings to CSV", &settings.stream_to_csv);
+    ImGui::ShowHelp("Appends per-second timings to performance_log_<compiler>.csv in the settings folder "
+                    "while the Performance window is open. Each compiler writes its own file; load two of "
+                    "them in the Compare tab to diff builds (e.g. MSVC vs clang).");
 }

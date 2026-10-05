@@ -35,12 +35,12 @@ namespace {
     KeysHeldBitset wndproc_keys_held;
 
 
-    bool clickerActive = false;   // 点击器是否激活
-    bool dropCoinsActive = false; // 金币投掷器是否激活
+    bool clickerActive = false;   // clicker is active or not
+    bool dropCoinsActive = false; // coin dropper is active or not
     bool map_change_triggered = false;
 
-    clock_t clickerTimer = 0;   // 点击器计时器
-    clock_t dropCoinsTimer = 0; // 金币投掷计时器
+    clock_t clickerTimer = 0;   // timer for clicker
+    clock_t dropCoinsTimer = 0; // timer for coin dropper
 
     TBHotkey* current_hotkey = nullptr;
 
@@ -86,7 +86,7 @@ namespace {
             }
             copied = true;
         }
-        if (copied) Log::LogW(L"已将快捷键迁移到 %s", dst->location_on_disk.wstring().c_str());
+        if (copied) Log::LogW(L"Migrated hotkeys to %s", dst->location_on_disk.wstring().c_str());
         return copied;
     }
 
@@ -109,8 +109,8 @@ namespace {
     }
 
     bool loaded_action_labels = false;
-    // 注意：GetActionLabel_Func() 必须在游戏内调用，因为它内部依赖其他 GW 模块加载。
-    // 因为我们只在游戏内绘制此模块，所以在 Draw() 循环中调用，而不是在 Initialize() 中。
+    // NB: GetActionLabel_Func() must be called when we're in-game, because it relies on other gw modules being loaded internally.
+    // Because we only draw this module when we're in-game, we just need to call this from the Draw() loop instead of on Initialise()
     void LoadActionLabels()
     {
         if (loaded_action_labels) {
@@ -214,7 +214,7 @@ namespace {
             }
             return false;
         };
-        // 注意：CheckSetValidHotkeys() 已检查角色/地图等的有效性
+        // NB: CheckSetValidHotkeys() has already checked validity of char/map etc
         for (TBHotkey* hk : valid_hotkeys) {
             if (inherited_trigger(hk)
                 && !hk->pressed
@@ -230,7 +230,7 @@ namespace {
         return true;
     }
 
-    // 在 Update 循环中收到 WM_ACTIVATE 后调用
+    // Called in Update loop after WM_ACTIVATE has been received via WndProc
     bool OnWindowActivated(const bool activated)
     {
         if (!IsMapReady()) {
@@ -242,11 +242,11 @@ namespace {
         if (!CheckSetValidHotkeys()) {
             return false;
         }
-        // 注意：CheckSetValidHotkeys() 已检查角色/地图等的有效性
+        // NB: CheckSetValidHotkeys() has already checked validity of char/map etc
         for (TBHotkey* hk : valid_hotkeys) {
             if (((activated && hk->trigger_on_gain_focus)
                     || (!activated && hk->trigger_on_lose_focus))) {
-                // 这里本来可以用 PushPendingHotkey，但失去/获得焦点是特殊情况
+                // Would be nice to use PushPendingHotkey here, but losing/gaining focus is a special case
                 hk->pressed = true;
                 current_hotkey = hk;
                 hk->Execute();
@@ -258,14 +258,14 @@ namespace {
     }
 
     inline void GetKeysHeld(KeysHeldBitset& keysHeld) {
-        keysHeld.reset(); // 清除先前按键状态
+        keysHeld.reset(); // Clear previous key states
         BYTE keyState[256];
 
         if (GetKeyboardState(keyState)) {
             for (uint32_t vkey = 0; vkey < 256; ++vkey) {
-                // 检查高位是否置位（按键被按下）
+                // Check if the high-order bit is set (key is pressed)
                 if (keyState[vkey] & 0x80) {
-                    keysHeld.set(vkey); // 标记按键被按下
+                    keysHeld.set(vkey); // Mark key as pressed
                 }
             }
         }
@@ -278,14 +278,14 @@ namespace {
     void DrawSelectHotkeyPopup() {
         if (pending_being_assigned) {
             keys_being_assigned = pending_being_assigned;
-            ImGui::OpenPopup("选择快捷键");
+            ImGui::OpenPopup("Select Hotkey");
             pending_being_assigned = nullptr;
             return;
         }
         if (!keys_being_assigned) {
             return;
         }
-        if (!ImGui::BeginPopup("选择快捷键")) {
+        if (!ImGui::BeginPopup("Select Hotkey")) {
             keys_selected.reset();
             hotkey_popup_first_draw = true;
             keys_being_assigned = nullptr;
@@ -301,15 +301,15 @@ namespace {
         std::string keys_held_buf = ModKeyName(keys_selected);
 
         ImGui::TextUnformatted(keys_held_buf.c_str());
-        if (ImGui::Button("清除")) {
+        if (ImGui::Button("Clear")) {
             keys_selected.reset();
         }
         ImGui::SameLine();
-        if (ImGui::Button("取消")) {
+        if (ImGui::Button("Cancel")) {
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("保存")) {
+        if (ImGui::Button("Save")) {
             keys_being_assigned->key_combo = keys_selected;
             ImGui::CloseCurrentPopup();
         }
@@ -374,100 +374,100 @@ void HotkeysWindow::Draw(IDirect3DDevice9*)
     }
     LoadActionLabels();
     bool hotkeys_changed = false;
-    // === 快捷键面板 ===
+    // === hotkey panel ===
     ImGui::SetNextWindowCenter(ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(300, 400), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(Name(), GetVisiblePtr(), GetWinFlags())) {
-        if (ImGui::Button("创建快捷键...", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-            ImGui::OpenPopup("创建快捷键");
+        if (ImGui::Button("Create Hotkey...", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+            ImGui::OpenPopup("Create Hotkey");
         }
-        if (ImGui::BeginPopup("创建快捷键")) {
+        if (ImGui::BeginPopup("Create Hotkey")) {
             TBHotkey* new_hotkey = nullptr;
-            if (ImGui::Selectable("发送聊天消息")) {
+            if (ImGui::Selectable("Send Chat")) {
                 new_hotkey = new HotkeySendChat(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("向聊天发送消息或命令");
+                ImGui::SetTooltip("Send a message or command to chat");
             }
-            if (ImGui::Selectable("使用物品")) {
+            if (ImGui::Selectable("Use Item")) {
                 new_hotkey = new HotkeyUseItem(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("从背包中使用一个物品");
+                ImGui::SetTooltip("Use an item from your inventory");
             }
-            if (ImGui::Selectable("丢弃或使用增益")) {
+            if (ImGui::Selectable("Drop or Use Buff")) {
                 new_hotkey = new HotkeyDropUseBuff(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("使用或取消一个技能，如召回或虔诚姿态");
+                ImGui::SetTooltip("Use or cancel a skill such as Recall or UA");
             }
-            if (ImGui::Selectable("切换...")) {
+            if (ImGui::Selectable("Toggle...")) {
                 new_hotkey = new HotkeyToggle(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("切换 GWToolbox++ 功能，如自动点击器");
+                ImGui::SetTooltip("Toggle a GWToolbox++ functionality such as clicker");
             }
-            if (ImGui::Selectable("执行...")) {
+            if (ImGui::Selectable("Execute...")) {
                 new_hotkey = new HotkeyAction(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("执行单个任务，如打开宝箱或重新应用光辉称号");
+                ImGui::SetTooltip("Execute a single task such as opening chests\nor reapplying lightbringer title");
             }
-            if (ImGui::Selectable("激战游戏按键")) {
+            if (ImGui::Selectable("Guild Wars Key")) {
                 new_hotkey = new HotkeyGWKey(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("通过工具箱触发游戏内快捷键");
+                ImGui::SetTooltip("Trigger an in-game hotkey via toolbox");
             }
-            if (ImGui::Selectable("目标定位")) {
+            if (ImGui::Selectable("Target")) {
                 new_hotkey = new HotkeyTarget(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("根据 ID 定位一个游戏实体");
+                ImGui::SetTooltip("Target a game entity by its ID");
             }
-            if (ImGui::Selectable("移动到")) {
+            if (ImGui::Selectable("Move to")) {
                 new_hotkey = new HotkeyMove(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("移动到指定坐标 (x, y)");
+                ImGui::SetTooltip("Move to a specific (x,y) coordinate");
             }
-            if (ImGui::Selectable("对话")) {
+            if (ImGui::Selectable("Dialog")) {
                 new_hotkey = new HotkeyDialog(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("发送对话");
+                ImGui::SetTooltip("Send a Dialog");
             }
-            if (ImGui::Selectable("装备物品")) {
+if (ImGui::Selectable("Equip Item")) {
                 new_hotkey = new HotkeyEquipItem(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("从背包中装备一个物品");
+                ImGui::SetTooltip("Equip an item from your inventory");
             }
-            if (ImGui::Selectable("标记英雄")) {
+            if (ImGui::Selectable("Flag Hero")) {
                 new_hotkey = new HotkeyFlagHero(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("相对你的位置标记英雄");
+                ImGui::SetTooltip("Flag a hero relative to your position");
             }
-            if (ImGui::Selectable("指挥宠物")) {
+            if (ImGui::Selectable("Command Pet")) {
                 new_hotkey = new HotkeyCommandPet(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("改变你宠物的行为");
+                ImGui::SetTooltip("Change behavior of your pet");
             }
             ImGui::Separator();
-            if (ImGui::Selectable("快捷键组")) {
+            if (ImGui::Selectable("Hotkey Group")) {
                 new_hotkey = new HotkeyGroup(nullptr, nullptr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("创建一个命名的组来组织和排序快捷键");
+                ImGui::SetTooltip("Create a named group to organise and reorder hotkeys");
             }
             ImGui::EndPopup();
             hotkeys_changed = new_hotkey != 0;
         }
 
         for (auto hotkey : TBHotkey::top_level_hotkeys) {
-            if (hotkey->Draw()) break; // 列表变异后下一帧重新绘制
+            if (hotkey->Draw()) break; // re-render next frame after list mutation
         }
     }
     if (hotkeys_changed) {
@@ -481,9 +481,9 @@ void HotkeysWindow::Draw(IDirect3DDevice9*)
 void HotkeysWindow::DrawSettingsInternal()
 {
     ToolboxWindow::DrawSettingsInternal();
-    ImGui::Checkbox("在标题中显示“启用”复选框", &settings.show_active_in_header);
-    ImGui::Checkbox("在标题中显示“运行”按钮", &settings.show_run_in_header);
-    ImGui::SliderInt("自动点击器延迟（毫秒）", &settings.clicker_delay_ms, 1, 1'000);
+    ImGui::Checkbox("Show 'Active' checkbox in header", &settings.show_active_in_header);
+    ImGui::Checkbox("Show 'Run' button in header", &settings.show_run_in_header);
+    ImGui::SliderInt("Autoclicker delay (ms)", &settings.clicker_delay_ms, 1, 1'000);
 }
 
 void HotkeysWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
@@ -492,7 +492,7 @@ void HotkeysWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
     doc.GetStruct(Name(), settings);
 
     while (!TBHotkey::all_hotkeys.empty())
-        delete TBHotkey::all_hotkeys[0]; // 在析构中移除第一个元素
+        delete TBHotkey::all_hotkeys[0]; // removes the first element in the destructor
 
     std::vector<HotkeyEntry> entries;
     if (doc.Get(Name(), "hotkeys", entries)) {
@@ -513,7 +513,7 @@ void HotkeysWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
         ASSERT(hotkeys_ini.LoadIfExists(hotkeys_ini_path) == SI_OK);
         hotkeys_ini.location_on_disk = hotkeys_ini_path;
 
-        // 迁移的快捷键仅在内存中保留，直到 JSON 保存；永远不会将任何 .ini 写回磁盘
+        // Migrated hotkeys only live in memory until the JSON save; never write any .ini back to disk
         if (legacy && MigrateLegacyHotkeys(legacy, &hotkeys_ini)) {
             DeleteHotkeySections(legacy);
         }
@@ -571,7 +571,7 @@ bool HotkeysWindow::WndProc(const UINT Message, const WPARAM wParam, LPARAM)
     auto check_trigger = [](TBHotkey* hk, bool is_key_up, uint32_t keyData, bool is_in_controller_mode) {
         if (hk->pressed) return false;
         if (hk->trigger_on_key_up != is_key_up) return false;
-        if (!hk->key_combo.test(keyData)) return false; // 触发键不包含在此快捷键组合中
+        if (!hk->key_combo.test(keyData)) return false; // The triggering key isn't included in this hotkey's combo
         if (hk->strict_key_combo) return hk->key_combo == wndproc_keys_held;
         if (is_in_controller_mode && !hk->trigger_in_controller_mode) return false;
         if (!is_in_controller_mode && !hk->trigger_in_desktop_mode) return false;
@@ -587,7 +587,7 @@ bool HotkeysWindow::WndProc(const UINT Message, const WPARAM wParam, LPARAM)
 
         bool is_in_controller_mode = GW::UI::IsInControllerMode();
 
-        // 步骤1：查找与当前按下的按键匹配的所有快捷键
+        // Step 1: Find all hotkeys that match the currently pressed keys
         for (TBHotkey* hk : valid_hotkeys) {
             if (is_key_up) hk->pressed = false;
 
@@ -601,7 +601,7 @@ bool HotkeysWindow::WndProc(const UINT Message, const WPARAM wParam, LPARAM)
 
         bool triggered = false;
 
-        // 步骤2：仅触发最具体的快捷键
+        // Step 2: Trigger only the most specific hotkeys
         for (TBHotkey* hk : matching_hotkeys) {
             if (hk->key_combo.count() == max_modifier_count) {
                 PushPendingHotkey(hk);
@@ -613,7 +613,7 @@ bool HotkeysWindow::WndProc(const UINT Message, const WPARAM wParam, LPARAM)
             }
         }
 
-        return triggered; // 如果有任何快捷键阻止了输入，则返回 true 以防止按键事件到达 GW
+        return triggered; // If any hotkey blocked input, return true to prevent the key event from reaching GW
     };
 
     switch (Message) {
@@ -653,7 +653,7 @@ void HotkeysWindow::Update(const float)
     if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading) {
         if (map_change_triggered) {
             map_change_triggered = false;
-            while (PopPendingHotkey()) {} // 清空上一个地图的待处理快捷键
+            while (PopPendingHotkey()) {} // Clear any pending hotkeys from the last map
             for (auto hk : TBHotkey::all_hotkeys) {
                 hk->pressed = false;
             }

@@ -68,7 +68,7 @@ namespace {
         std::string text;
 
         if (settings.show_enemy_level) {
-            text += std::format("等级 {} ", level);
+            text += std::format("Lvl {} ", level);
         }
         text += agent_name;
         if (settings.show_enemy_last_skill && TIMER_DIFF(last_casted) < settings.last_skill_threshold && skill_name && !skill_name->empty()) {
@@ -80,7 +80,7 @@ namespace {
     uint32_t GetAgentMaxHP(const GW::AgentLiving* agent)
     {
         if (!agent) {
-            return 0; // 无效代理
+            return 0; // Invalid agent
         }
         if (agent->max_hp) {
             return agent->max_hp;
@@ -95,7 +95,7 @@ namespace {
             return 0;
         }
         const float health_regen_per_second = max_hp * agent->hp_pips;
-        const float pips = std::ceil(health_regen_per_second / 2.f); // 1 点 = 每秒 2 生命值
+        const float pips = std::ceil(health_regen_per_second / 2.f); // 1 pip = 2 health per second
         return static_cast<int>(pips);
     }
 
@@ -112,10 +112,10 @@ namespace {
 
         ImGui::Spacing();
         if (ImGui::BeginTable(label, 4)) {
-            ImGui::TableSetupColumn("选择", ImGuiTableColumnFlags_WidthFixed, 0, 0);
-            ImGui::TableSetupColumn("生命值", ImGuiTableColumnFlags_WidthStretch, -1, 0);
-            ImGui::TableSetupColumn("回复", ImGuiTableColumnFlags_WidthFixed, 70, 1);
-            ImGui::TableSetupColumn("上次施法", ImGuiTableColumnFlags_WidthFixed, 40, 2);
+            ImGui::TableSetupColumn("Selection", ImGuiTableColumnFlags_WidthFixed, 0, 0);
+            ImGui::TableSetupColumn("HP", ImGuiTableColumnFlags_WidthStretch, -1, 0);
+            ImGui::TableSetupColumn("Regen", ImGuiTableColumnFlags_WidthFixed, 70, 1);
+            ImGui::TableSetupColumn("Last Casted", ImGuiTableColumnFlags_WidthFixed, 40, 2);
 
             const GW::Agent* target = GW::Agents::GetTarget();
 
@@ -142,7 +142,7 @@ namespace {
                     }
                 }
 
-                // 进度条
+                // Progress bar
                 ImGui::TableSetColumnIndex(1);
                 ImVec2 progressBarPos = ImGui::GetCursorScreenPos();
                 const ImVec2 pos1 = ImVec2(progressBarPos.x + ImGui::GetContentRegionAvail().x * 0.025f, progressBarPos.y + 3);
@@ -186,14 +186,14 @@ namespace {
                     DrawStatusTriangle(triangles, pos2, ConditionedColor, true);
                 }
 
-                // 生命回复点数
+                // Health pips
                 ImGui::TableSetColumnIndex(2);
                 const auto pips = GetHealthRegenPips(living);
                 if (pips > 0 && pips < 11) {
                     ImGui::Text("%.*s", pips > 0 && pips < 11 ? pips : 0, ">>>>>>>>>>");
                 }
 
-                // 上次施法技能
+                // Last Casted Skill
                 ImGui::TableSetColumnIndex(3);
                 if (enemy_info.last_casted != 0) {
                     const auto seconds_ago = static_cast<int>((TIMER_DIFF(enemy_info.last_casted) / CLOCKS_PER_SEC));
@@ -280,30 +280,30 @@ void EnemyWindow::Draw(IDirect3DDevice9*)
     ImGui::SetNextWindowCenter(ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(Name(), GetVisiblePtr(), GetWinFlags())) {
-        DrawEnemies("敌人", enemies);
+        DrawEnemies("enemies", enemies);
     }
     ImGui::End();
 }
 
 void EnemyWindow::DrawSettingsInternal()
 {
-    ImGui::DragFloat("范围", &settings.range, 50.f, 0, 5000.f);
+    ImGui::DragFloat("Range", &settings.range, 50.f, 0, 5000.f);
     ImGui::Separator();
     ImGui::StartSpacedElements(275.f);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("显示等级", &settings.show_enemy_level);
+    ImGui::Checkbox("Show level", &settings.show_enemy_level);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("显示敌人上次技能", &settings.show_enemy_last_skill);
+    ImGui::Checkbox("Show enemy last skill", &settings.show_enemy_last_skill);
     ImGui::Separator();
-    ImGui::Text("生命值阈值：");
-    ImGui::ShowHelp("低于此阈值的生命值百分比将显示敌人信息");
-    ImGui::DragFloat("百分比", &settings.enemies_threshhold, 0.01f, 0, 1.f);
+    ImGui::Text("HP thresholds:");
+    ImGui::ShowHelp("Threshold HP below which enemy  info is displayed");
+    ImGui::DragFloat("Percent", &settings.enemies_threshhold, 0.01f, 0, 1.f);
     ImGui::Separator();
-    ImGui::Text("上次施法技能阈值：");
-    ImGui::DragFloat("毫秒", &settings.last_skill_threshold, 1.f, 0, 60000.f);
+    ImGui::Text("Last skill casted threshold:");
+    ImGui::DragFloat("Milliseconds", &settings.last_skill_threshold, 1.f, 0, 60000.f);
     ImGui::Separator();
-    ImGui::Text("状态三角间距");
-    ImGui::DragFloat("间距", &settings.triangle_spacing, 0.01f, 0, 100.f);
+    ImGui::Text("Status triange spacing");
+    ImGui::DragFloat("Spacing", &settings.triangle_spacing, 0.01f, 0, 100.f);
 }
 
 void EnemyWindow::Initialize()

@@ -129,27 +129,27 @@ void ObserverPartyWindow::DrawHeaders(const size_t party_count) const
         }
 
         if (settings.show_damage_dealt) {
-            ImGui::Text("Dmg+");
+            ImGui::Text("伤害+");
             ImGui::SameLine(offset += text_short);
         }
 
         if (settings.show_damage_received) {
-            ImGui::Text("Dmg-");
+            ImGui::Text("伤害-");
             ImGui::SameLine(offset += text_short);
         }
 
         if (settings.show_healing_dealt) {
-            ImGui::Text("Heal+");
+            ImGui::Text("治疗+");
             ImGui::SameLine(offset += text_short);
         }
 
         if (settings.show_healing_received) {
-            ImGui::Text("Heal-");
+            ImGui::Text("治疗-");
             ImGui::SameLine(offset += text_short);
         }
 
         if (settings.show_max_hp) {
-            ImGui::Text("MaxHP");
+            ImGui::Text("最大生命");
             ImGui::SameLine(offset += text_tiny);
         }
     }
@@ -383,8 +383,8 @@ void ObserverPartyWindow::DrawParty(float& offset, const ObserverModule::Observa
     }
 
     if (settings.show_player_guild_tag) {
-        // tag is in display_name
-        // this makes it not hideable
+        // 标签在 display_name 中
+        // 这使得它不可隐藏
         ImGui::SameLine(offset += text_short);
     }
 
@@ -503,7 +503,7 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
 
     ObserverModule& observer_module = ObserverModule::Instance();
 
-    // this should work with both 2/3(+?) parties, with preference on 2
+    // 这应该适用于 2/3（+？）支队伍，优先支持 2 支
 
     auto max_party_size = 0u;
     const std::vector<uint32_t>& party_ids = observer_module.GetObservablePartyIds();
@@ -537,7 +537,7 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
             ImGui::Text("");
             ImGui::Separator();
         }
-        // force new line for each player
+        // 每个玩家强制换行
         else if (party_member_index > 0) {
             ImGui::Text("");
         }
@@ -547,7 +547,7 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
 
         for (auto party_index = 0u; party_index < party_count; party_index += 1) {
             if (settings.show_player_number && party_index == 0) {
-                // print #1. <player> for players, not the party
+                // 显示 #1. <玩家> 给玩家，而不是队伍
                 if (party_member_index != -1) {
                     ImGui::Text(("# "s + std::to_string(party_member_index + 1) + ".").c_str());
                 }
@@ -597,79 +597,79 @@ void ObserverPartyWindow::Draw(IDirect3DDevice9*)
 
 void ObserverPartyWindow::DrawSettingsInternal()
 {
-    ImGui::Text("Make sure the Observer Module is enabled.");
-    ImGui::Checkbox("Show player number (#)", &settings.show_player_number);
-    ImGui::Checkbox(("Show professions ("s
+    ImGui::Text("请确保观战模块已启用。");
+    ImGui::Checkbox("显示玩家编号 (#)", &settings.show_player_number);
+    ImGui::Checkbox(("显示职业 ("s
                      + ObserverLabel::Profession
                      + ")").c_str(), &settings.show_profession);
 
-    ImGui::Checkbox(("Show Player Guild Tags ("s
+    ImGui::Checkbox(("显示玩家公会标签 ("s
                      + ObserverLabel::PlayerGuildTag
                      + ")").c_str(), &settings.show_player_guild_tag);
 
-    ImGui::Checkbox(("Show Player Guild Rating ("s
+    ImGui::Checkbox(("显示玩家公会等级分 ("s
                      + ObserverLabel::PlayerGuildRating
                      + ")").c_str(), &settings.show_player_guild_rating);
 
-    ImGui::Checkbox(("Show Player Guild Rank ("s
+    ImGui::Checkbox(("显示玩家公会排名 ("s
                      + ObserverLabel::PlayerGuildRank
                      + ")").c_str(), &settings.show_player_guild_rank);
 
-    ImGui::Checkbox(("Show kills ("s
+    ImGui::Checkbox(("显示击杀 ("s
                      + ObserverLabel::Kills
                      + ")").c_str(), &settings.show_kills);
 
-    ImGui::Checkbox(("Show deaths ("s
+    ImGui::Checkbox(("显示死亡 ("s
                      + ObserverLabel::Deaths
                      + ")").c_str(), &settings.show_deaths);
 
-    ImGui::Checkbox(("Show KDR ("s
+    ImGui::Checkbox(("显示击杀/死亡比 ("s
                      + ObserverLabel::KDR
                      + ")").c_str(), &settings.show_kdr);
 
-    ImGui::Checkbox(("Show cancels ("s
+    ImGui::Checkbox(("显示取消 ("s
                      + ObserverLabel::Cancels
                      + ")").c_str(), &settings.show_cancels);
 
-    ImGui::Checkbox(("Show interrupts ("s
+    ImGui::Checkbox(("显示打断 ("s
                      + ObserverLabel::Interrupts
                      + ")").c_str(), &settings.show_interrupts);
 
-    ImGui::Checkbox(("Show knockdowns ("s
+    ImGui::Checkbox(("显示击倒 ("s
                      + ObserverLabel::Knockdowns + ")").c_str(), &settings.show_knockdowns);
 
-    ImGui::Checkbox(("Show attacks from other parties ("s
+    ImGui::Checkbox(("显示来自其他队伍的攻击 ("s
                      + ObserverLabel::AttacksReceivedFromOtherParties
                      + ")").c_str(), &settings.show_received_party_attacks);
 
-    ImGui::Checkbox(("Show attacks to other parties ("s
+    ImGui::Checkbox(("显示对其他队伍的攻击 ("s
                      + ObserverLabel::AttacksDealtToOtherParties
                      + ")").c_str(), &settings.show_dealt_party_attacks);
 
-    ImGui::Checkbox(("Show crits from other parties ("s
+    ImGui::Checkbox(("显示来自其他队伍的暴击 ("s
                      + ObserverLabel::CritsReceivedFromOtherParties
                      + ")").c_str(), &settings.show_received_party_crits);
 
-    ImGui::Checkbox(("Show crits to other parties ("s
+    ImGui::Checkbox(("显示对其他队伍的暴击 ("s
                      + ObserverLabel::CritsDealToOtherParties
                      + ")").c_str(), &settings.show_dealt_party_crits);
 
-    ImGui::Checkbox(("Show skills from other parties ("s
+    ImGui::Checkbox(("显示来自其他队伍的技能 ("s
                      + ObserverLabel::SkillsReceivedFromOtherParties
                      + ")").c_str(),
                     &settings.show_received_party_skills);
 
-    ImGui::Checkbox(("Show skills used on other parties ("s
+    ImGui::Checkbox(("显示对其他队伍使用的技能 ("s
                      + ObserverLabel::SkillsUsedOnOtherParties
                      + ")").c_str(), &settings.show_dealt_party_skills);
 
-    ImGui::Checkbox(("Show skills used ("s
+    ImGui::Checkbox(("显示使用的技能 ("s
                      + ObserverLabel::SkillsUsed
                      + ")").c_str(), &settings.show_skills_used);
 
-    ImGui::Checkbox("Show damage dealt (Dmg+)", &settings.show_damage_dealt);
-    ImGui::Checkbox("Show damage received (Dmg-)", &settings.show_damage_received);
-    ImGui::Checkbox("Show healing dealt (Heal+)", &settings.show_healing_dealt);
-    ImGui::Checkbox("Show healing received (Heal-)", &settings.show_healing_received);
-    ImGui::Checkbox("Show max HP (MaxHP)", &settings.show_max_hp);
+    ImGui::Checkbox("显示造成伤害 (伤害+)", &settings.show_damage_dealt);
+    ImGui::Checkbox("显示受到伤害 (伤害-)", &settings.show_damage_received);
+    ImGui::Checkbox("显示造成治疗 (治疗+)", &settings.show_healing_dealt);
+    ImGui::Checkbox("显示受到治疗 (治疗-)", &settings.show_healing_received);
+    ImGui::Checkbox("显示最大生命 (最大生命)", &settings.show_max_hp);
 }

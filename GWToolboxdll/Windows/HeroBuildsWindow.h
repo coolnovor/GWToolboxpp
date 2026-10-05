@@ -30,14 +30,13 @@ public:
         return instance;
     }
 
-    [[nodiscard]] const char* Name() const override { return "Hero Builds"; }
+    [[nodiscard]] const char* Name() const override { return "团队Build配置"; }
     [[nodiscard]] const char* Icon() const override { return ICON_FA_USERS; }
 
     struct Settings {
         bool hide_when_entering_explorable = false;
         bool one_teambuild_at_a_time = false;
         bool filter_by_profession = false;
-        bool sort_by_profession = false;
     };
 
     // On-disk schema of herobuilds.json
@@ -93,11 +92,8 @@ public:
     // Returns ptr to party member of this hero, optionally fills out out_hero_index to be the index of this hero for the player.
 
     static GW::HeroPartyMember* GetPartyHeroByID(const GW::Constants::HeroID hero_id, size_t* out_hero_index);
-    static const char* GetMercDisplayName(GW::Constants::HeroID hero_id);
-    static bool SortByProfession();
 
 private:
-    static void RefreshMercDisplayNames();
     TeamBuild* GetTeambuildByName(const std::string& argBuildname);
 
     // Encode a teambuild into a Daybreak party loadout base64 string (header=15, type=1, version=1).

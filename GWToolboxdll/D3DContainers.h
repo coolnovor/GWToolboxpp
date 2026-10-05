@@ -1,6 +1,5 @@
 #pragma once
 #include <d3d9.h>
-#include <utility>
 #include <vector>
 #include <GWCA/GameContainers/GamePos.h>
 
@@ -9,7 +8,6 @@ struct IDirect3DVertexBuffer9;
 typedef unsigned long DWORD;
 
 #define D3DFVF_CUSTOMVERTEX D3DFVF_XYZ | D3DFVF_DIFFUSE
-#define D3DFVF_TEXTUREDVERTEX D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1
 
 typedef GW::Vec2f D3DVec2f;
 
@@ -21,15 +19,6 @@ struct D3DVertex {
     D3DVertex() = default;
     D3DVertex(float x, float y, float z, DWORD color);
     D3DVertex(float x, float y, DWORD color);
-};
-
-struct D3DVertexTextured {
-    float x;
-    float y;
-    float z;
-    DWORD color;
-    float u;
-    float v;
 };
 
 struct D3DTriangle {
@@ -62,31 +51,7 @@ struct D3DVelocityArrow : D3DShape<1> {
 
 class D3DVertexBuffer {
 public:
-    D3DVertexBuffer() = default;
     virtual ~D3DVertexBuffer();
-
-    // buffer is a COM pointer to a live D3D9 resource; copying it would alias two objects onto
-    // the same GPU buffer, and whichever gets destroyed first frees it out from under the other.
-    D3DVertexBuffer(const D3DVertexBuffer&) = delete;
-    D3DVertexBuffer& operator=(const D3DVertexBuffer&) = delete;
-    D3DVertexBuffer(D3DVertexBuffer&& other) noexcept { *this = std::move(other); }
-    D3DVertexBuffer& operator=(D3DVertexBuffer&& other) noexcept
-    {
-        if (this == &other) return *this;
-        buffer = other.buffer;
-        buffer_byte_size = other.buffer_byte_size;
-        type = other.type;
-        count = other.count;
-        initialized = other.initialized;
-        dirty = other.dirty;
-        vertices = std::move(other.vertices);
-        other.buffer = nullptr;
-        other.buffer_byte_size = 0;
-        other.count = 0;
-        other.initialized = false;
-        return *this;
-    }
-
     virtual void Invalidate();
     virtual void Render(IDirect3DDevice9* device);
     virtual void Terminate();

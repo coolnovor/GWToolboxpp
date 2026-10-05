@@ -4,8 +4,6 @@
 #include <GWCA/Managers/UIMgr.h>
 #include <GWCA/Packets/StoC.h>
 
-#include <Modules/GwDatModule.h>
-
 #include <Color.h>
 #include <Timer.h>
 
@@ -17,9 +15,6 @@ class PingsLinesRenderer : public D3DVertexBuffer {
     friend class Minimap;
     const float drawing_scale = 96.0f;
     const clock_t drawing_timeout = 5000;
-
-    const uint32_t PING_INNER_FILE_ID = 50468;
-    const uint32_t PING_OUTER_FILE_ID = 49225;
 
     struct DrawingLine {
         DrawingLine()
@@ -37,38 +32,32 @@ class PingsLinesRenderer : public D3DVertexBuffer {
     };
 
     struct Ping {
-        explicit Ping(const bool _game_ping = false)
-            : start(TIMER_INIT()), game_ping(_game_ping) { }
+        Ping()
+            : start(TIMER_INIT()) { }
 
         virtual ~Ping() = default;
         clock_t start;
         int duration = 3000;
-        const bool game_ping;
         [[nodiscard]] virtual float GetX() const = 0;
         [[nodiscard]] virtual float GetY() const = 0;
         [[nodiscard]] virtual float GetScale() const { return 1.0f; }
         [[nodiscard]] virtual bool ShowInner() const { return true; }
         [[nodiscard]] virtual DWORD GetAgentID() const { return 0; }
-        [[nodiscard]] virtual Color GetColor() const { return 0; }
     };
 
     struct TerrainPing : Ping {
         TerrainPing(const float _x, const float _y)
-            : TerrainPing(_x, _y, Colors::Empty()) { }
-        TerrainPing(const float _x, const float _y, const Color _color, const bool _game_ping = false)
-            : Ping(_game_ping), x(_x), y(_y), color(_color) { }
+            : x(_x), y(_y) { }
 
         const float x, y;
-        const Color color;
         [[nodiscard]] float GetX() const override { return x; }
         [[nodiscard]] float GetY() const override { return y; }
         [[nodiscard]] float GetScale() const override { return 2.0f; }
-        [[nodiscard]] Color GetColor() const override { return color; }
     };
 
     struct AgentPing : Ping {
-        AgentPing(const DWORD _id, const bool _game_ping)
-            : Ping(_game_ping), id(_id) { }
+        explicit AgentPing(const DWORD _id)
+            : id(_id) { }
 
         DWORD id;
         [[nodiscard]] float GetX() const override;
@@ -97,9 +86,6 @@ class PingsLinesRenderer : public D3DVertexBuffer {
 
     public:
         Color color = Colors::ARGB(128, 255, 0, 0);
-        IDirect3DTexture9* texture = nullptr;
-
-        void Render(IDirect3DDevice9* device) override;
     };
 
     class Marker : public D3DVertexBuffer {
@@ -144,8 +130,6 @@ public:
     void RegisterSettings(ToolboxModule* module);
 
 private:
-    static constexpr size_t max_game_pings = 8;
-
     void Initialize(IDirect3DDevice9* device) override;
 
     void DrawPings(IDirect3DDevice9* device);
@@ -155,7 +139,6 @@ private:
     void DrawDrawings(IDirect3DDevice9* device);
     void EnqueueVertex(float x, float y, Color color);
     [[nodiscard]] bool HasPendingLines() const;
-    [[nodiscard]] size_t GetActivePings() const;
 
     int ToIntPos(const float n) const
     {
@@ -191,7 +174,6 @@ private:
     std::vector<GW::UI::CompassPoint> queue{};
 
     Color color_drawings = Colors::ARGB(0xFF, 0xFF, 0xFF, 0xFF);
-    Color color_pings = Colors::ARGB(104, 255, 0, 0);
     Color color_shadowstep_line = Colors::ARGB(155, 128, 0, 128);
     Color color_shadowstep_line_maxrange = Colors::ARGB(255, 255, 0, 128);
     float maxrange_interp_begin = 0.85f;

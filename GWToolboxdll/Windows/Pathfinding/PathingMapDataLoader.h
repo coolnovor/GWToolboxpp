@@ -31,14 +31,7 @@ namespace Pathing {
 
     // Travel-portal props of the live map. Shared so the reachability check and the loaders agree
     // on what counts as a portal.
-    inline bool IsPortalModelFileId(uint32_t model_file_id)
-    {
-        switch (model_file_id) {
-            case 0x4e6b2: case 0x3c5ac: case 0xa825: case 0xe723:
-            case 0x858b: case 0x28da0: case 0x1c533: case 0x5e77a: return true;
-            default: return false;
-        }
-    }
+    bool IsPortalModelFileId(uint32_t model_file_id);
     void ParsePortalPropsFromMapContext(const GW::MapContext* map_context, std::vector<PortalProp>& out);
 
 } // namespace Pathing

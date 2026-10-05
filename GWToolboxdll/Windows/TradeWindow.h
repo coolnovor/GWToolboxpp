@@ -18,7 +18,7 @@ public:
         return instance;
     }
 
-    [[nodiscard]] const char* Name() const override { return "Trade"; }
+    [[nodiscard]] const char* Name() const override { return "交易行"; }
     [[nodiscard]] const char* Icon() const override { return ICON_FA_BALANCE_SCALE; }
 
     struct Settings {

@@ -7,7 +7,6 @@ struct GWToolboxRelease {
     std::string version;
     std::string download_url;
     uintmax_t size = 0;
-    bool prerelease = false;
 };
 
 class Updater : public ToolboxUIElement {

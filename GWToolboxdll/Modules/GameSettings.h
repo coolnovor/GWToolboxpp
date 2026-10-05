@@ -7,6 +7,17 @@
 #include <Color.h>
 #include <ToolboxModule.h>
 
+enum class DEFAULT_NAMETAG_COLOR : Color {
+    NPC                 = 0xFFA0FF00,
+    PLAYER_SELF         = 0xFF40FF40,
+    PLAYER_OTHER        = 0xFF9BBEFF,
+    PLAYER_IN_PARTY     = 0xFF6060FF,
+    PLAYER_IN_MY_PARTY  = 0xFF6060FF,
+    GADGET              = 0xFFFFFF00,
+    ENEMY               = 0xFFFF0000,
+    ITEM                = 0x0,
+};
+
 namespace GW {
     struct Item;
     struct Friend;
@@ -32,7 +43,7 @@ public:
         return instance;
     }
 
-    [[nodiscard]] const char* Name() const override { return "Game Settings"; }
+    [[nodiscard]] const char* Name() const override { return "游戏设置"; }
     [[nodiscard]] const char* Icon() const override { return ICON_FA_GAMEPAD; }
     static void PingItem(GW::Item* item, uint32_t parts = 3);
     static void PingItem(uint32_t item_id, uint32_t parts = 3);
@@ -137,6 +148,7 @@ public:
         bool block_vanquish_complete_popup = false;
 
         bool hide_dungeon_chest_popup = false;
+        bool hide_window_buttons_in_fullscreen = false;
         bool skip_entering_name_for_faction_donate = false;
         bool stop_screen_shake = false;
         bool disable_camera_smoothing = false;
@@ -145,6 +157,16 @@ public:
         bool useful_level_progress_label = true;
         bool hide_store_page_on_char_select = false;
 
+        Colors::SettingColor nametag_color_npc = static_cast<Color>(DEFAULT_NAMETAG_COLOR::NPC);
+        Colors::SettingColor nametag_color_player_self = static_cast<Color>(DEFAULT_NAMETAG_COLOR::PLAYER_SELF);
+        Colors::SettingColor nametag_color_player_other = static_cast<Color>(DEFAULT_NAMETAG_COLOR::PLAYER_OTHER);
+        Colors::SettingColor nametag_color_player_in_party = static_cast<Color>(DEFAULT_NAMETAG_COLOR::PLAYER_IN_PARTY);
+        Colors::SettingColor nametag_color_player_in_my_party = static_cast<Color>(DEFAULT_NAMETAG_COLOR::PLAYER_IN_MY_PARTY);
+        Colors::SettingColor nametag_color_friends = 0xFF60FF60;
+        Colors::SettingColor nametag_color_guild_members = 0xFFFFD060;
+        Colors::SettingColor nametag_color_gadget = static_cast<Color>(DEFAULT_NAMETAG_COLOR::GADGET);
+        Colors::SettingColor nametag_color_enemy = static_cast<Color>(DEFAULT_NAMETAG_COLOR::ENEMY);
+        Colors::SettingColor nametag_color_item = static_cast<Color>(DEFAULT_NAMETAG_COLOR::ITEM);
     };
 
     void Initialize() override;

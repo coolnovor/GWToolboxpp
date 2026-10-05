@@ -40,7 +40,7 @@ namespace {
     {
         using namespace TextUtils;
         std::string sanitised = ToLower(RemovePunctuation(WStringToString(in)));
-        // Remove "the " from front of entered string
+        // 从输入字符串开头移除 "the "
         const size_t found = sanitised.rfind("the ");
         if (found == 0) {
             sanitised.replace(found, 4, "");
@@ -48,7 +48,7 @@ namespace {
         return sanitised;
     }
 
-    // Maps map id to a searchable char array via Name()
+    // 将地图 ID 映射到可通过 Name() 搜索的字符数组
     struct SearchableArea {
     protected:
         char* name = nullptr;
@@ -102,10 +102,10 @@ namespace {
         Ready
     };
 
-    // Owning lists of searchable travel destinations split by world
+    // 按世界划分的可搜索旅行目的地的拥有列表
     std::vector<SearchableArea*> pre_searchable_areas{};
     std::vector<SearchableArea*> post_searchable_areas{};
-    // Points to whichever of the two lists matches the player's current world
+    // 指向与玩家当前世界匹配的两个列表之一
     std::vector<SearchableArea*>* visible_searchable_areas = nullptr;
 
     FetchedMapNames fetched_searchable_areas = FetchedMapNames::Pending;
@@ -220,7 +220,7 @@ namespace {
         {GW::Constants::MapID::The_Deep},
     };
 
-    // ==== User-defined travel destinations (shown as 2-column buttons in main window) ====
+    // ==== 用户定义的旅行目的地（在主窗口中显示为两列按钮） ====
     std::vector<TravelWindow::UserDestEntry> user_destinations{};
 
     void PopulateDefaultDestinations()
@@ -228,9 +228,9 @@ namespace {
         user_destinations = default_user_destinations;
     }
 
-    // ==== scroll to outpost ====
-    GW::Constants::MapID scroll_to_outpost_id = GW::Constants::MapID::None;   // Which outpost do we want to end up in?
-    GW::Constants::MapID scroll_from_outpost_id = GW::Constants::MapID::None; // Which outpost did we start from?
+    // ==== 滚动到前哨站 ====
+    GW::Constants::MapID scroll_to_outpost_id = GW::Constants::MapID::None;   // 我们想要到达哪个前哨站？
+    GW::Constants::MapID scroll_from_outpost_id = GW::Constants::MapID::None; // 我们从哪个前哨站出发？
 
     bool map_travel_countdown_started = false;
 
@@ -258,8 +258,8 @@ namespace {
                 }
                 const auto msg = static_cast<UIErrorMessage*>(wparam);
                 if (msg && msg->message && *msg->message == 0xb25) {
-                    // Travel failed, but we want to retry
-                    // NB: 0xb25 = "That district is full. Please select another."
+                    // 旅行失败，但我们想重试
+                    // 注意：0xb25 = "该区域已满。请选择其他区域。"
                     status->blocked = true;
                     SendUIMessage(GW::UI::UIMessage::kTravel, &pending_map_travel);
                 }
@@ -268,7 +268,7 @@ namespace {
         }
     }
 
-    // ==== Helpers ====
+    // ==== 辅助函数 ====
     GW::Constants::MapID IndexToOutpostID(const int index)
     {
         if (visible_searchable_areas && static_cast<size_t>(index) < visible_searchable_areas->size()) {
@@ -289,16 +289,16 @@ namespace {
 
     bool ParseOutpost(const std::wstring& s, GW::Constants::MapID& outpost, GW::Constants::District& district, const uint32_t&)
     {
-        // By Map ID e.g. "/tp 77" for house zu heltzer
+        // 按地图 ID，例如 "/tp 77" 到 House zu Heltzer
         uint32_t map_id = 0;
         if (TextUtils::ParseUInt(s.c_str(), &map_id)) {
             return outpost = static_cast<GW::Constants::MapID>(map_id), true;
         }
 
-        // By full outpost name (without punctuation) e.g. "/tp GrEaT TemplE oF BalthaZAR"
+        // 按完整前哨站名称（无标点），例如 "/tp GrEaT TemplE oF BalthaZAR"
         std::string compare = SanitiseForSearch(s);
 
-        // Shortcut words e.g "/tp doa" for domain of anguish
+        // 快捷词，例如 "/tp doa" 到 Domain of Anguish
         const std::string first_word = compare.substr(0, compare.find(' '));
         for (const auto& entry : user_aliases) {
             if (first_word == entry.alias) {
@@ -320,13 +320,13 @@ namespace {
             for (size_t i = 0; i < map_count; i++) {
                 const auto thisMapLength = strlen(map_names[i]);
                 if (searchStringLength > thisMapLength) {
-                    continue; // String entered by user is longer than this outpost name.
+                    continue; // 用户输入的字符串比此前哨站名称长
                 }
                 if (strncmp(map_names[i], compare, searchStringLength) != 0) {
-                    continue; // No match
+                    continue; // 不匹配
                 }
                 if (thisMapLength == searchStringLength) {
-                    return map_ids[i]; // Exact match, break.
+                    return map_ids[i]; // 精确匹配，退出
                 }
                 if (!bestMatchMapName || strcmp(map_names[i], bestMatchMapName) < 0) {
                     bestMatchMapID = map_ids[i];
@@ -350,13 +350,13 @@ namespace {
                     continue;
                 const auto thisMapLength = strlen(map.Name());
                 if (searchStringLength > thisMapLength) {
-                    continue; // String entered by user is longer than this outpost name.
+                    continue; // 用户输入的字符串比此前哨站名称长
                 }
                 if (strncmp(map.Name(), compare, searchStringLength) != 0) {
-                    continue; // No match
+                    continue; // 不匹配
                 }
                 if (thisMapLength == searchStringLength) {
-                    return map.map_id; // Exact match, break.
+                    return map.map_id; // 精确匹配，退出
                 }
                 const bool thisIsOutpost = IsValidOutpost(map.map_id);
                 if (!bestMatchMapName || (thisIsOutpost && !bestMatchIsOutpost) ||
@@ -374,7 +374,7 @@ namespace {
         }
 
         if (best_match_map_id != GW::Constants::MapID::None) {
-            return outpost = best_match_map_id, true; // Exact match
+            return outpost = best_match_map_id, true; // 精确匹配
         }
         return false;
     }
@@ -402,7 +402,7 @@ namespace {
     void CHAT_CMD_FUNC(CmdTP)
     {
         if (argc == 1) {
-            Log::Error("[Error] Please provide an argument");
+            Log::Error("[错误] 请提供参数");
             return;
         }
         GW::Constants::MapID outpost = GW::Map::GetMapID();
@@ -475,22 +475,22 @@ namespace {
                 instance.TravelFavorite(fav_num - 1);
                 return;
             }
-            Log::Error("[Error] Did not recognize favourite");
+            Log::Error("[错误] 未识别收藏");
             return;
         }
         for (auto i = 2; i < argc - 1; i++) {
-            // Outpost name can be anything after "/tp" but before the district e.g. "/tp house zu heltzer ae1"
+            // 前哨站名称可以是 "/tp" 之后的任何内容，但在区域之前，例如 "/tp house zu heltzer ae1"
             argOutpost.append(L" ");
             argOutpost.append(TextUtils::ToLower(argv[i]));
         }
         const bool isValidDistrict = ParseDistrict(argDistrict, district, district_number);
         if (isValidDistrict && argc == 2) {
-            // e.g. "/tp ae1"
-            instance.Travel(outpost, district, district_number); // NOTE: ParseDistrict sets district and district_number vars by reference.
+            // 例如 "/tp ae1"
+            instance.Travel(outpost, district, district_number); // 注意：ParseDistrict 通过引用设置 district 和 district_number 变量。
             return;
         }
         if (!isValidDistrict && argc > 2) {
-            // e.g. "/tp house zu heltzer"
+            // 例如 "/tp house zu heltzer"
             argOutpost.append(L" ");
             argOutpost.append(argDistrict);
         }
@@ -499,7 +499,7 @@ namespace {
             switch (outpost) {
                 case GW::Constants::MapID::Vizunah_Square_Foreign_Quarter_outpost:
                 case GW::Constants::MapID::Vizunah_Square_Local_Quarter_outpost:
-                    if (first_char_of_last_arg == 'l') // - e.g. /tp viz local
+                    if (first_char_of_last_arg == 'l') // - 例如 /tp viz local
                     {
                         outpost = GW::Constants::MapID::Vizunah_Square_Local_Quarter_outpost;
                     }
@@ -509,7 +509,7 @@ namespace {
                     break;
                 case GW::Constants::MapID::Fort_Aspenwood_Luxon_outpost:
                 case GW::Constants::MapID::Fort_Aspenwood_Kurzick_outpost:
-                    if (first_char_of_last_arg == 'l') // - e.g. /tp fa lux
+                    if (first_char_of_last_arg == 'l') // - 例如 /tp fa lux
                     {
                         outpost = GW::Constants::MapID::Fort_Aspenwood_Luxon_outpost;
                     }
@@ -522,7 +522,7 @@ namespace {
                     break;
                 case GW::Constants::MapID::The_Jade_Quarry_Kurzick_outpost:
                 case GW::Constants::MapID::The_Jade_Quarry_Luxon_outpost:
-                    if (first_char_of_last_arg == 'l') // - e.g. /tp jq lux
+                    if (first_char_of_last_arg == 'l') // - 例如 /tp jq lux
                     {
                         outpost = GW::Constants::MapID::The_Jade_Quarry_Luxon_outpost;
                     }
@@ -536,10 +536,10 @@ namespace {
                 default:
                     break;
             }
-            instance.Travel(outpost, district, district_number); // NOTE: ParseOutpost sets outpost, district and district_number vars by reference.
+            instance.Travel(outpost, district, district_number); // 注意：ParseOutpost 通过引用设置 outpost、district 和 district_number 变量。
             return;
         }
-        Log::Error("[Error] Did not recognize outpost '%ls'", argOutpost.c_str());
+        Log::Error("[错误] 未识别前哨站 '%ls'", argOutpost.c_str());
     }
 
     const char* GetMapName(GW::Constants::MapID map_id)
@@ -582,10 +582,10 @@ namespace {
             const auto it = vec[i];
             if (!it->Name())
                 return false;
-            // Now that this one has decoded, check that there's nothing yet in the searchable areas that have the same name, e.g. festival outposts
+            // 既然这个已解码，检查可搜索区域中是否已有同名项，例如节日前哨站
             if (searchable_area_indeces_by_name.contains(it->Name())) {
                 auto* existing = searchable_area_indeces_by_name[it->Name()];
-                // Prefer outposts over non-outposts (e.g. The Eternal Grove outpost vs explorable)
+                // 优先选择前哨站而非非前哨站（例如 The Eternal Grove 前哨站 vs 探索区域）
                 if (IsValidOutpost(it->map_id) && !IsValidOutpost(existing->map_id)) {
                     auto existing_pos = std::ranges::find(vec, existing);
                     vec.erase(existing_pos);
@@ -683,7 +683,7 @@ void TravelWindow::Draw(IDirect3DDevice9*)
         else {
             ImGui::PushItemWidth(-1.0f);
             static int travelto_index = -1;
-            if (ImGui::MyCombo("###travelto", "Travel To...", &travelto_index, outpost_name_array_getter, nullptr, visible_searchable_areas ? visible_searchable_areas->size() : 0)) {
+            if (ImGui::MyCombo("###travelto", "旅行到...", &travelto_index, outpost_name_array_getter, nullptr, visible_searchable_areas ? visible_searchable_areas->size() : 0)) {
                 const auto map_id = IndexToOutpostID(travelto_index);
                 Travel(map_id, district, district_number);
                 travelto_index = -1;
@@ -695,7 +695,7 @@ void TravelWindow::Draw(IDirect3DDevice9*)
                 if (static_cast<size_t>(district_index) < district_ids.size()) {
                     district = district_ids[district_index];
                     if (district_index == 3) {
-                        // American 1
+                        // 美服 1
                         district_number = 1;
                     }
                 }
@@ -713,24 +713,24 @@ void TravelWindow::Draw(IDirect3DDevice9*)
             }
             if (settings.show_zaishen_buttons) {
                 const float w = (ImGui::GetWindowWidth() - ImGui::GetStyle().ItemInnerSpacing.x) / 2 - 2.f * ImGui::GetStyle().WindowPadding.x;
-                if (ImGui::Button("Zaishen Bounty", {w, 0})) {
+                if (ImGui::Button("扎伊圣悬赏", {w, 0})) {
                     GW::Chat::SendChat('/', "tp zb");
                 }
                 ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
-                if (ImGui::Button("Zaishen Mission", {w, 0})) {
+                if (ImGui::Button("扎伊圣任务", {w, 0})) {
                     GW::Chat::SendChat('/', "tp zm");
                 }
-                if (ImGui::Button("Zaishen Vanquish", {w, 0})) {
+                if (ImGui::Button("扎伊圣征服", {w, 0})) {
                     GW::Chat::SendChat('/', "tp zv");
                 }
                 ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
-                if (ImGui::Button("Zaishen Combat", {w, 0})) {
+                if (ImGui::Button("扎伊圣战斗", {w, 0})) {
                     GW::Chat::SendChat('/', "tp zc");
                 }
             }
         }
         if (pending_map_travel.map_id != GW::Constants::MapID::None && IsValidOutpost(pending_map_travel.map_id)) {
-            const auto abort_str = std::format("Abort retrying travel to {}", GetMapName(pending_map_travel.map_id));
+            const auto abort_str = std::format("停止重试前往 {}", GetMapName(pending_map_travel.map_id));
             if (ImGui::Button(abort_str.c_str())) {
                 pending_map_travel.map_id = GW::Constants::MapID::None;
             }
@@ -742,10 +742,10 @@ void TravelWindow::Draw(IDirect3DDevice9*)
 void TravelWindow::Update(const float)
 {
     if (scroll_to_outpost_id != GW::Constants::MapID::None) {
-        ScrollToOutpost(scroll_to_outpost_id); // We're in the process of scrolling to an outpost
+        ScrollToOutpost(scroll_to_outpost_id); // 我们正在滚动到前哨站的过程中
     }
 
-    // Build two separate searchable lists (pre and post searing) once on startup
+    // 启动时构建两个独立的可搜索列表（前传和后传）
     switch (fetched_searchable_areas) {
         case FetchedMapNames::Pending: {
             BuildSearchableAreas(pre_searchable_areas, [](const GW::Constants::MapID map_id, const GW::AreaInfo* map) {
@@ -770,7 +770,7 @@ void TravelWindow::Update(const float)
         break;
     }
 
-    // Toggle the pointer whenever the player switches between pre and post searing
+    // 当玩家在前传和后传之间切换时切换指针
     if (fetched_searchable_areas == FetchedMapNames::Ready) {
         auto* next = GW::Map::IsPreSearing() ? &pre_searchable_areas : &post_searchable_areas;
         if (visible_searchable_areas != next)
@@ -805,7 +805,7 @@ GW::Constants::MapID TravelWindow::GetNearestOutpostToLocation(const GW::AreaInf
         const auto map_info = GW::Map::GetMapInfo(map_id);
         if (!(map_info && map_info->continent == origin->continent && map_info->campaign == origin->campaign)) continue;
         // if ((map_info->flags & 0x5000000) != 0)
-        //    continue; // e.g. "wrong" augury rock is map 119, no NPCs
+        //    continue; // 例如“错误”的 Augury Rock 是地图 119，没有 NPC
         if (!GetMapLabelPos(map_info, &map_pos)) continue;
         const float dist = GetDistance(world_map_pos, map_pos);
         if (dist < nearest_distance) {
@@ -828,7 +828,7 @@ GW::Constants::MapID TravelWindow::GetNearestOutpostToPlayer()
 
 GW::Constants::MapID TravelWindow::GetNearestOutpost(const GW::Constants::MapID map_to)
 {
-    // If map_to is itself a valid unlocked outpost, just return it directly.
+    // 如果 map_to 本身是有效且已解锁的前哨站，直接返回
     if (IsValidOutpost(map_to) && GW::Map::GetIsMapUnlocked(map_to))
         return map_to;
 
@@ -839,7 +839,7 @@ GW::Constants::MapID TravelWindow::GetNearestOutpost(const GW::Constants::MapID 
     queue.push_back(map_to);
     depth[static_cast<size_t>(map_to)] = 0;
 
-    // Get world map position of the target for tiebreaking
+    // 获取目标的世界地图位置用于平局判定
     const GW::AreaInfo* origin_info = GW::Map::GetMapInfo(map_to);
     GW::Vec2f origin_pos{};
     const bool has_origin_pos = origin_info && GetMapLabelPos(origin_info, &origin_pos);
@@ -853,7 +853,7 @@ GW::Constants::MapID TravelWindow::GetNearestOutpost(const GW::Constants::MapID 
         const auto current = queue[head];
         const auto current_depth = depth[static_cast<size_t>(current)];
 
-        // Stop exploring once we've passed the depth of the best outpost found
+        // 一旦超过已找到的最佳前哨站深度，停止探索
         if (best != MapID::None && current_depth > best_depth)
             break;
 
@@ -861,8 +861,8 @@ GW::Constants::MapID TravelWindow::GetNearestOutpost(const GW::Constants::MapID 
             const auto* cur_info = GW::Map::GetMapInfo(current);
             const uint32_t party_size = cur_info ? cur_info->max_party_size : 0;
 
-            // Tiebreak: prefer larger party size, then Euclidean distance (same-continent),
-            // then adjacency array order when no world map position is available
+            // 平局判定：优先选择队伍容量更大的，然后是欧几里得距离（同大陆），
+            // 如果没有世界地图位置则按邻接数组顺序
             float dist = std::numeric_limits<float>::max();
             if (has_origin_pos && cur_info && cur_info->continent == origin_info->continent) {
                 GW::Vec2f outpost_pos;
@@ -894,7 +894,7 @@ GW::Constants::MapID TravelWindow::GetNearestOutpost(const GW::Constants::MapID 
     if (best != MapID::None)
         return best;
 
-    // Fall back to Euclidean distance on the world map if not reachable via adjacency
+    // 如果通过邻接图无法到达，回退到世界地图上的欧几里得距离
     const GW::AreaInfo* this_map = GW::Map::GetMapInfo(map_to);
     if (!this_map) return MapID::None;
 
@@ -914,20 +914,20 @@ void TravelWindow::ScrollToOutpost(const GW::Constants::MapID outpost_id, const 
     if (!GW::Map::GetIsMapLoaded() || (!GW::PartyMgr::GetIsPartyLoaded() && GW::Map::GetInstanceType() != GW::Constants::InstanceType::Explorable)) {
         map_travel_countdown_started = false;
         pending_map_travel.map_id = GW::Constants::MapID::None;
-        return; // Map loading, so we're no longer waiting for travel timer to start or finish.
+        return; // 地图加载中，因此我们不再等待旅行计时开始或结束。
     }
     if (IsWaitingForMapTravel()) {
         map_travel_countdown_started = true;
-        return; // Currently in travel countdown. Wait until the countdown is complete or cancelled.
+        return; // 当前在旅行倒计时中。等待倒计时完成或被取消。
     }
     if (map_travel_countdown_started) {
         pending_map_travel.map_id = GW::Constants::MapID::None;
         map_travel_countdown_started = false;
         scroll_to_outpost_id = GW::Constants::MapID::None;
-        return; // We were waiting for countdown, but it was cancelled.
+        return; // 我们正在等待倒计时，但它被取消了。
     }
     if (pending_map_travel.map_id != GW::Constants::MapID::None) {
-        return; // Checking too soon; still waiting for either a map travel or a countdown for it.
+        return; // 检查得太快；仍在等待地图旅行或其倒计时。
     }
 
     const GW::Constants::MapID map_id = GW::Map::GetMapID();
@@ -936,14 +936,14 @@ void TravelWindow::ScrollToOutpost(const GW::Constants::MapID outpost_id, const 
         scroll_from_outpost_id = map_id;
     }
     if (scroll_to_outpost_id != outpost_id) {
-        return; // Already travelling to another outpost
+        return; // 已在前往另一个前哨站
     }
     if (map_id == outpost_id) {
         scroll_to_outpost_id = GW::Constants::MapID::None;
         if (!IsAlreadyInOutpost(outpost_id, _district, _district_number)) {
             GW::Map::Travel(outpost_id, _district, _district_number);
         }
-        return; // Already at this outpost. Called GW::Map::Travel just in case district is different.
+        return; // 已在此前哨站。调用 GW::Map::Travel 以防区域不同。
     }
 
     uint32_t scroll_model_id = 0;
@@ -958,12 +958,12 @@ void TravelWindow::ScrollToOutpost(const GW::Constants::MapID outpost_id, const 
             is_ready_to_scroll |= map_id == GW::Constants::MapID::House_zu_Heltzer_outpost;
             break;
         default:
-            Log::Error("Invalid outpost for scrolling");
+            Log::Error("滚动目标前哨站无效");
             return;
     }
     if (!is_ready_to_scroll && scroll_from_outpost_id != map_id) {
         scroll_to_outpost_id = GW::Constants::MapID::None;
-        return; // Not in scrollable outpost, but we're not in the outpost we started from either - user has decided to travel somewhere else.
+        return; // 不在可滚动的前哨站中，但也不在起始前哨站 — 用户已决定前往其他地方。
     }
 
     const GW::Item* scroll_to_use = GW::Items::GetItemByModelId(
@@ -972,17 +972,17 @@ void TravelWindow::ScrollToOutpost(const GW::Constants::MapID outpost_id, const 
         static_cast<int>(GW::Constants::Bag::Storage_14));
     if (!scroll_to_use) {
         scroll_to_outpost_id = GW::Constants::MapID::None;
-        Log::Error("No scroll found in inventory for travel");
-        return; // No scroll found.
+        Log::Error("背包中未找到旅行卷轴");
+        return; // 未找到卷轴。
     }
     if (is_ready_to_scroll) {
         scroll_to_outpost_id = GW::Constants::MapID::None;
         GW::Items::UseItem(scroll_to_use);
-        return; // Done.
+        return; // 完成。
     }
-    // Travel to embark.
+    // 前往启程海滩。
     if (!Travel(GW::Constants::MapID::Embark_Beach, _district, _district_number)) {
-        // Failed to move to outpost for scrolling
+        // 移动到滚动前哨站失败
         scroll_to_outpost_id = GW::Constants::MapID::None;
         return;
     }
@@ -992,7 +992,7 @@ bool TravelWindow::TravelNearest(const GW::Constants::MapID map_id)
 {
     const auto outpost = GetNearestOutpost(map_id);
     if (outpost == GW::Constants::MapID::None) {
-        Log::ErrorW(L"[Error] Failed to find an unlocked outpost near %s", Resources::GetMapName(map_id)->wstring().c_str());
+        Log::ErrorW(L"[错误] 未能找到 %s 附近的已解锁前哨站", Resources::GetMapName(map_id)->wstring().c_str());
         return false;
     }
     return Travel(outpost);
@@ -1003,7 +1003,7 @@ bool TravelWindow::Travel(const GW::Constants::MapID map_id, const GW::Constants
     if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading || map_id == GW::Constants::MapID::None) {
         return false;
     }
-    // Resolve non-outpost maps (explorable zones, dungeons) to nearest accessible outpost via adjacency
+    // 将非前哨站地图（探索区域、地城）解析为通过邻接图可到达的最近前哨站
     if (!IsValidOutpost(map_id)) {
         const auto nearest = GetNearestOutpost(map_id);
         if (nearest == GW::Constants::MapID::None) return false;
@@ -1012,9 +1012,9 @@ bool TravelWindow::Travel(const GW::Constants::MapID map_id, const GW::Constants
     if (!GW::Map::GetIsMapUnlocked(map_id)) {
         const GW::AreaInfo* map = GW::Map::GetMapInfo(map_id);
         wchar_t map_name_buf[8];
-        constexpr wchar_t err_message_buf[256] = L"[Error] Your character does not have that map unlocked";
+        constexpr wchar_t err_message_buf[256] = L"[错误] 你的角色未解锁该地图";
         if (map && map->name_id && GW::UI::UInt32ToEncStr(map->name_id, map_name_buf, 8)) {
-            Log::ErrorW(L"[Error] Your character does not have \x1\x2%s\x2\x108\x107 unlocked", map_name_buf);
+            Log::ErrorW(L"[错误] 你的角色未解锁 \x1\x2%s\x2\x108\x107", map_name_buf);
         }
         else {
             Log::ErrorW(err_message_buf);
@@ -1022,7 +1022,7 @@ bool TravelWindow::Travel(const GW::Constants::MapID map_id, const GW::Constants
         return false;
     }
     if (IsAlreadyInOutpost(map_id, _district, _district_number)) {
-        Log::Error("[Error] You are already in the outpost");
+        Log::Error("[错误] 你已在此前哨站中");
         return true;
     }
 
@@ -1060,25 +1060,25 @@ bool TravelWindow::TravelFavorite(const unsigned int idx)
 
 void TravelWindow::DrawSettingsInternal()
 {
-    ImGui::CheckboxWithHelp("Close on travel", &settings.close_on_travel, "Will close the travel window when clicking on a travel destination");
-    ImGui::CheckboxWithHelp("Collapse on travel", &settings.collapse_on_travel, "Will collapse the travel window when clicking on a travel destination");
-    ImGui::CheckboxWithHelp("Automatically retry if the district is full", &settings.retry_map_travel, "Use /tp stop to stop retrying.");
-    ImGui::CheckboxWithHelp("Use English map names", &settings.search_in_english, "If this is unchecked, the /tp command will use the localized map names based on your current language.");
-    ImGui::CheckboxWithHelp("Show Zaishen quest buttons", &settings.show_zaishen_buttons, "Show the Zaishen Bounty, Mission, Vanquish and Combat travel buttons in the Travel window.");
+    ImGui::CheckboxWithHelp("旅行时关闭", &settings.close_on_travel, "点击旅行目的地时将关闭旅行窗口");
+    ImGui::CheckboxWithHelp("旅行时折叠", &settings.collapse_on_travel, "点击旅行目的地时将折叠旅行窗口");
+    ImGui::CheckboxWithHelp("区域满时自动重试", &settings.retry_map_travel, "使用 /tp stop 停止重试。");
+    ImGui::CheckboxWithHelp("使用英文地图名称", &settings.search_in_english, "如果取消勾选，/tp 命令将根据当前语言使用本地化地图名称。");
+    ImGui::CheckboxWithHelp("显示扎伊圣任务按钮", &settings.show_zaishen_buttons, "在旅行窗口中显示扎伊圣悬赏、任务、征服和战斗旅行按钮。");
 
     ImGui::Separator();
-    ImGui::Text("User Travel Destinations");
-    ImGui::ShowHelp("Destinations shown as half-width buttons in the Travel window. Add, remove or reorder them here. Use the reset button to restore the built-in defaults.");
+    ImGui::Text("用户旅行目的地");
+    ImGui::ShowHelp("在旅行窗口中显示为半宽按钮的目的地。在此添加、移除或重新排序。使用重置按钮恢复内置默认值。");
 
     {
         const auto dest_btn_w = ImGui::FontScale() * 30.f;
         const auto dest_spacing = ImGui::GetStyle().ItemSpacing.x;
 
         if (ImGui::BeginTable("##destinations", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
-            ImGui::TableSetupColumn("Map", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("District", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 100.f);
-            ImGui::TableSetupColumn("Dist #", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 45.f);
-            ImGui::TableSetupColumn("##deldest", ImGuiTableColumnFlags_WidthFixed, dest_btn_w);
+            ImGui::TableSetupColumn("地图", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("区域", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 100.f);
+            ImGui::TableSetupColumn("区域编号", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 45.f);
+            ImGui::TableSetupColumn("##删除", ImGuiTableColumnFlags_WidthFixed, dest_btn_w);
             ImGui::TableHeadersRow();
 
             for (size_t i = 0; i < user_destinations.size(); i++) {
@@ -1089,7 +1089,7 @@ void TravelWindow::DrawSettingsInternal()
                 ImGui::TableSetColumnIndex(0);
                 ImGui::SetNextItemWidth(-1);
                 auto map_idx = OutpostIDToIndex(dest.map_id);
-                if (ImGui::MyCombo("##destmap", "Select map...", &map_idx, outpost_name_array_getter, nullptr,
+                if (ImGui::MyCombo("##destmap", "选择地图...", &map_idx, outpost_name_array_getter, nullptr,
                     visible_searchable_areas ? static_cast<int>(visible_searchable_areas->size()) : 0)) {
                     dest.map_id = IndexToOutpostID(map_idx);
                 }
@@ -1109,7 +1109,7 @@ void TravelWindow::DrawSettingsInternal()
                 }
 
                 ImGui::TableSetColumnIndex(3);
-                if (ImGui::ButtonWithHint(ICON_FA_TRASH, "Remove destination", ImVec2(dest_btn_w, 0))) {
+                if (ImGui::ButtonWithHint(ICON_FA_TRASH, "删除目的地", ImVec2(dest_btn_w, 0))) {
                     user_destinations.erase(user_destinations.begin() + i);
                     ImGui::PopID();
                     break;
@@ -1120,23 +1120,23 @@ void TravelWindow::DrawSettingsInternal()
             ImGui::EndTable();
         }
 
-        if (ImGui::Button("Add Destination", ImVec2(dest_btn_w * 3, 0))) {
+        if (ImGui::Button("添加目的地", ImVec2(dest_btn_w * 3, 0))) {
             user_destinations.push_back({});
         }
 
         ImGui::SameLine(0, dest_spacing);
 
         static bool dest_reset_confirmed = false;
-        if (ImGui::ConfirmButton("Reset to Defaults", &dest_reset_confirmed,
-            "Reset Travel Destinations?\n\nThis will restore all destinations to the built-in defaults.")) {
+        if (ImGui::ConfirmButton("重置为默认", &dest_reset_confirmed,
+            "重置旅行目的地？\n\n这将把所有目的地恢复为内置默认值。")) {
             PopulateDefaultDestinations();
             dest_reset_confirmed = false;
         }
     }
 
     ImGui::Separator();
-    ImGui::Text("Outpost Aliases");
-    ImGui::ShowHelp("Custom shorthand aliases used with the /tp command.\nDistrict and district number are optional.");
+    ImGui::Text("前哨站别名");
+    ImGui::ShowHelp("用于 /tp 命令的自定义快捷别名。\n区域和区域编号为可选项。");
 
     const auto btn_w = ImGui::FontScale() * 30.f;
     const auto spacing = ImGui::GetStyle().ItemSpacing.x;
@@ -1144,11 +1144,11 @@ void TravelWindow::DrawSettingsInternal()
     bool aliases_changed = false;
 
     if (ImGui::BeginTable("##aliases", 5, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
-        ImGui::TableSetupColumn("Alias", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 70.f);
-        ImGui::TableSetupColumn("Map", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("District", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 100.f);
-        ImGui::TableSetupColumn("Dist #", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 45.f);
-        ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, btn_w);
+        ImGui::TableSetupColumn("别名", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 70.f);
+        ImGui::TableSetupColumn("地图", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("区域", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 100.f);
+        ImGui::TableSetupColumn("区域编号", ImGuiTableColumnFlags_WidthFixed, ImGui::FontScale() * 45.f);
+        ImGui::TableSetupColumn("##删除", ImGuiTableColumnFlags_WidthFixed, btn_w);
         ImGui::TableHeadersRow();
 
         for (size_t i = 0; i < user_aliases.size(); i++) {
@@ -1165,7 +1165,7 @@ void TravelWindow::DrawSettingsInternal()
             ImGui::TableSetColumnIndex(1);
             ImGui::SetNextItemWidth(-1);
             auto map_idx = OutpostIDToIndex(entry.map_id);
-            if (ImGui::MyCombo("##map", "Select map...", &map_idx, outpost_name_array_getter, nullptr, visible_searchable_areas ? static_cast<int>(visible_searchable_areas->size()) : 0)) {
+            if (ImGui::MyCombo("##map", "选择地图...", &map_idx, outpost_name_array_getter, nullptr, visible_searchable_areas ? static_cast<int>(visible_searchable_areas->size()) : 0)) {
                 entry.map_id = IndexToOutpostID(map_idx);
                 aliases_changed = true;
             }
@@ -1187,7 +1187,7 @@ void TravelWindow::DrawSettingsInternal()
             }
 
             ImGui::TableSetColumnIndex(4);
-            if (ImGui::ButtonWithHint(ICON_FA_TRASH, "Delete alias", ImVec2(btn_w, 0))) {
+            if (ImGui::ButtonWithHint(ICON_FA_TRASH, "删除别名", ImVec2(btn_w, 0))) {
                 user_aliases.erase(user_aliases.begin() + i);
                 aliases_changed = true;
                 ImGui::PopID();
@@ -1199,15 +1199,15 @@ void TravelWindow::DrawSettingsInternal()
         ImGui::EndTable();
     }
 
-    if (ImGui::Button("Add Alias", ImVec2(btn_w * 3, 0))) {
+    if (ImGui::Button("添加别名", ImVec2(btn_w * 3, 0))) {
         user_aliases.push_back({});
     }
 
     ImGui::SameLine(0, spacing);
 
     static bool reset_confirmed = false;
-    if (ImGui::ConfirmButton("Reset to Defaults", &reset_confirmed,
-        "Reset Outpost Aliases?\n\nThis will restore all aliases to the built-in defaults.\nCustom aliases will be lost.")) {
+    if (ImGui::ConfirmButton("重置为默认", &reset_confirmed,
+        "重置前哨站别名？\n\n这将把所有别名恢复为内置默认值。\n自定义别名将丢失。")) {
         PopulateDefaultAliases();
         reset_confirmed = false;
     }
@@ -1240,7 +1240,7 @@ void TravelWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
             }
         }
         else {
-            // Migrate from old fav_ keys if present
+            // 如果存在，从旧的 fav_ 键迁移
             const auto fav_count = legacy ? static_cast<size_t>(legacy->GetLongValue(Name(), "fav_count", 0)) : 0;
             for (size_t i = 0; i < fav_count; i++) {
                 char key[32];
@@ -1249,7 +1249,7 @@ void TravelWindow::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
                 if (map_id < GW::Constants::MapID::Count && map_id > GW::Constants::MapID::None)
                     user_destinations.push_back({map_id});
             }
-            // If still empty, populate defaults (respecting old show_default_destinations setting)
+            // 如果仍为空，填充默认值（尊重旧的 show_default_destinations 设置）
             if (user_destinations.empty()) {
                 const bool old_show_defaults = legacy ? legacy->GetBoolValue(Name(), "show_default_destinations", true) : true;
                 if (old_show_defaults) {

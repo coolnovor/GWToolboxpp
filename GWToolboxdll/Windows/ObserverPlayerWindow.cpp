@@ -36,7 +36,7 @@ uint32_t ObserverPlayerWindow::GetTracking()
         return previously_tracked_agent_id;
     }
 
-    // keep tracking up-to-date with the current desired target
+    // 保持追踪与当前期望目标同步
     const GW::Agent* agent = GW::Agents::GetObservingAgent();
     if (!agent) {
         return previously_tracked_agent_id;
@@ -58,7 +58,7 @@ uint32_t ObserverPlayerWindow::GetComparison()
         return previously_compared_agent_id;
     }
 
-    // keep tracking up-to-date with the current desired target
+    // 保持比较与当前期望目标同步
     const GW::Agent* agent = GW::Agents::GetTarget();
     if (!agent) {
         return previously_compared_agent_id;
@@ -77,7 +77,7 @@ uint32_t ObserverPlayerWindow::GetComparison()
 void ObserverPlayerWindow::DrawHeaders() const
 {
     float offset = 0;
-    ImGui::Text("Name");
+    ImGui::Text("技能名称");
     float offset_d = text_long;
     if (settings.show_attempts) {
         ImGui::SameLine(offset += offset_d);
@@ -106,7 +106,7 @@ void ObserverPlayerWindow::DrawHeaders() const
     }
     if (settings.show_damage) {
         ImGui::SameLine(offset += offset_d);
-        ImGui::Text("Damage");
+        ImGui::Text("伤害");
     }
 }
 
@@ -269,11 +269,11 @@ void ObserverPlayerWindow::Draw(IDirect3DDevice9*)
                     ImGui::Text("Allies:");
 
                     float offset = 0;
-                    ImGui::Text("Player");
+                    ImGui::Text("玩家");
                     ImGui::SameLine(offset += text_long);
-                    ImGui::Text("Heal+");
+                    ImGui::Text("治疗+");
                     ImGui::SameLine(offset += text_short);
-                    ImGui::Text("Heal-");
+                    ImGui::Text("治疗-");
                     ImGui::Separator();
 
                     for (const auto& agent_id : ally_agent_ids) {
@@ -306,11 +306,11 @@ void ObserverPlayerWindow::Draw(IDirect3DDevice9*)
                     ImGui::Text("Opponents:");
 
                     float offset = 0;
-                    ImGui::Text("Player");
+                    ImGui::Text("玩家");
                     ImGui::SameLine(offset += text_long);
-                    ImGui::Text("Dmg+");
+                    ImGui::Text("伤害+");
                     ImGui::SameLine(offset += text_short);
-                    ImGui::Text("Dmg-");
+                    ImGui::Text("伤害-");
                     ImGui::Separator();
 
                     for (const auto& agent_id : opponent_agent_ids) {
@@ -342,7 +342,7 @@ void ObserverPlayerWindow::Draw(IDirect3DDevice9*)
 
         if (settings.show_tracking) {
             ImGui::Separator();
-            ImGui::Text("Skills:");
+            ImGui::Text("技能：");
             DrawHeaders();
             ImGui::Separator();
             DrawSkills(tracking->stats.skills_used, tracking->stats.skill_ids_used);
@@ -379,15 +379,15 @@ void ObserverPlayerWindow::Draw(IDirect3DDevice9*)
 
 void ObserverPlayerWindow::DrawSettingsInternal()
 {
-    ImGui::Text("Make sure the Observer Module is enabled.");
-    ImGui::Checkbox("Show tracking player", &settings.show_tracking);
-    ImGui::Checkbox("Show player comparison", &settings.show_comparison);
-    ImGui::Checkbox("Show skills used on self", &settings.show_skills_used_on_self);
-    ImGui::Checkbox(("Show attempts ("s + ObserverLabel::Attempts + ")").c_str(), &settings.show_attempts);
-    ImGui::Checkbox(("Show cancels ("s + ObserverLabel::Cancels + ")").c_str(), &settings.show_cancels);
-    ImGui::Checkbox(("Show interrupts ("s + ObserverLabel::Interrupts + ")").c_str(), &settings.show_interrupts);
-    ImGui::Checkbox(("Show finishes ("s + ObserverLabel::Finishes + ")").c_str(), &settings.show_finishes);
-    ImGui::Checkbox(("Show integrity ("s + ObserverLabel::Integrity + ")").c_str(), &settings.show_integrity);
-    ImGui::Checkbox("Show damage", &settings.show_damage);
-    ImGui::Checkbox("Show damage details", &settings.show_damage_details);
+    ImGui::Text("请确保观战模块已启用。");
+    ImGui::Checkbox("显示追踪玩家", &settings.show_tracking);
+    ImGui::Checkbox("显示玩家比较", &settings.show_comparison);
+    ImGui::Checkbox("显示对自身使用的技能", &settings.show_skills_used_on_self);
+    ImGui::Checkbox(("显示尝试次数 ("s + ObserverLabel::Attempts + ")").c_str(), &settings.show_attempts);
+    ImGui::Checkbox(("显示取消 ("s + ObserverLabel::Cancels + ")").c_str(), &settings.show_cancels);
+    ImGui::Checkbox(("显示打断 ("s + ObserverLabel::Interrupts + ")").c_str(), &settings.show_interrupts);
+    ImGui::Checkbox(("显示完成 ("s + ObserverLabel::Finishes + ")").c_str(), &settings.show_finishes);
+    ImGui::Checkbox(("显示完整度 ("s + ObserverLabel::Integrity + ")").c_str(), &settings.show_integrity);
+    ImGui::Checkbox("显示伤害", &settings.show_damage);
+    ImGui::Checkbox("显示伤害详情", &settings.show_damage_details);
 }

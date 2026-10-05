@@ -52,27 +52,27 @@ namespace {
 } // namespace
 
 namespace ObserverLabel {
-    const char* Profession = "Prf";
-    const char* Name = "Name";
-    const char* PlayerGuildTag = "Tag";
-    const char* PlayerGuildRating = "Rtg";
-    const char* PlayerGuildRank = "Rnk";
-    const char* Kills = "K";
-    const char* Deaths = "D";
-    const char* KDR = "KDR";
-    const char* Attempts = "Atm";
-    const char* Integrity = "Dbg";
-    const char* Cancels = "C";
-    const char* Interrupts = "I";
-    const char* Knockdowns = "Kd";
-    const char* Finishes = "F";
-    const char* AttacksReceivedFromOtherParties = "A-";
-    const char* AttacksDealtToOtherParties = "A+";
-    const char* CritsReceivedFromOtherParties = "Cr-";
-    const char* CritsDealToOtherParties = "Cr+";
-    const char* SkillsReceivedFromOtherParties = "Sk-";
-    const char* SkillsUsedOnOtherParties = "Sk+";
-    const char* SkillsUsed = "Sk";
+    const char* Profession = "职业";
+    const char* Name = "名称";
+    const char* PlayerGuildTag = "公会标签";
+    const char* PlayerGuildRating = "公会评分";
+    const char* PlayerGuildRank = "公会排名";
+    const char* Kills = "击杀";
+    const char* Deaths = "死亡";
+    const char* KDR = "击杀/死亡";
+    const char* Attempts = "尝试";
+    const char* Integrity = "完整性";
+    const char* Cancels = "取消";
+    const char* Interrupts = "打断";
+    const char* Knockdowns = "击倒";
+    const char* Finishes = "终结";
+    const char* AttacksReceivedFromOtherParties = "来自其他队伍的进攻";
+    const char* AttacksDealtToOtherParties = "对其他队伍的进攻";
+    const char* CritsReceivedFromOtherParties = "来自其他队伍的暴击";
+    const char* CritsDealToOtherParties = "对其他队伍的暴击";
+    const char* SkillsReceivedFromOtherParties = "来自其他队伍的技能";
+    const char* SkillsUsedOnOtherParties = "对其他队伍使用的技能";
+    const char* SkillsUsed = "使用的技能";
 }; // namespace ObserverLabel
 
 
@@ -221,11 +221,6 @@ void ObserverModule::Initialize()
         HandleGenericPacket(value_id, caster_id, target_id, value, no_target);
     });
 
-    // NB: skill cancel/interrupt tracking is driven by the raw GenericValue value_ids above
-    // (attack_skill_stopped/skill_stopped/interrupted), not by kAgentSkillCancelled/kAgentSkillInterrupted -
-    // the client never actually broadcasts kAgentSkillCancelled, and always posts kAgentSkillInterrupted
-    // for both a genuine interrupt and a plain self-cancel/stop, making those UI messages indistinguishable.
-
     if (IsActive() && !observer_session_initialized) {
         InitializeObserverSession();
     }
@@ -363,16 +358,20 @@ void ObserverModule::HandleGenericPacket(const uint32_t value_id, const uint32_t
             break;
         }
 
+        case GW::Packet::StoC::GenericValueID::interrupted:
+            HandleInterrupted(caster_id);
+            break;
+
         case GW::Packet::StoC::GenericValueID::attack_skill_finished:
             HandleAttackSkillFinished(caster_id);
             break;
 
-        case GW::Packet::StoC::GenericValueID::attack_skill_stopped:
-            HandleSkillCancelled(caster_id);
-            break;
-
         case GW::Packet::StoC::GenericValueID::instant_skill_activated:
             HandleInstantSkillActivated(caster_id, target_id, static_cast<GW::Constants::SkillID>(value));
+            break;
+
+        case GW::Packet::StoC::GenericValueID::attack_skill_stopped:
+            HandleAttackSkillStopped(caster_id);
             break;
 
         case GW::Packet::StoC::GenericValueID::attack_skill_activated: {
@@ -398,14 +397,7 @@ void ObserverModule::HandleGenericPacket(const uint32_t value_id, const uint32_t
             break;
 
         case GW::Packet::StoC::GenericValueID::skill_stopped:
-            HandleSkillCancelled(caster_id);
-            break;
-
-        case GW::Packet::StoC::GenericValueID::interrupted:
-            // Real interrupt confirmation, sent by the server right after attack_skill_stopped/skill_stopped.
-            // See ObserverModule::ActionStage::Interrupted - ReduceAction() corrects the cancelled_count
-            // it already applied for the preceding Stopped stage.
-            HandleInterrupted(caster_id);
+            HandleSkillStopped(caster_id);
             break;
 
         case GW::Packet::StoC::GenericValueID::skill_activated: {
@@ -801,6 +793,12 @@ void ObserverModule::HandleAttackSkillFinished(const uint32_t agent_id)
 }
 
 
+void ObserverModule::HandleAttackSkillStopped(const uint32_t agent_id)
+{
+    ReduceAction(GetObservableAgentById(agent_id), ActionStage::Stopped);
+}
+
+
 void ObserverModule::HandleInstantSkillActivated(const uint32_t caster_id, const uint32_t target_id, const GW::Constants::SkillID skill_id)
 {
     // assuming there are no instant attack skills...
@@ -826,7 +824,7 @@ void ObserverModule::HandleSkillFinished(const uint32_t agent_id)
 }
 
 
-void ObserverModule::HandleSkillCancelled(const uint32_t agent_id)
+void ObserverModule::HandleSkillStopped(const uint32_t agent_id)
 {
     ReduceAction(GetObservableAgentById(agent_id), ActionStage::Stopped);
 }
@@ -1396,11 +1394,11 @@ bool ObserverModule::SynchroniseParties()
 
 void ObserverModule::DrawSettingsInternal()
 {
-    ImGui::Text("Enable data collection in Observer Mode.");
-    ImGui::Text("Disable if not using this feature to avoid using extra CPU and memory in Observer Mode.");
-    ImGui::Checkbox("Enabled", &settings.is_enabled);
-    ImGui::Checkbox("Trim henchman names", &settings.trim_hench_names);
-    ImGui::Checkbox("Enable in all Explorable Areas (experimental and unsupported)", &settings.enable_in_explorable_areas);
+    ImGui::Text("在观战模式下启用数据收集。");
+    ImGui::Text("如果不使用此功能，请禁用以避免在观战模式下消耗额外的CPU和内存。");
+    ImGui::Checkbox("启用", &settings.is_enabled);
+    ImGui::Checkbox("修剪佣兵名字", &settings.trim_hench_names);
+    ImGui::Checkbox("在所有可探索区域启用（实验性且不受支持）", &settings.enable_in_explorable_areas);
 }
 
 

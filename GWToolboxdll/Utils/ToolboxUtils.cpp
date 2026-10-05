@@ -135,14 +135,7 @@ namespace GW {
                 case MapID::The_Elusive_Golemancer_mission:
                 case MapID::Genius_Operated_Living_Enchanted_Manifestation_mission:
                     return {TitleID::Deldrimor};
-                case MapID::Turais_Procession:
-                case MapID::Jennurs_Horde:
-                case MapID::Nundu_Bay:
-                case MapID::Dzagonur_Bastion:
-                case MapID::Yatendi_Canyons:
-                case MapID::Vehtendi_Valley:
-                case MapID::Forum_Highlands:
-                case MapID::The_Mirror_of_Lyss:
+                // Lightbringer: Grand Court of Sebelkeh mission has Margonites (would otherwise show Sunspear by continent)
                 case MapID::Grand_Court_of_Sebelkeh:
                     return {TitleID::Lightbringer};
                 // Vanguard: DepthsOfTyria dungeons in Charr territory
@@ -475,7 +468,7 @@ namespace GW {
                 arr.m_buffer = new_buf;
                 arr.m_capacity++;
             }
-            memcpy(&arr.m_buffer[arr.m_size],&element,sizeof(T));
+            arr.m_buffer[arr.m_size] = element;
             return &arr.m_buffer[arr.m_size++];
         }
 
@@ -866,26 +859,11 @@ namespace GW {
         // The full ID is 0x0f000000 | skill_id, making it deterministic and recyclable per skill.
         static constexpr uint32_t custom_effect_id_base = 0x0f000000;
 
-        EffectArray* GetOrCreateAgentEffects(uint32_t agent_id)
-        {
-            auto agent_effects = GW::Effects::GetAgentEffects(agent_id);
-            if (agent_effects) return agent_effects;
-            auto effects_array = GW::Effects::GetPartyEffectsArray();
-            if (!effects_array) return 0;
-            AgentEffects e;
-            e.agent_id = agent_id;
-            memset(&e.buffs, 0, sizeof(e.buffs));
-            memset(&e.effects, 0, sizeof(e.effects));
-            GW::MemoryMgr::AddToGuildWarsArray(*effects_array, e);
-            return GW::Effects::GetAgentEffects(agent_id);
-        }
-
-
         uint32_t AddCustomEffect(const GW::Constants::SkillID skill_id, const float duration_seconds)
         {
-            const auto player_effects = GW::Effects::GetOrCreateAgentEffects(GW::Agents::GetControlledCharacterId());
+            const auto player_effects = GW::Effects::GetPlayerEffectsArray();
             if (!player_effects) return 0;
-            auto& arr = *player_effects;
+            auto& arr = player_effects->effects;
 
             const uint32_t target_id = custom_effect_id_base | static_cast<uint32_t>(skill_id);
 

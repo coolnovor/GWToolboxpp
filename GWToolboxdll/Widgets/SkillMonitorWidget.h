@@ -3,6 +3,9 @@
 #include <Widgets/SnapsToPartyWindow.h>
 
 class SkillMonitorWidget : public SnapsToPartyWindow {
+protected:
+    static void OnStoCPacket(GW::HookStatus* status, GW::Packet::StoC::PacketBase* base);
+    static void SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value);
 public:
     static SkillMonitorWidget& Instance()
     {
@@ -10,7 +13,7 @@ public:
         return instance;
     }
 
-    [[nodiscard]] const char* Name() const override { return "Skill Monitor"; }
+    [[nodiscard]] const char* Name() const override { return "技能监视器"; }
     [[nodiscard]] const char* Icon() const override { return ICON_FA_HISTORY; }
 
     struct Settings {

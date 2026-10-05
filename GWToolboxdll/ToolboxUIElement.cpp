@@ -19,6 +19,7 @@ namespace {
         const char* label;
         const wchar_t* label_ws;
     };
+    // 游戏内部界面名称（不可汉化，否则查找失败）
     constexpr FrameLabel available_frame_labels[] = {
         {"Compass", L"Compass"},   {"Effects Monitor", L"Effects"}, {"Inventory", L"Inventory"},        {"Mission Map", L"MapWindow"}, {"Quest Log", L"Quest"},
         {"Skillbar", L"Skillbar"}, {"Target", L"Target"},           {"Upkeep Monitor", L"SkillUpkeep"}, {"Weapon Bar", L"WeaponBar"},
@@ -49,6 +50,8 @@ namespace {
         return a.x == b.x && a.y == b.y;
     }
 
+    // Live rects of currently-shown breakout buttons, keyed by the owning element.
+    // Lets a newly-shown button pick a spot near the screen centre that doesn't overlap the others.
     std::unordered_map<const ToolboxUIElement*, ImRect> breakout_button_rects;
 
 } // namespace
@@ -78,14 +81,14 @@ void ToolboxUIElement::UpdateLocationAgainstSnappedFrame()
     if (!snapped_frame_state) return;
 
     const auto& frame_pos = snapped_frame_state->position;
-    if (ImVec2Eq(frame_pos, empty_imvec2)) return; // position not yet populated
+    if (ImVec2Eq(frame_pos, empty_imvec2)) return; // 位置尚未填充
 
     float* snap_off = (is_mobile ? mobile_snap_offset : snap_offset).data();
     bool& needs_init = is_mobile ? mobile_snap_offset_needs_init : snap_offset_needs_init;
 
     const auto window = ImGui::FindWindowByName(Name());
 
-    // On first valid frame position after snap is set: derive offset from current window position
+    // 在第一次获取到有效帧位置时，根据当前窗口位置计算偏移量
     if (needs_init) {
         needs_init = false;
         if (window) {
@@ -97,7 +100,7 @@ void ToolboxUIElement::UpdateLocationAgainstSnappedFrame()
     const float target_x = frame_pos.x + snap_off[0];
     const float target_y = frame_pos.y + snap_off[1];
 
-    // Keep fallback screen coords up-to-date so we have a valid position if the frame disappears
+    // 保留备用屏幕坐标，以便帧消失时仍能维持有效位置
     float* cur_pos = (is_mobile ? mobile_pos : normal_pos).data();
     cur_pos[0] = target_x;
     cur_pos[1] = target_y;
@@ -173,7 +176,6 @@ void ToolboxUIElement::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
     ToolboxModule::LoadSettings(doc, legacy);
     if (doc.Has(Name(), "breakout_pos") || (legacy && legacy->KeyExists(Name(), "breakout_pos[0]"))) {
         pending_breakout_pos = true;
-        breakout_layout_dirty = true;
     }
     if (!snapped_frame_label.empty() && !doc.Has(Name(), "snap_offset") && !(legacy && legacy->KeyExists(Name(), "snap_offset[0]"))) {
         snap_offset_needs_init = true;
@@ -321,6 +323,7 @@ void ToolboxUIElement::DrawSizeAndPositionSettings()
 {
     const bool is_mobile = ToolboxSettings::is_in_mobile_mode;
 
+    // 首次打开时根据当前模式自动选择选项卡
     if (settings_active_tab < 0) {
         settings_active_tab = is_mobile ? 1 : 0;
     }
@@ -354,9 +357,9 @@ void ToolboxUIElement::DrawSizeAndPositionSettings()
     bool& needs_init_ref = is_mobile ? mobile_snap_offset_needs_init : snap_offset_needs_init;
 
     char need_show_buf[128];
-    snprintf(need_show_buf, sizeof(need_show_buf), "You need to show the %s for this control to work", TypeName());
+    snprintf(need_show_buf, sizeof(need_show_buf), "你需要显示 %s 才能使此控件生效", TypeName());
 
-    if (is_movable) {
+    {
         static const char* frame_label_options[_countof(available_frame_labels) + 1];
         for (size_t i = 0; i < _countof(available_frame_labels); i++) {
             frame_label_options[i] = available_frame_labels[i].label;
@@ -370,13 +373,13 @@ void ToolboxUIElement::DrawSizeAndPositionSettings()
                 break;
             }
         }
-        const char* preview = current_idx >= 0 ? frame_label_options[current_idx] : "None";
+        const char* preview = current_idx >= 0 ? frame_label_options[current_idx] : "无";
 
-        const bool snap_disabled = lm;
+        const bool snap_disabled = !is_movable || lm;
         ImGui::BeginDisabled(snap_disabled);
         const std::string prev_snap = snap;
-        if (ImGui::BeginCombo("Snap to Frame", preview)) {
-            if (ImGui::Selectable("None", current_idx < 0)) {
+        if (ImGui::BeginCombo("吸附到界面元素", preview)) {
+            if (ImGui::Selectable("无", current_idx < 0)) {
                 snap.clear();
             }
             for (size_t i = 0; i < _countof(available_frame_labels); i++) {
@@ -391,55 +394,76 @@ void ToolboxUIElement::DrawSizeAndPositionSettings()
             ImGui::EndCombo();
         }
         ImGui::EndDisabled();
+        // 当吸附目标切换为新界面时，计划从当前窗口位置初始化偏移量
         if (snap != prev_snap && !snap.empty()) {
             needs_init_ref = true;
             snap_off[0] = 0.f;
             snap_off[1] = 0.f;
         }
         if (snap_disabled && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-            ImGui::SetTooltip("Uncheck 'Lock Position' to enable snap-to-frame");
-        }
-        else {
-            ImGui::ShowHelp(need_show_buf);
-        }
-
-        const bool pos_disabled = lm;
-        ImGui::BeginDisabled(pos_disabled);
-        if (!snap.empty()) {
-            if (ImGui::DragFloat2("Snap Offset", snap_off, 1.0f, 0.0f, 0.0f, "%.0f")) {
-                needs_init_ref = false;
+            if (!is_movable) {
+                ImGui::SetTooltip("此 %s 不可移动", TypeName());
             }
-        }
-        else if (ImGui::DragFloat2("Position", cur_pos, 1.0f, 0.0f, 0.0f, "%.0f") && window) {
-            ImGui::SetWindowPos(window, {cur_pos[0], cur_pos[1]});
-        }
-        ImGui::EndDisabled();
-        if (pos_disabled && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-            ImGui::SetTooltip("Uncheck 'Lock Position' to adjust position");
-        }
-        else if (!snap.empty()) {
-            ImGui::ShowHelp("Pixel offset from the snapped GW frame's top-left corner");
+            else {
+                ImGui::SetTooltip("取消勾选“锁定位置”以启用吸附功能");
+            }
         }
         else {
             ImGui::ShowHelp(need_show_buf);
         }
     }
 
-    if (is_resizable) {
-        const bool size_disabled = ls || as_;
+    // 位置 / 吸附偏移 — 二者互斥
+    {
+        const bool pos_disabled = !is_movable || lm;
+        ImGui::BeginDisabled(pos_disabled);
+        if (!snap.empty()) {
+            if (ImGui::DragFloat2("Snap Offset", snap_off, 1.0f, 0.0f, 0.0f, "%.0f")) {
+                needs_init_ref = false; // user explicitly set offset; cancel pending init
+            }
+        }
+        else {
+            if (ImGui::DragFloat2("Position", cur_pos, 1.0f, 0.0f, 0.0f, "%.0f")) {
+                if (window) {
+                    ImGui::SetWindowPos(window, {cur_pos[0], cur_pos[1]});
+                }
+            }
+        }
+        ImGui::EndDisabled();
+        if (pos_disabled && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+            if (!is_movable) {
+                ImGui::SetTooltip("此 %s 不可移动", TypeName());
+            }
+            else {
+                ImGui::SetTooltip("取消勾选“锁定位置”以调整位置");
+            }
+        }
+        else if (!snap.empty()) {
+            ImGui::ShowHelp("相对于吸附界面左上角的像素偏移量");
+        }
+        else {
+            ImGui::ShowHelp(need_show_buf);
+        }
+    }
+
+    {
+        const bool size_disabled = !is_resizable || ls || as_;
         ImGui::BeginDisabled(size_disabled);
-        if (ImGui::DragFloat2("Size", cur_size, 1.0f, 0.0f, 0.0f, "%.0f")) {
+        if (ImGui::DragFloat2("大小", cur_size, 1.0f, 0.0f, 0.0f, "%.0f")) {
             if (window) {
                 ImGui::SetWindowSize(window, {cur_size[0], cur_size[1]});
             }
         }
         ImGui::EndDisabled();
         if (size_disabled && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-            if (as_) {
-                ImGui::SetTooltip("Uncheck 'Auto Size' to adjust size");
+            if (!is_resizable) {
+                ImGui::SetTooltip("此 %s 不可调整大小", TypeName());
+            }
+            else if (as_) {
+                ImGui::SetTooltip("取消勾选“自动大小”以调整尺寸");
             }
             else {
-                ImGui::SetTooltip("Uncheck 'Lock Size' to adjust size");
+                ImGui::SetTooltip("取消勾选“锁定大小”以调整尺寸");
             }
         }
         else {
@@ -447,90 +471,106 @@ void ToolboxUIElement::DrawSizeAndPositionSettings()
         }
     }
 
-    if (is_movable || is_resizable) {
-        ImGui::StartSpacedElements(180.f);
-        if (is_movable) {
-            ImGui::NextSpacedElement();
-            ImGui::Checkbox("Lock Position", &lm);
-        }
-        if (is_resizable) {
-            ImGui::NextSpacedElement();
-            ImGui::Checkbox("Lock Size", &ls);
-            ImGui::NextSpacedElement();
-            ImGui::Checkbox("Auto Size", &as_);
-        }
+    ImGui::StartSpacedElements(180.f);
+
+    ImGui::NextSpacedElement();
+    ImGui::BeginDisabled(!is_movable);
+    ImGui::Checkbox("锁定位置", &lm);
+    ImGui::EndDisabled();
+    if (!is_movable && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("此 %s 不可移动", TypeName());
     }
 
-    if (is_resizable && has_titlebar) {
-        if (ImGui::Checkbox("Auto-resize on collapse/expand", &auto_resize_on_collapse)) {
-            collapse_size_initialized = false;
-        }
-        ImGui::ShowHelp("Automatically resize this window when it is collapsed or expanded");
-        ImGui::Indent();
-        ImGui::BeginDisabled(!auto_resize_on_collapse);
-        if (ImGui::DragFloat2("Collapsed size", collapsed_size.data(), 1.f, 0.f, 0.f, "%.0f")) {
-            collapse_size_initialized = false;
-        }
-        ImGui::ShowHelp("Width and height when the title bar is collapsed; 0 = keep current");
-        if (ImGui::DragFloat2("Expanded size", expanded_size.data(), 1.f, 0.f, 0.f, "%.0f")) {
-            collapse_size_initialized = false;
-        }
-        ImGui::ShowHelp("Width and height when the window is expanded; 0 = keep current");
-        ImGui::EndDisabled();
-        ImGui::Unindent();
+    ImGui::NextSpacedElement();
+    ImGui::BeginDisabled(!is_resizable);
+    ImGui::Checkbox("锁定大小", &ls);
+    ImGui::EndDisabled();
+    if (!is_resizable && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("此 %s 不可调整大小", TypeName());
     }
 
+    ImGui::NextSpacedElement();
+    ImGui::BeginDisabled(!is_resizable);
+    ImGui::Checkbox("自动大小", &as_);
+    ImGui::EndDisabled();
+    if (!is_resizable && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("此 %s 不可调整大小", TypeName());
+    }
+
+    // 折叠/展开时自动调整大小（仅当窗口有标题栏时有效）
+    ImGui::BeginDisabled(!has_titlebar);
+    if (ImGui::Checkbox("折叠/展开时自动调整大小", &auto_resize_on_collapse)) {
+        collapse_size_initialized = false;
+    }
+    ImGui::EndDisabled();
+    if (!has_titlebar && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("此 %s 没有标题栏", TypeName());
+    }
+    else {
+        ImGui::ShowHelp("当窗口折叠或展开时自动调整其大小");
+    }
+    ImGui::Indent();
+    ImGui::BeginDisabled(!auto_resize_on_collapse || !has_titlebar);
+    if (ImGui::DragFloat2("折叠时大小", collapsed_size.data(), 1.f, 0.f, 0.f, "%.0f")) {
+        collapse_size_initialized = false;
+    }
+    ImGui::ShowHelp("标题栏折叠时的宽度和高度；0 表示保持当前尺寸");
+    if (ImGui::DragFloat2("展开时大小", expanded_size.data(), 1.f, 0.f, 0.f, "%.0f")) {
+        collapse_size_initialized = false;
+    }
+    ImGui::ShowHelp("窗口展开时的宽度和高度；0 表示保持当前尺寸");
+    ImGui::EndDisabled();
+    ImGui::Unindent();
+
+    // 以下为通用设置（不区分模式）
     ImGui::StartSpacedElements(180.f);
 
     ImGui::NextSpacedElement();
     ImGui::BeginDisabled(!has_titlebar);
-    ImGui::Checkbox("Show titlebar", &show_titlebar);
+    ImGui::Checkbox("显示标题栏", &show_titlebar);
     ImGui::EndDisabled();
     if (!has_titlebar && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        ImGui::SetTooltip("This %s has no titlebar", TypeName());
+        ImGui::SetTooltip("此 %s 没有标题栏", TypeName());
     }
 
     ImGui::NextSpacedElement();
     ImGui::BeginDisabled(!has_closebutton);
-    ImGui::Checkbox("Show close button", &show_closebutton);
+    ImGui::Checkbox("显示关闭按钮", &show_closebutton);
     ImGui::EndDisabled();
     if (!has_closebutton && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        ImGui::SetTooltip("This %s has no close button", TypeName());
+        ImGui::SetTooltip("此 %s 没有关闭按钮", TypeName());
     }
 
     ImGui::NextSpacedElement();
     ImGui::BeginDisabled(!can_show_in_main_window);
-    if (ImGui::Checkbox("Show in main window", &show_menubutton)) {
+    if (ImGui::Checkbox("在主窗口中显示", &show_menubutton)) {
         if (can_show_in_main_window) {
             MainWindow::Instance().pending_refresh_buttons = true;
         }
     }
     ImGui::EndDisabled();
     if (!can_show_in_main_window && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        ImGui::SetTooltip("This %s cannot be shown in the main window", TypeName());
+        ImGui::SetTooltip("此 %s 无法在主窗口中显示", TypeName());
     }
 
-    if (const auto icon = Icon(); icon && *icon) {
-        ImGui::CheckboxWithHelp("Show breakout button", &show_breakout_button, "Shows a small floating button on screen that toggles this window.\nRight-click the button to remove it.");
-        if (show_breakout_button) {
-            ImGui::Indent();
-            ImGui::Checkbox("Lock breakout button position", &lock_breakout_button);
-            if (!lock_breakout_button) {
-                char breakout_window_id[256];
-                snprintf(breakout_window_id, sizeof(breakout_window_id), "%s##breakout_btn", Name());
-                const auto breakout_window = ImGui::FindWindowByName(breakout_window_id);
-                ImVec2 _breakout_pos(0, 0);
-                if (breakout_window) {
-                    _breakout_pos = breakout_window->Pos;
-                }
-                if (ImGui::DragFloat2("Breakout position", reinterpret_cast<float*>(&_breakout_pos), 1.0f, 0.0f, 0.0f, "%.0f")) {
-                    ImGui::SetWindowPos(breakout_window_id, _breakout_pos);
-                    breakout_layout_dirty = true;
-                }
-                ImGui::ShowHelp("You need to show the breakout button for this control to work");
+    ImGui::CheckboxWithHelp("显示浮动按钮", &show_breakout_button, "显示一个小型浮动按钮，用于切换此窗口的显示。\n右键点击该按钮可移除它。");
+    if (show_breakout_button) {
+        ImGui::Indent();
+        ImGui::Checkbox("锁定浮动按钮位置", &lock_breakout_button);
+        if (!lock_breakout_button) {
+            char breakout_window_id[256];
+            snprintf(breakout_window_id, sizeof(breakout_window_id), "%s##breakout_btn", Name());
+            const auto breakout_window = ImGui::FindWindowByName(breakout_window_id);
+            ImVec2 _breakout_pos(0, 0);
+            if (breakout_window) {
+                _breakout_pos = breakout_window->Pos;
             }
-            ImGui::Unindent();
+            if (ImGui::DragFloat2("浮动按钮位置", reinterpret_cast<float*>(&_breakout_pos), 1.0f, 0.0f, 0.0f, "%.0f")) {
+                ImGui::SetWindowPos(breakout_window_id, _breakout_pos);
+            }
+            ImGui::ShowHelp("你需要显示浮动按钮才能调整其位置");
         }
+        ImGui::Unindent();
     }
 }
 
@@ -552,96 +592,65 @@ void ToolboxUIElement::ShowVisibleRadio()
 }
 
 namespace {
-    ImVec2 ClampBreakoutPos(const ImVec2& pos, const ImVec2& size)
+    bool BreakoutRectsOverlap(const ImRect& a, const ImRect& b)
     {
-        const auto vp = ImGui::GetMainViewport();
-        return {ImClamp(pos.x, vp->WorkPos.x, vp->WorkPos.x + ImMax(0.f, vp->WorkSize.x - size.x)),
-                ImClamp(pos.y, vp->WorkPos.y, vp->WorkPos.y + ImMax(0.f, vp->WorkSize.y - size.y))};
+        return a.Min.x < b.Max.x && a.Max.x > b.Min.x && a.Min.y < b.Max.y && a.Max.y > b.Min.y;
     }
 
-    ImVec2 PlaceBreakoutButton(const ToolboxUIElement* self_element, const ImVec2& desired, const ImVec2& size)
+    // Minimum translation needed to push `self` out of every overlapping breakout button.
+    // Returns {0,0} when it already clears all of them.
+    ImVec2 ResolveBreakoutOverlap(const ToolboxUIElement* self_element, const ImRect& self)
     {
-        const auto fits = [self_element, size](const ImVec2& pos) {
-            const ImRect candidate(pos, {pos.x + size.x, pos.y + size.y});
-            for (const auto& [element, rect] : breakout_button_rects) {
-                if (element != self_element && candidate.Overlaps(rect)) return false;
-            }
-            return true;
-        };
-
-        // If the button was dropped roughly beside/above/below another one, snap it flush against that button and in line with it.
-        const auto snap_to_neighbour = [self_element, size](ImVec2 p) {
-            const float threshold = ImMax(size.x, size.y) * 0.75f;
-            const ImRect* nearest = nullptr;
-            float nearest_dist = FLT_MAX;
-            const ImVec2 center = {p.x + size.x * 0.5f, p.y + size.y * 0.5f};
-            for (const auto& [element, rect] : breakout_button_rects) {
-                if (element == self_element) continue;
-                if (p.x > rect.Max.x + threshold || p.x + size.x < rect.Min.x - threshold) continue;
-                if (p.y > rect.Max.y + threshold || p.y + size.y < rect.Min.y - threshold) continue;
-                const float dx = center.x - rect.GetCenter().x;
-                const float dy = center.y - rect.GetCenter().y;
-                if (dx * dx + dy * dy < nearest_dist) {
-                    nearest_dist = dx * dx + dy * dy;
-                    nearest = &rect;
-                }
-            }
-            if (!nearest) return p;
-            const float dx = center.x - nearest->GetCenter().x;
-            const float dy = center.y - nearest->GetCenter().y;
-            if (fabsf(dx) >= fabsf(dy)) {
-                // Horizontal neighbour: flush on the left/right, same y
-                p.x = dx >= 0.f ? nearest->Max.x : nearest->Min.x - size.x;
-                p.y = nearest->Min.y;
+        ImVec2 push = {0.f, 0.f};
+        for (const auto& [element, other] : breakout_button_rects) {
+            if (element == self_element) continue;
+            const ImRect moved({self.Min.x + push.x, self.Min.y + push.y}, {self.Max.x + push.x, self.Max.y + push.y});
+            const float ox = ImMin(moved.Max.x, other.Max.x) - ImMax(moved.Min.x, other.Min.x);
+            const float oy = ImMin(moved.Max.y, other.Max.y) - ImMax(moved.Min.y, other.Min.y);
+            if (ox <= 0.f || oy <= 0.f) continue; // no overlap
+            if (ox < oy) {
+                push.x += moved.GetCenter().x < other.GetCenter().x ? -ox : ox;
             }
             else {
-                // Vertical neighbour: flush above/below, same x
-                p.y = dy >= 0.f ? nearest->Max.y : nearest->Min.y - size.y;
-                p.x = nearest->Min.x;
+                push.y += moved.GetCenter().y < other.GetCenter().y ? -oy : oy;
             }
-            return p;
-        };
-
-        const auto pos = ClampBreakoutPos(snap_to_neighbour(desired), size);
-        if (fits(pos)) return pos;
-
-        const auto vp = ImGui::GetMainViewport();
-        const auto max = ClampBreakoutPos({vp->WorkPos.x + vp->WorkSize.x, vp->WorkPos.y + vp->WorkSize.y}, size);
-        // Include the desired x/y so a button can sit flush against another's edge while keeping its dragged position along that edge
-        std::vector<float> xs = {vp->WorkPos.x, max.x, pos.x};
-        std::vector<float> ys = {vp->WorkPos.y, max.y, pos.y};
-        for (const auto& [element, rect] : breakout_button_rects) {
-            if (element == self_element) continue;
-            xs.push_back(ImClamp(rect.Min.x - size.x, vp->WorkPos.x, max.x));
-            xs.push_back(ImClamp(rect.Max.x, vp->WorkPos.x, max.x));
-            ys.push_back(ImClamp(rect.Min.y - size.y, vp->WorkPos.y, max.y));
-            ys.push_back(ImClamp(rect.Max.y, vp->WorkPos.y, max.y));
         }
+        return push;
+    }
 
-        ImVec2 nearest = pos;
-        float distance = FLT_MAX;
-        for (const auto y : ys) {
-            for (const auto x : xs) {
-                const ImVec2 candidate = {x, y};
-                const float dx = x - pos.x;
-                const float dy = y - pos.y;
-                const float d = dx * dx + dy * dy;
-                if (d < distance && fits(candidate)) {
-                    nearest = candidate;
-                    distance = d;
+    // Pick a position starting from the centre of the screen, cascading until it clears every other breakout button.
+    ImVec2 GetDefaultBreakoutPos(const ToolboxUIElement* self_element, const ImVec2& size)
+    {
+        const ImGuiViewport* vp = ImGui::GetMainViewport();
+        const ImVec2 start = {vp->WorkPos.x + (vp->WorkSize.x - size.x) * 0.5f, vp->WorkPos.y + (vp->WorkSize.y - size.y) * 0.5f};
+        const ImVec2 max = {vp->WorkPos.x + vp->WorkSize.x, vp->WorkPos.y + vp->WorkSize.y};
+        ImVec2 pos = start;
+        for (int i = 0; i < 256; i++) {
+            const ImRect candidate = {pos, {pos.x + size.x, pos.y + size.y}};
+            bool overlaps = false;
+            for (const auto& [element, rect] : breakout_button_rects) {
+                if (element != self_element && BreakoutRectsOverlap(candidate, rect)) {
+                    overlaps = true;
+                    break;
                 }
             }
+            if (!overlaps) break;
+            pos.x += size.x + 6.f;
+            if (pos.x + size.x > max.x) {
+                pos.x = start.x;
+                pos.y += size.y + 6.f;
+                if (pos.y + size.y > max.y) pos.y = vp->WorkPos.y;
+            }
         }
-        return nearest;
+        return pos;
     }
 }
 
 void ToolboxUIElement::DrawBreakoutButton(IDirect3DDevice9*)
 {
-    const auto icon = Icon();
-    if (!show_breakout_button || !icon || !*icon) {
+    // Runs for every enabled element every frame, so bail before building the window id.
+    if (!show_breakout_button) {
         breakout_button_rects.erase(this);
-        breakout_layout_dirty = true;
         return;
     }
 
@@ -654,23 +663,58 @@ void ToolboxUIElement::DrawBreakoutButton(IDirect3DDevice9*)
         flags |= ImGuiWindowFlags_NoMove;
     }
 
+    if (pending_breakout_pos) {
+        ImGui::SetNextWindowPos({breakout_pos[0], breakout_pos[1]}, ImGuiCond_Always);
+        pending_breakout_pos = false;
+        breakout_pos_set = true;
+    }
+    else if (!breakout_pos_set) {
+        // Brand-new button: default to the middle of the screen, nudged so it doesn't land on another button.
+        const float est = ImGui::GetFrameHeight() + 16.f;
+        const ImVec2 pos = GetDefaultBreakoutPos(this, {est, est});
+        ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
+        breakout_pos[0] = pos.x;
+        breakout_pos[1] = pos.y;
+        breakout_pos_set = true;
+    }
+    else if (const auto bw = ImGui::FindWindowByName(window_id); bw && !(flags & ImGuiWindowFlags_NoMove)) {
+        const ImGuiContext* g = ImGui::GetCurrentContext();
+        const bool being_moved = g && g->MovingWindow && g->MovingWindow->RootWindow == bw->RootWindow;
+        if (!being_moved) {
+            const ImVec2 push = ResolveBreakoutOverlap(this, ImRect(bw->Pos, {bw->Pos.x + bw->Size.x, bw->Pos.y + bw->Size.y}));
+            if (push.x != 0.f || push.y != 0.f) {
+                ImGui::SetNextWindowPos({bw->Pos.x + push.x, bw->Pos.y + push.y}, ImGuiCond_Always);
+            }
+        }
+    }
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {6.f, 6.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, {10.f, 10.f});
 
-    const bool opened = ImGui::Begin(window_id, nullptr, flags);
-    const auto bw = ImGui::GetCurrentWindow();
-    if (opened) {
+    if (ImGui::Begin(window_id, nullptr, flags)) {
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {6.f, 4.f});
         const float btn_size = ImGui::GetTextLineHeight() + ImGui::GetStyle().FramePadding.y * 2.f;
+        const char* icon = Icon();
 
         const auto active_col = ImGui::GetStyle().Colors[ImGuiCol_ButtonActive];
         const auto inactive_col = ImVec4(0.15f, 0.15f, 0.15f, 0.8f);
         ImGui::PushStyleColor(ImGuiCol_Button, visible ? active_col : inactive_col);
 
-        const bool clicked = ImGui::Button(icon, {btn_size, btn_size});
+        bool clicked;
+        if (icon && *icon) {
+            clicked = ImGui::Button(icon, {btn_size, btn_size});
+        }
+        else {
+            char label[4] = {};
+            const auto* name = Name();
+            for (size_t i = 0; i < 2 && name[i]; i++) {
+                label[i] = name[i];
+            }
+            clicked = ImGui::Button(label, {btn_size, btn_size});
+        }
 
         ImGui::PopStyleColor();
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(); // FramePadding
 
         if (clicked) {
             ToggleVisible();
@@ -685,37 +729,22 @@ void ToolboxUIElement::DrawBreakoutButton(IDirect3DDevice9*)
         }
 
         if (ImGui::BeginPopupContextWindow()) {
-            if (ImGui::MenuItem("Remove breakout button")) {
+            if (ImGui::MenuItem("移除浮动按钮")) {
                 show_breakout_button = false;
             }
             ImGui::EndPopup();
         }
     }
-    const auto bounded = ClampBreakoutPos(bw->Pos, bw->Size);
-    if (!ImVec2Eq(bounded, bw->Pos)) {
-        ImGui::SetWindowPos(bounded);
-        breakout_layout_dirty = true;
-    }
-    if (ImGui::IsMouseReleased(0) || !ImVec2Eq(breakout_button_size, bw->Size)) breakout_layout_dirty = true;
-    if (breakout_layout_dirty && !ImGui::IsMouseDown(0)) {
-        const auto vp = ImGui::GetMainViewport();
-        const ImVec2 center = {vp->WorkPos.x + (vp->WorkSize.x - bw->Size.x) * 0.5f, vp->WorkPos.y + (vp->WorkSize.y - bw->Size.y) * 0.5f};
-        const ImVec2 desired = pending_breakout_pos ? ImVec2(breakout_pos[0], breakout_pos[1]) : breakout_pos_set ? bw->Pos : center;
-        const auto pos = PlaceBreakoutButton(this, desired, bw->Size);
-        if (!ImVec2Eq(pos, bw->Pos)) ImGui::SetWindowPos(pos);
-        pending_breakout_pos = false;
-        breakout_pos_set = true;
-        breakout_layout_dirty = false;
-    }
-    breakout_button_size = bw->Size;
     ImGui::End();
     ImGui::PopStyleVar(2);
 
-    if (!pending_breakout_pos) {
+    // Keep breakout_pos current so SaveSettings captures the right position even without a live ImGui context.
+    // Also record the live rect so other breakout buttons can avoid overlapping this one.
+    if (const auto bw = ImGui::FindWindowByName(window_id)) {
         breakout_pos[0] = bw->Pos.x;
         breakout_pos[1] = bw->Pos.y;
+        breakout_button_rects[this] = ImRect(bw->Pos, {bw->Pos.x + bw->Size.x, bw->Pos.y + bw->Size.y});
     }
-    breakout_button_rects[this] = ImRect(bw->Pos, {bw->Pos.x + bw->Size.x, bw->Pos.y + bw->Size.y});
 }
 
 bool ToolboxUIElement::DrawTabButton(const bool show_icon, const bool show_text, const bool center_align_text)

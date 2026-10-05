@@ -35,31 +35,30 @@ namespace {
     clock_t last_packet_time = 0;
     clock_t accumulated_combat_time_ms = 0;
 
-    // Returns total combat time including the current battle segment,
-    // up to the last damage packet time (not wall clock).
+    // 返回包括当前战斗段的总战斗时间，直到最后一次伤害数据包时间（非墙钟时间）。
     clock_t GetEffectiveCombatTime() {
         if (first_packet_time == 0)
             return accumulated_combat_time_ms;
         return accumulated_combat_time_ms + (last_packet_time - first_packet_time);
     }
 
-    // Condition DPS tracking
+    // 状态 DPS 追踪
     enum class ConditionType : uint8_t { Bleeding, Poison, Disease, Burning, Count };
     constexpr uint32_t CONDITION_DPS_RATES[] = { 6, 8, 8, 14 };
     struct CondTracker {
         uint32_t agent_id = 0;
-        clock_t apply_time[4] = {}; // bleeding, poison, disease, burning
+        clock_t apply_time[4] = {}; // 流血、中毒、疾病、燃烧
     };
     CondTracker cond_trackers[64] = {};
     uint32_t cond_tracker_count = 0;
-    double cond_damage[4] = {}; // accumulated damage per condition
+    double cond_damage[4] = {}; // 每种状态累积的伤害
 
     int CondIdxFromEffectId(uint32_t effect_id) {
         switch (effect_id) {
-            case 23: return 0; // bleeding
-            case 27: return 1; // poison
-            case 26: return 2; // disease
-            case 25: return 3; // burning
+            case 23: return 0; // 流血
+            case 27: return 1; // 中毒
+            case 26: return 2; // 疾病
+            case 25: return 3; // 燃烧
             default: return -1;
         }
     }
@@ -163,7 +162,7 @@ void PartyDamage::ReconcileDamageIndices()
         if (damage[i].agent_id != 0) old_agent_to_idx[damage[i].agent_id] = i;
     }
 
-    // Also index departed entries by name for map-transition recovery
+    // 也按名称索引已离开的条目，用于地图切换恢复
     std::unordered_map<std::wstring, size_t> departed_by_name;
     for (size_t i = 0; i < departed_damage.size(); i++) {
         if (!departed_damage[i].name.empty()) departed_by_name[departed_damage[i].name] = i;
@@ -184,7 +183,7 @@ void PartyDamage::ReconcileDamageIndices()
             continue;
         }
 
-        // Agent_id not found (map transition gives new IDs). Try by name.
+        // 未找到 agent_id（地图切换产生新 ID）。按名称尝试。
         if (new_idx < party_names_by_index.size()) {
             const auto& name = party_names_by_index[new_idx]->wstring();
             if (!name.empty()) {
@@ -240,7 +239,7 @@ void PartyDamage::WriteDamageOf(size_t index, uint32_t rank)
     }
 
     if (rank == 0) {
-        rank = 1; // start at 1, add 1 for each player with higher damage
+        rank = 1; // 从 1 开始，每有一个伤害更高的玩家加 1
         for (size_t i = 0; i < damage.size(); ++i) {
             if (i == index) {
                 continue;
@@ -269,18 +268,18 @@ void PartyDamage::WriteDamageOf(size_t index, uint32_t rank)
     const bool has_healing = settings.show_healing && entry.healing > 0;
 
     if (has_healing && entry.damage > 0) {
-        swprintf_s(buffer, buffer_size, L"#%2d ~ %ls %ls ~ Dmg: %3.2f%% (%d) ~ Heal: %3.2f%% (%d)",
+        swprintf_s(buffer, buffer_size, L"#%2d ~ %ls %ls ~ 伤害：%3.2f%%（%d）~ 治疗：%3.2f%%（%d）",
             rank, prof_str.c_str(), entry.name.c_str(),
             GetPercentageOfTotal(entry.damage), entry.damage,
             GetPercentageOfTotalHealing(entry.healing), entry.healing);
     }
     else if (has_healing) {
-        swprintf_s(buffer, buffer_size, L"#%2d ~ %ls %ls ~ Heal: %3.2f%% (%d)",
+        swprintf_s(buffer, buffer_size, L"#%2d ~ %ls %ls ~ 治疗：%3.2f%%（%d）",
             rank, prof_str.c_str(), entry.name.c_str(),
             GetPercentageOfTotalHealing(entry.healing), entry.healing);
     }
     else {
-        swprintf_s(buffer, buffer_size, L"#%2d ~ %ls %ls ~ Dmg: %3.2f%% (%d)",
+        swprintf_s(buffer, buffer_size, L"#%2d ~ %ls %ls ~ 伤害：%3.2f%%（%d）",
             rank, prof_str.c_str(), entry.name.c_str(),
             GetPercentageOfTotal(entry.damage), entry.damage);
     }
@@ -290,7 +289,7 @@ void PartyDamage::WriteDamageOf(size_t index, uint32_t rank)
 
 void PartyDamage::WritePartyDamage()
 {
-    // Temporarily append departed members so WriteDamageOf can index them
+    // 临时附加已离开成员，以便 WriteDamageOf 可以索引它们
     const size_t base = damage.size();
     for (const auto& entry : departed_damage) {
         if (entry.damage > 0 || entry.healing > 0) damage.push_back(entry);
@@ -307,9 +306,9 @@ void PartyDamage::WritePartyDamage()
     for (size_t i = 0; i < idx.size(); ++i) {
         WriteDamageOf(idx[i], i + 1);
     }
-    send_queue.push(L"Total ~ Dmg: " + std::to_wstring(total) + L" ~ Heal: " + std::to_wstring(total_healing));
+    send_queue.push(L"总计 ~ 伤害：" + std::to_wstring(total) + L" ~ 治疗：" + std::to_wstring(total_healing));
 
-    // Remove the temporarily appended entries
+    // 移除临时附加的条目
     damage.resize(base);
 }
 
@@ -386,35 +385,35 @@ void PartyDamage::DamagePacketCallback(GW::HookStatus*, const GW::Packet::StoC::
     if (!is_heal && !is_damage) return;
 
     const auto cause = static_cast<GW::AgentLiving*>(GW::Agents::GetAgentByID(packet->cause_id));
-    if (!(cause && cause->GetIsLivingType())) return;                               // Ignore damage/heals caused by non-living agents
-    if (cause->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return; // Ignore damage/heals caused by non-allied NPCs
+    if (!(cause && cause->GetIsLivingType())) return;                               // 忽略非活体单位造成的伤害/治疗
+    if (cause->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return; // 忽略非盟友 NPC 造成的伤害/治疗
 
     uint32_t party_idx = 0;
     auto entry = GetDamageByAgentId(cause->agent_id, &party_idx);
     if (!entry) return;
 
     const auto target = static_cast<GW::AgentLiving*>(GW::Agents::GetAgentByID(packet->target_id));
-    if (!(target && target->GetIsLivingType())) return; // Ignore damage/heals on non-living agents
+    if (!(target && target->GetIsLivingType())) return; // 忽略对非活体单位的伤害/治疗
 
     if (is_damage) {
-        // For damage: target must be enemy
-        if (target->login_number != 0) return; // Ignore damage inflicted on other players such as Life bond or sacrifice
+        // 对于伤害：目标必须为敌人
+        if (target->login_number != 0) return; // 忽略对其他玩家造成的伤害，如生命连接或牺牲
         switch (target->allegiance) {
             case GW::Constants::Allegiance::Ally_NonAttackable:
             case GW::Constants::Allegiance::Spirit_Pet:
             case GW::Constants::Allegiance::Minion:
-                return; // ignore damage inflicted to allies in general
+                return; // 忽略对盟友造成的伤害
         }
     }
     else {
-        // For healing: target must be ally
+        // 对于治疗：目标必须为盟友
         switch (target->allegiance) {
             case GW::Constants::Allegiance::Ally_NonAttackable:
             case GW::Constants::Allegiance::Spirit_Pet:
             case GW::Constants::Allegiance::Minion:
-                break; // allow healing to allies
+                break; // 允许对盟友治疗
             default:
-                return; // ignore healing to enemies
+                return; // 忽略对敌人的治疗
         }
     }
 
@@ -428,7 +427,7 @@ void PartyDamage::DamagePacketCallback(GW::HookStatus*, const GW::Packet::StoC::
     else {
         const auto it = hp_map.find(target->player_number);
         if (it == hp_map.end()) {
-            // max hp not found, approximate with hp/lvl formula
+            // 未找到最大生命值，使用 hp/等级 公式估算
             lvalue = std::lround(magnitude * (target->level * 20 + 100));
         }
         else {
@@ -533,7 +532,7 @@ PartyDamage::PlayerDamage* PartyDamage::GetDamageByAgentId(uint32_t agent_id, ui
     if (found == party_indeces_by_agent_id.end()) return nullptr;
     const auto party_idx = found->second;
     if (party_idx >= damage.size()) return nullptr;
-    if (party_idx >= pets_start_idx) return nullptr; // Don't log damage for allies or pets
+    if (party_idx >= pets_start_idx) return nullptr; // 不记录盟友或宠物的伤害
     if (party_index_out) *party_index_out = party_idx;
     return &damage[party_idx];
 }
@@ -593,8 +592,8 @@ void PartyDamage::Update(const float)
         ReconcileDamageIndices();
     }
 
-    // Update names for damage entries whose names weren't decoded yet,
-    // and restore departed entries when names become available
+    // 更新尚未解码名称的伤害条目
+    // 并在名称可用时恢复已离开的条目
     for (const auto& [agent_id, party_idx] : party_indeces_by_agent_id) {
         if (party_idx >= damage.size() || party_idx >= party_names_by_index.size()) continue;
         const auto& decoded = party_names_by_index[party_idx]->wstring();
@@ -654,7 +653,7 @@ void PartyDamage::Draw(IDirect3DDevice9*)
         return;
     }
 
-    // @Cleanup: Only call when the party window has been moved or updated
+    // @清理：仅在队伍窗口移动或更新时调用
     const clock_t combat_time = GetEffectiveCombatTime();
 
     if (party_agent_ids_by_index.empty() || !RecalculatePartyPositions()) {
@@ -694,14 +693,14 @@ void PartyDamage::Draw(IDirect3DDevice9*)
     else {
         window_x = party_health_bars_position.top_left.x - user_offset_x - width;
         if (window_x < 0 || settings.user_offset < 0) {
-            // Right placement
+            // 右侧放置
             window_x = party_health_bars_position.bottom_right.x + user_offset_x;
         }
     }
 
     const float cond_h = settings.show_condition_dps ? ImGui::GetTextLineHeight() + 6.0f : 0.0f;
 
-    // Add a window to capture mouse clicks.
+    // 添加一个窗口来捕获鼠标点击
     ImGui::SetNextWindowPos({window_x, party_health_bars_position.top_left.y - cond_h});
     ImGui::SetNextWindowSize({width, party_health_bars_position.bottom_right.y - party_health_bars_position.top_left.y + cond_h});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
@@ -727,10 +726,10 @@ void PartyDamage::Draw(IDirect3DDevice9*)
                 ImGui::Text(c.icon);
                 ImGui::PopStyleColor();
                 ImGui::SameLine();
-                ImGui::Text("%d/s", dps);
+                ImGui::Text("%d/秒", dps);
                 ImGui::SameLine();
             }
-            ImGui::NewLine(); // flush last SameLine
+            ImGui::NewLine(); // 刷新最后一个 SameLine
         }
 
         for (auto& [agent_id, party_slot] : party_indeces_by_agent_id) {
@@ -774,7 +773,7 @@ void PartyDamage::Draw(IDirect3DDevice9*)
 
             if (settings.show_dps && settings.show_damage && entry->damage > 0) {
                 const uint32_t dps = combat_time == 0 ? 0 : static_cast<uint32_t>(std::llround(static_cast<double>(entry->damage) * 1000.0 / static_cast<double>(combat_time)));
-                snprintf(buffer, buffer_size, "%d/s", dps);
+                snprintf(buffer, buffer_size, "%d/秒", dps);
                 const float dps_text_x = x + width * 0.75f;
                 draw_list->AddText(ImVec2(dps_text_x, text_y), IM_COL32(255, 255, 255, 255), buffer);
             }
@@ -822,7 +821,7 @@ void PartyDamage::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
                 }
             }
         }
-        // An empty json may be the result of a buggy first migration; fall through to the ini to recover
+        // 空 JSON 可能是首次迁移出错的结果；回退到 ini 以恢复数据
         if (!hp_map_nm.empty() || !hp_map_hm.empty()) return;
     }
     ToolboxIni inifile(false, false, false);
@@ -842,7 +841,7 @@ void PartyDamage::LoadSettings(SettingsDoc& doc, ToolboxIni* legacy)
     for (const auto& [section, map] : section_maps) {
         read_section(section, *map, false);
     }
-    // Legacy [health] section pre-dates the nm/hm split; treat as normal mode, newer keys win
+    // 旧版 [health] 部分早于 NM/HM 分离；视为普通模式，较新的键优先
     read_section("health", hp_map_nm, true);
 }
 
@@ -876,40 +875,40 @@ void PartyDamage::DrawSettingsInternal()
     ToolboxWidget::DrawSettingsInternal();
     ImGui::StartSpacedElements(292.f);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("Hide in outpost", &settings.hide_in_outpost);
+    ImGui::Checkbox("在前哨站隐藏", &settings.hide_in_outpost);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("Print Player Damage by Ctrl + Click", &settings.print_by_click);
+    ImGui::Checkbox("Ctrl + 点击在聊天框输出玩家伤害", &settings.print_by_click);
     ImGui::NextSpacedElement();
-    ImGui::CheckboxWithHelp("Bars towards the left", &settings.bars_left, "If unchecked, they will expand to the right");
+    ImGui::CheckboxWithHelp("条向左延伸", &settings.bars_left, "如果取消勾选，条将向右延伸");
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("Show damage", &settings.show_damage);
+    ImGui::Checkbox("显示伤害", &settings.show_damage);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("Show healing", &settings.show_healing);
+    ImGui::Checkbox("显示治疗", &settings.show_healing);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("Show DPS", &settings.show_dps);
+    ImGui::Checkbox("显示 DPS", &settings.show_dps);
     ImGui::NextSpacedElement();
-    ImGui::Checkbox("Show Condition DPS", &settings.show_condition_dps);
+    ImGui::Checkbox("显示状态 DPS", &settings.show_condition_dps);
 
     ImGui::StartSpacedElements(292.f);
     ImGui::NextSpacedElement();
-    ImGui::CheckboxWithHelp("Show on top of health bars", &settings.overlay_party_window, "Untick to show this widget to the left (or right) of the party window.\nTick to show this widget over the top of the party health bars inside the party window");
+    ImGui::CheckboxWithHelp("在生命条上方显示", &settings.overlay_party_window, "取消勾选以在队伍窗口左侧（或右侧）显示此小部件。\n勾选以在队伍窗口内队伍生命条上方显示此小部件。");
     ImGui::NextSpacedElement();
     ImGui::PushItemWidth(120.f);
-    ImGui::DragInt("Party window offset", &settings.user_offset);
+    ImGui::DragInt("队伍窗口偏移", &settings.user_offset);
     ImGui::PopItemWidth();
-    ImGui::ShowHelp("Distance away from the party window");
+    ImGui::ShowHelp("距离队伍窗口的距离");
 
-    ImGui::DragFloat("Width", &settings.width, 1.0f, 50.0f, 0.0f, "%.0f");
+    ImGui::DragFloat("宽度", &settings.width, 1.0f, 50.0f, 0.0f, "%.0f");
     if (settings.width <= 0) {
         settings.width = 1.0f;
     }
-    ImGui::DragInt("Timeout", &settings.recent_max_time, 10.0f, 1000, 10 * 1000, "%d milliseconds");
+    ImGui::DragInt("超时", &settings.recent_max_time, 10.0f, 1000, 10 * 1000, "%d 毫秒");
     if (settings.recent_max_time < 0) {
         settings.recent_max_time = 0;
     }
-    ImGui::ShowHelp("After this amount of time, each player's recent damage/healing bars will be reset");
-    Colors::DrawSettingHueWheel("Background", &settings.color_background.value);
-    Colors::DrawSettingHueWheel("Damage", &settings.color_damage.value);
-    Colors::DrawSettingHueWheel("Recent Damage", &settings.color_recent.value);
-    Colors::DrawSettingHueWheel("Healing", &settings.color_healing.value);
+    ImGui::ShowHelp("此时间之后，每位玩家的近期伤害/治疗条将被重置");
+    Colors::DrawSettingHueWheel("背景", &settings.color_background.value);
+    Colors::DrawSettingHueWheel("伤害", &settings.color_damage.value);
+    Colors::DrawSettingHueWheel("近期伤害", &settings.color_recent.value);
+    Colors::DrawSettingHueWheel("治疗", &settings.color_healing.value);
 }

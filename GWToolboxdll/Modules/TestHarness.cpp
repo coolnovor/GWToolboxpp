@@ -67,7 +67,7 @@ namespace {
         }
         if (verb == "login") {
             press_enter();
-            write_status("login: Enter sent");
+            write_status("login: 已发送回车");
             return;
         }
         // PostMessage does not advance character select, so pick the character through the game's
@@ -161,7 +161,7 @@ void TestHarness::Initialize()
     std::error_code ec;
     std::filesystem::remove(cmd_path(), ec);
     write_status("harness_initialized");
-    Log::Log("[harness] initialized; command file: %s", cmd_path().string().c_str());
+    Log::Log("[harness] 已初始化；命令文件：%s", cmd_path().string().c_str());
 #endif
 }
 

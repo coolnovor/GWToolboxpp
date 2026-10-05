@@ -24,7 +24,7 @@
 
 namespace {
     VanquishMapOverlayWidget::Settings settings;
-    // VQ overlay colours not exposed as settings
+    // VQ 覆盖层颜色不公开为设置
     Color vq_color_blocked = IM_COL32(60, 20, 20, 170);
     Color vq_color_blocked_border = IM_COL32(180, 100, 100, 140);
 
@@ -47,7 +47,7 @@ namespace {
 
     float cached_px_to_game = 1.f;
 
-    // Fog buffer with pre-allocated quads per walkable cell
+    // 迷雾缓冲区，为每个可行走单元格预分配四边形
     class D3DFogBuffer : public D3DTriangleBuffer {
     public:
         static constexpr size_t VERTS_PER_CELL = sizeof(D3DQuad) / sizeof(D3DVertex);
@@ -73,7 +73,7 @@ namespace {
         }
     };
 
-    // Thin wrapper to allow direct vertex/dirty access for bulk flush.
+    // 薄包装，允许直接访问顶点/脏标志以进行批量刷新。
     class FrontierBuffer : public D3DTriangleBuffer {
     public:
         void FlushFrom(const std::unordered_map<int, std::vector<D3DVertex>>& cell_edges)
@@ -85,7 +85,7 @@ namespace {
         }
     };
 
-    // Thin wrapper to adopt vertex data built on a worker thread.
+    // 薄包装，采用在工作线程上构建的顶点数据。
     class AdoptableBuffer : public D3DTriangleBuffer {
     public:
         void Adopt(std::vector<D3DVertex>&& verts)
@@ -122,14 +122,14 @@ namespace {
             out.insert(out.end(), tri.v, tri.v + 3);
     }
 
-    // Grid + vertex data for one map; computed on a worker thread for async
-    // rebuilds, then swapped into the global map_grid on the game thread.
+    // 一个地图的网格 + 顶点数据；在工作线程上异步计算，
+    // 然后在游戏线程上交换到全局 map_grid。
     struct MapGridData {
         std::unique_ptr<bool[]> walkable;
-        std::unique_ptr<bool[]> blocked; // cells with unreachable trapezoids
+        std::unique_ptr<bool[]> blocked; // 包含无法到达的梯形的单元格
         int x0 = 0, y0 = 0, w = 0, h = 0, size = 0;
         std::vector<BorderSegment> border_segments;
-        std::vector<D3DVertex> static_vertices; // inaccessible area + borders
+        std::vector<D3DVertex> static_vertices; // 不可到达区域 + 边界
         std::vector<int> fog_cell_index;
         std::vector<D3DVertex> fog_vertices;
 
@@ -151,7 +151,7 @@ namespace {
     GW::Constants::MapID border_map_id = static_cast<GW::Constants::MapID>(0);
     float border_cached_zoom = 0.0f;
 
-    // Snapshot of blockedPlanes to detect runtime changes (gates opening/closing)
+    // 运行时变化检测的 blockedPlanes 快照（门打开/关闭）
     std::vector<uint32_t> cached_blocked_planes;
     bool force_exploration_update = false;
 
@@ -255,7 +255,7 @@ namespace {
         }
     }
 
-    // Game thread: rebuild fog for the current grid, keeping explored cells clear.
+    // 游戏线程：为当前网格重建迷雾，保持已探索单元格清晰。
     void InitFogBuffer()
     {
         std::vector<int> cell_index;
@@ -268,8 +268,8 @@ namespace {
         }
     }
 
-    // Pure function, safe on a worker thread: build the inaccessible area,
-    // blocked area and border vertices for a grid.
+    // 纯函数，在工作线程上安全：为网格构建不可到达区域、
+    // 被阻止区域和边界顶点。
     void BuildStaticGeometryVertices(const MapGridData& data, float px_to_game, std::vector<D3DVertex>& out)
     {
         out.clear();
@@ -317,11 +317,11 @@ namespace {
             }
         }
 
-        // Borders around walkable area
+        // 可行走区域的边界
         for (const auto& seg : data.border_segments)
             AppendShape(out, D3DLine(seg.p1, seg.p2, border_thickness_game, settings.vq_color_border));
 
-        // Borders around blocked (unreachable) areas
+        // 被阻止（不可到达）区域的边界
         if (data.blocked) {
             for (int cy = 0; cy < data.h; cy++) {
                 for (int cx = 0; cx < data.w; cx++) {
@@ -343,7 +343,7 @@ namespace {
         }
     }
 
-    // Game thread: rebuild static geometry for the current grid.
+    // 游戏线程：为当前网格重建静态几何体。
     void BuildStaticMapGeometry()
     {
         std::vector<D3DVertex> verts;
@@ -351,8 +351,8 @@ namespace {
         inaccessible_area_and_borders.Adopt(std::move(verts));
     }
 
-    // Per-cell frontier edge storage for incremental updates.
-    // Key = local cell index of an unexplored walkable cell that borders explored cells.
+    // 用于增量更新的每个单元格前沿边存储。
+    // 键 = 与已探索单元格相邻的未探索可行走单元格的本地单元格索引。
     std::unordered_map<int, std::vector<D3DVertex>> frontier_cell_edges;
 
     void ComputeCellFrontierEdges(int idx, std::vector<D3DVertex>& out)
@@ -402,8 +402,8 @@ namespace {
     {
         if (!explored_cells || !map_grid.walkable) return;
 
-        // Collect cells that need re-evaluation: each newly explored cell
-        // plus its 4 neighbors.
+        // 收集需要重新评估的单元格：每个新探索的单元格
+        // 加上其 4 个邻居。
         std::unordered_set<int> dirty_cells;
         for (const int idx : newly_explored_cells) {
             const int ly = idx / map_grid.w;
@@ -426,8 +426,8 @@ namespace {
         frontier_border.FlushFrom(frontier_cell_edges);
     }
 
-    // Plain copy of a trapezoid so the grid rebuild can run on a worker thread
-    // without touching game memory.
+    // 梯形的普通副本，以便网格重建可以在工作线程上运行
+    // 而不触碰游戏内存。
     struct TrapezoidSnapshot {
         float XTL, XTR, XBL, XBR, YB, YT;
         bool reachable;
@@ -470,15 +470,15 @@ namespace {
         return out;
     }
 
-    // Pure function, safe on a worker thread: rasterize the snapshot into
-    // walkable/blocked grids and build border segments + vertex data.
+    // 纯函数，在工作线程上安全：将快照光栅化为
+    // 可行走/被阻止网格并构建边界段 + 顶点数据。
     MapGridData ComputeMapGrid(const std::vector<TrapezoidSnapshot>& traps, float px_to_game)
     {
         MapGridData data;
         if (traps.empty()) return data;
 
-        // Grid bounds come from ALL trapezoids so the inaccessible overlay
-        // covers the full map, but only reachable ones rasterize as walkable.
+        // 网格边界来自所有梯形，以便不可到达覆盖层覆盖完整地图，
+        // 但只有可到达的梯形被光栅化为可行走。
         float min_x = FLT_MAX, min_y = FLT_MAX, max_x = -FLT_MAX, max_y = -FLT_MAX;
         for (const auto& trap : traps) {
             min_x = std::min({min_x, trap.XTL, trap.XTR, trap.XBL, trap.XBR});
@@ -531,10 +531,10 @@ namespace {
         return data;
     }
 
-    // Game thread only: swap in a computed grid and adopt its vertex data.
+    // 仅游戏线程：交换已计算的网格并采用其顶点数据。
     void ApplyMapGrid(MapGridData& data)
     {
-        // Save old exploration state so we can restore it after swapping grids
+        // 保存旧的探索状态，以便在交换网格后恢复
         bool* old_explored = explored_cells;
         const int old_x0 = map_grid.x0, old_y0 = map_grid.y0;
         const int old_w = map_grid.w, old_h = map_grid.h;
@@ -546,7 +546,7 @@ namespace {
         fog_buffer.Adopt(std::move(data.fog_cell_index), std::move(data.fog_vertices));
         map_grid = std::move(data);
 
-        // Restore exploration state from the old grid
+        // 从旧网格恢复探索状态
         if (old_explored && map_grid.size > 0) {
             if (!explored_cells) explored_cells = new bool[map_grid.size]();
             explored_map_id = GW::Map::GetMapID();
@@ -581,7 +581,7 @@ namespace {
             const auto data = std::make_shared<MapGridData>(ComputeMapGrid(*snapshot, px_to_game));
             Resources::EnqueueMainTask([data, map_id, instance_type] {
                 grid_rebuild_pending = false;
-                // Discard stale results if the instance changed mid-compute
+                // 如果在计算过程中实例发生了变化，则丢弃陈旧结果
                 if (map_id == GW::Map::GetMapID() && instance_type == GW::Map::GetInstanceType())
                     ApplyMapGrid(*data);
             });
@@ -808,10 +808,10 @@ namespace {
         if (alive_count > 0 || stale_count > 0) {
             pos += snprintf(label + pos, sizeof(label) - pos, "%d", alive_count);
             if (stale_count > 0) pos += snprintf(label + pos, sizeof(label) - pos, " (+%d?)", stale_count);
-            if (has_vq_data) pos += snprintf(label + pos, sizeof(label) - pos, " / %u remaining", foes_remaining);
+            if (has_vq_data) pos += snprintf(label + pos, sizeof(label) - pos, " / %u 剩余", foes_remaining);
         }
         else {
-            pos += snprintf(label + pos, sizeof(label) - pos, "%u remaining", foes_remaining);
+            pos += snprintf(label + pos, sizeof(label) - pos, "%u 剩余", foes_remaining);
         }
 
         constexpr float PADDING = 8.0f;
@@ -830,8 +830,8 @@ namespace {
     void OnCustomMarkerChanged()
     {
         if (self_changing_marker || !nav_active) return;
-        // Another system changed the custom quest marker — stop navigating
-        // but don't clear the marker (it belongs to whoever set it now)
+        // 其他系统更改了自定义任务标记 — 停止导航
+        // 但不清除标记（它现在属于设置它的系统）
         nav_active = false;
         nav_target_pos = {};
         nav_marker_pos = {};
@@ -909,7 +909,7 @@ void VanquishMapOverlayWidget::DrawVanquishToggleButton()
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(visible ? ImGuiCol_Text : ImGuiCol_TextDisabled));
         if (ImGui::Button(ICON_FA_SKULL "##vq_toggler")) visible = !visible;
         if(ImGui::IsItemHovered())
-            ImGui::SetTooltip(visible ? "VQ overlay active. Click to hide." : "VQ overlay hidden. Click to show.");
+            ImGui::SetTooltip(visible ? "征服覆盖层已激活。点击隐藏。" : "征服覆盖层已隐藏。点击显示。");
         ImGui::PopStyleColor();
     }
     ImGui::End();
@@ -939,10 +939,10 @@ void VanquishMapOverlayWidget::Update(float)
                 border_map_id = map_id;
                 border_instance_type = instance_type;
                 cached_blocked_planes.clear();
-                QueueRebuildMapBorder(true); // off-thread: the synchronous rebuild here froze the map load
+                QueueRebuildMapBorder(true); // 离线：这里的同步重建会冻结地图加载
             }
             else {
-                BuildStaticMapGeometry(); // zoom changed, rebuild with new thickness
+                BuildStaticMapGeometry(); // 缩放变化，用新厚度重建
                 RebuildFrontierBorder();
             }
         }
@@ -950,8 +950,8 @@ void VanquishMapOverlayWidget::Update(float)
             QueueRebuildMapBorder();
         }
         else if (map_grid.walkable && map_grid.size > 0) {
-            // Detect teleport: if the player is standing on a cell that isn't
-            // walkable, the reachability set is stale (e.g. UW teleports).
+            // 检测传送：如果玩家站在不可行走的单元格上，
+            // 可达性集合已过时（例如 UW 传送）。
             const auto* player = GW::Agents::GetControlledCharacter();
             if (player) {
                 const int px = static_cast<int>(floorf(player->pos.x / EXPLORE_CELL_SIZE));
@@ -1009,19 +1009,19 @@ void VanquishMapOverlayWidget::Terminate()
 
 void VanquishMapOverlayWidget::DrawSettingsInternal()
 {
-    ImGui::TextDisabled("Tracks enemy positions as they enter compass range.\nBlue = alive, Orange = last known (moved away).\nArrows on orange markers show last movement direction.\nAlso highlights areas you've explored during this session on the mission map.");
+    ImGui::TextDisabled("追踪进入罗盘范围的敌人位置。\n蓝色 = 存活，橙色 = 最后已知位置（已移开）。\n橙色标记上的箭头显示最后移动方向。\n同时在本会话中高亮任务地图上你已探索的区域。");
     bool static_changed = false;
     bool fog_changed = false;
 
-    static_changed |= Colors::DrawSettingHueWheel("Inaccessible area", &settings.vq_color_inaccessible.value);
-    static_changed |= Colors::DrawSettingHueWheel("Map border", &settings.vq_color_border.value);
-    fog_changed |= Colors::DrawSettingHueWheel("Unexplored fog", &settings.vq_color_fog_unexplored.value);
-    fog_changed |= Colors::DrawSettingHueWheel("Frontier edge", &settings.vq_color_frontier.value);
-    bool rebuild_compass = Colors::DrawSettingHueWheel("Compass range", &settings.vq_color_compass.value);
-    Colors::DrawSettingHueWheel("Enemy (alive)", &settings.vq_color_enemy_alive.value);
-    Colors::DrawSettingHueWheel("Enemy (last known position)", &settings.vq_color_enemy_stale.value);
-    Colors::DrawSettingHueWheel("Enemy outline", &settings.vq_color_enemy_outline.value);
-    ImGui::SliderFloat("Enemy marker size", &settings.vq_enemy_marker_size, 3.0f, 20.0f, "%.0f");
+    static_changed |= Colors::DrawSettingHueWheel("不可到达区域", &settings.vq_color_inaccessible.value);
+    static_changed |= Colors::DrawSettingHueWheel("地图边界", &settings.vq_color_border.value);
+    fog_changed |= Colors::DrawSettingHueWheel("未探索迷雾", &settings.vq_color_fog_unexplored.value);
+    fog_changed |= Colors::DrawSettingHueWheel("前沿边界", &settings.vq_color_frontier.value);
+    bool rebuild_compass = Colors::DrawSettingHueWheel("罗盘范围", &settings.vq_color_compass.value);
+    Colors::DrawSettingHueWheel("敌人（存活）", &settings.vq_color_enemy_alive.value);
+    Colors::DrawSettingHueWheel("敌人（最后已知位置）", &settings.vq_color_enemy_stale.value);
+    Colors::DrawSettingHueWheel("敌人轮廓", &settings.vq_color_enemy_outline.value);
+    ImGui::SliderFloat("敌人标记大小", &settings.vq_enemy_marker_size, 3.0f, 20.0f, "%.0f");
     ImGui::Unindent();
 
     if (static_changed) BuildStaticMapGeometry();
@@ -1036,13 +1036,13 @@ bool VanquishMapOverlayWidget::ContextMenuItems()
 {
     if (!Instance().visible || !ToolboxUtils::IsExplorable()) return true;
     if (nav_active) {
-        if (ImGui::Button("Stop navigating")) {
+        if (ImGui::Button("停止导航")) {
             StopNavigating();
             return false;
         }
     }
     else {
-        if (ImGui::Button("Navigate to closest enemy")) {
+        if (ImGui::Button("导航到最近的敌人")) {
             nav_active = true;
             NavigateToClosestEnemy();
             return false;

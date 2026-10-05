@@ -58,57 +58,6 @@ namespace {
     std::vector<ItemDrops::PendingDrop*> pending_write_to_csv;
     std::vector<std::string> pending_full_exports;
 
-    // Rolling in-memory window: drop_history is trimmed to this many most-recent entries once they've
-    // been handed off to the CSV writer, so a long session can't grow it forever. The full session is
-    // still on disk (session_csv_path) and in the tallies below.
-    constexpr size_t kMaxRetainedDrops = 2000;
-    constexpr size_t kTrimBatch = 200; // amortize the front-erase instead of doing it every single drop
-
-    // Whole-session running totals, bounded by distinct keys seen (item names/maps/etc.), not by drop
-    // count — these stay correct for the full session even once drop_history is trimmed. Everything
-    // but item name is keyed by its native game identifier (MapID/Rarity/ItemType/WeaponKey), not a
-    // formatted string, so tallying is a plain enum lookup with no EncString decode dependency.
-    uint64_t session_drop_count = 0;
-    int64_t session_total_gold_value = 0;
-    std::unordered_map<std::string, ItemDrops::DropTally> tally_by_item_name;
-    std::unordered_map<GW::Constants::MapID, ItemDrops::DropTally> tally_by_map;
-    std::unordered_map<GW::Constants::Rarity, ItemDrops::DropTally> tally_by_rarity;
-    std::unordered_map<GW::Constants::ItemType, ItemDrops::DropTally> tally_by_type;
-    std::unordered_map<ItemDrops::WeaponKey, ItemDrops::DropTally, ItemDrops::WeaponKeyHash> tally_by_weapon;
-
-    std::filesystem::path session_csv_path;
-
-    void BumpTally(ItemDrops::DropTally& tally, const ItemDrops::PendingDrop* drop, int64_t gold)
-    {
-        ++tally.count;
-        tally.quantity += drop->quantity;
-        tally.gold_value += gold;
-        if (drop->min_damage > 0 && drop->min_damage < tally.min_damage) {
-            tally.min_damage = drop->min_damage;
-        }
-        if (drop->max_damage > tally.max_damage) {
-            tally.max_damage = drop->max_damage;
-        }
-        if (drop->requirement_attribute != GW::Constants::AttributeByte::None) {
-            tally.requirements.insert(std::to_string(drop->requirement_value) + " " + GW::Items::GetAttributeName(drop->requirement_attribute));
-        }
-    }
-
-    // Only called once WritePendingDropsToFile has confirmed every pending drop's name has finished
-    // decoding (see its all_decoded check) — GetItemName()->string() below is never mid-decode here.
-    void TallyDrop(ItemDrops::PendingDrop* drop)
-    {
-        ++session_drop_count;
-        const int64_t gold = drop->type == GW::Constants::ItemType::Gold_Coin ? drop->value : drop->value * drop->quantity;
-        session_total_gold_value += gold;
-
-        BumpTally(tally_by_item_name[drop->GetItemName()->string()], drop, gold);
-        BumpTally(tally_by_map[drop->map_id], drop, gold);
-        BumpTally(tally_by_rarity[drop->rarity], drop, gold);
-        BumpTally(tally_by_type[drop->type], drop, gold);
-        BumpTally(tally_by_weapon[ItemDrops::WeaponKey{drop->type, drop->damage_type}], drop, gold);
-    }
-
     ItemDrops::Settings settings;
     std::map<ItemModelID, std::string> dont_hide_for_player{};
     std::map<ItemModelID, std::string> dont_hide_for_party{};
@@ -266,23 +215,16 @@ namespace {
         MAP_ENTRY(ObsidianEdge),
     };
 
-    // The active session's CSV path, fixed the first time a drop is written and named by that moment
-    // (not by calendar day) so each tracking session gets its own file and the "session" the tallies
-    // above describe has an unambiguous on-disk counterpart. Reset by ClearDropHistory().
     std::filesystem::path GetItemDropCSVFilename() {
-        if (!session_csv_path.empty()) {
-            return session_csv_path;
-        }
         const auto now = std::chrono::system_clock::now();
         const auto time = std::chrono::system_clock::to_time_t(now);
         std::tm tm = TextUtils::Time::SafeLocaltime(time);
 
         wchar_t date_buffer[32];
-        std::wcsftime(date_buffer, sizeof(date_buffer) / sizeof(wchar_t), L"%Y-%m-%d_%H-%M-%S", &tm);
+        std::wcsftime(date_buffer, sizeof(date_buffer) / sizeof(wchar_t), L"%Y-%m-%d", &tm);
         std::wstring drops_basename = std::wstring(date_buffer) + L"_drops.csv";
 
-        session_csv_path = Resources::GetPath("item_drops", drops_basename);
-        return session_csv_path;
+        return Resources::GetPath("item_drops", drops_basename);
     }
 
     GW::AgentID GetItemOwner(const GW::ItemID item_id)
@@ -438,19 +380,10 @@ namespace {
             csv_lines.reserve(csv_lines.size() + pending_write_to_csv.size());
             for (const auto& pending : pending_write_to_csv) {
                 csv_lines.push_back(pending->toCSV());
-                TallyDrop(pending); // names are confirmed decoded here; safe to fold into the running totals
             }
         }
         pending_write_to_csv.clear();
         FlushCsvLines();
-
-        // Now that everything up to here is at least queued for disk, cap the in-memory window: the
-        // full history (tallies + on-disk CSV) is still available via GetTally()/GetSessionCsvPath().
-        if (drop_history.size() > kMaxRetainedDrops + kTrimBatch) {
-            const auto trim_end = drop_history.begin() + kTrimBatch;
-            for (auto it = drop_history.begin(); it != trim_end; ++it) delete *it;
-            drop_history.erase(drop_history.begin(), trim_end);
-        }
     }
 
     std::map<uint32_t, bool> already_seen_items;
@@ -575,17 +508,21 @@ void ItemDrops::Update(float) {
     if (pending_full_exports.empty()) {
         return;
     }
-    // Full-session export reads the already-durable session CSV, not drop_history (which is only a
-    // recent rolling window) — this is the only way to get the whole session once trimming kicks in.
-    const auto source_path = GetItemDropCSVFilename();
+    for (auto pending : drop_history) {
+        auto item_name = GetItemName(pending->item_name_enc);
+        if (!item_name || item_name->IsDecoding()) {
+            return;
+        }
+    }
+
+    auto rows = std::make_shared<std::wstring>();
+    for (auto pending : drop_history) {
+        *rows += pending->toCSV();
+        *rows += L"\n";
+    }
     for (const auto& pending_export : pending_full_exports) {
         const auto filename = Resources::GetPath(pending_export);
-        Resources::EnqueueWorkerTask([filename, source_path] {
-            std::wifstream src(source_path);
-            if (!src.is_open()) {
-                Log::WarningW(L"Item drops: no session CSV yet at %s to export", source_path.wstring().c_str());
-                return;
-            }
+        Resources::EnqueueWorkerTask([filename, rows] {
             std::error_code ec;
             const bool file_exists = std::filesystem::exists(filename, ec);
             std::wofstream my_file(filename, std::ios::app);
@@ -593,14 +530,10 @@ void ItemDrops::Update(float) {
                 Log::WarningW(L"std::wofstream for %s failed", filename.wstring().c_str());
                 return;
             }
-            std::wstring line;
-            std::getline(src, line); // source's own header; only carry it into a brand-new destination
             if (!file_exists) {
-                my_file << line << L"\n";
+                my_file << ItemDrops::PendingDrop::GetCSVHeader() << L"\n";
             }
-            while (std::getline(src, line)) {
-                my_file << line << L"\n";
-            }
+            my_file << *rows;
             my_file.flush();
             my_file.close();
         });
@@ -659,33 +592,33 @@ void ItemDrops::SaveSettings(SettingsDoc& doc)
 
 void ItemDrops::DrawSettingsInternal()
 {
-    ImGui::Text("Drop Tracking Settings");
-    ImGui::CheckboxWithHelp("Drop Tracking Enabled", &settings.track_drops, "This creates a CSV at DIRECTORY which contains all the information about drops you've gotten.");
+    ImGui::Text("掉落追踪设置");
+    ImGui::CheckboxWithHelp("启用掉落追踪", &settings.track_drops, "这会在指定目录创建一个 CSV 文件，包含您获得的所有掉落信息。");
     ImGui::Separator();
-    ImGui::Text("Item Filter Settings");
+    ImGui::Text("物品过滤设置");
     ImGui::NewLine();
-    ImGui::Text("Block the following item drops:");
+    ImGui::Text("屏蔽以下物品掉落：");
     ImGui::Separator();
-    ImGui::TextDisabled("First column is for items you can pick up, second for items reserved for a party member");
+    ImGui::TextDisabled("第一列为您可以拾取的物品，第二列为保留给队伍成员的物品");
     ImGui::Columns(2, "player_or_ally");
 
-    ImGui::Checkbox("White##player", &settings.hide_player_white);
-    ImGui::Checkbox("Blue##player", &settings.hide_player_blue);
-    ImGui::Checkbox("Purple##player", &settings.hide_player_purple);
-    ImGui::Checkbox("Gold##player", &settings.hide_player_gold);
-    ImGui::Checkbox("Green##player", &settings.hide_player_green);
+    ImGui::Checkbox("白色##player", &settings.hide_player_white);
+    ImGui::Checkbox("蓝色##player", &settings.hide_player_blue);
+    ImGui::Checkbox("紫色##player", &settings.hide_player_purple);
+    ImGui::Checkbox("金色##player", &settings.hide_player_gold);
+    ImGui::Checkbox("绿色##player", &settings.hide_player_green);
 
     ImGui::NextColumn();
 
-    ImGui::Checkbox("White##party", &settings.hide_party_white);
-    ImGui::Checkbox("Blue##party", &settings.hide_party_blue);
-    ImGui::Checkbox("Purple##party", &settings.hide_party_purple);
-    ImGui::Checkbox("Gold##party", &settings.hide_party_gold);
-    ImGui::Checkbox("Green##party", &settings.hide_party_green);
+    ImGui::Checkbox("白色##party", &settings.hide_party_white);
+    ImGui::Checkbox("蓝色##party", &settings.hide_party_blue);
+    ImGui::Checkbox("紫色##party", &settings.hide_party_purple);
+    ImGui::Checkbox("金色##party", &settings.hide_party_gold);
+    ImGui::Checkbox("绿色##party", &settings.hide_party_green);
 
     ImGui::EndColumns();
 
-    const auto itembtn = std::format("Spawn all blocked items ({})", suppressed_packets.size());
+    const auto itembtn = std::format("生成所有被屏蔽的物品（{}）", suppressed_packets.size());
 
     if (ImGui::Button(itembtn.c_str())) {
         SpawnSuppressedItems();
@@ -693,15 +626,15 @@ void ItemDrops::DrawSettingsInternal()
 
     ImGui::Separator();
 
-    ImGui::TextDisabled("Below, you can define items that should never be blocked for you or party members.");
+    ImGui::TextDisabled("下方可定义永远不应为您或队伍成员屏蔽的物品。");
 
     auto& style = ImGui::GetStyle();
     const auto old_color = style.Colors[ImGuiCol_Header];
     style.Colors[ImGuiCol_Header] = ImColor{};
-    if (ImGui::CollapsingHeader("Don't hide items for you with model ids")) {
+    if (ImGui::CollapsingHeader("按模型 ID 不为您屏蔽物品")) {
         ImGui::PushID("BlockPlayerItems");
 
-        if (ImGui::Button("Restore defaults##player")) {
+        if (ImGui::Button("恢复默认##player")) {
             dont_hide_for_player = default_dont_hide_for_player;
         }
         ImGui::BeginChild("dont_block_for_player", ImVec2(0.0f, dont_hide_for_player.size() * 26.f));
@@ -719,17 +652,17 @@ void ItemDrops::DrawSettingsInternal()
         ImGui::EndChild();
         ImGui::Separator();
         bool submitted = false;
-        ImGui::Text("Add new item:");
+        ImGui::Text("添加新物品：");
         static int new_item_id;
         static char buf[50];
-        ImGui::InputText("Item Name##player", buf, 50);
-        ImGui::InputInt("Item Model ID##player", &new_item_id);
-        submitted |= ImGui::Button("Add");
+        ImGui::InputText("物品名称##player", buf, 50);
+        ImGui::InputInt("物品模型 ID##player", &new_item_id);
+        submitted |= ImGui::Button("添加");
         if (submitted && new_item_id > 0) {
             const auto new_id = static_cast<uint32_t>(new_item_id);
             if (!dont_hide_for_player.contains(new_id)) {
                 dont_hide_for_player[new_id] = std::string(buf);
-                Log::Flash("Added Item %s with ID (%d)", buf, new_id);
+                Log::Flash("已添加物品 %s（ID：%d）", buf, new_id);
                 std::ranges::fill(buf, '\0');
                 new_item_id = 0;
             }
@@ -739,9 +672,9 @@ void ItemDrops::DrawSettingsInternal()
     }
 
     ImGui::Separator();
-    if (ImGui::CollapsingHeader("Don't hide items for party members with model ids")) {
+    if (ImGui::CollapsingHeader("按模型 ID 不为队伍成员屏蔽物品")) {
         ImGui::PushID("BlockPartyItems");
-        if (ImGui::Button("Restore defaults##party")) {
+        if (ImGui::Button("恢复默认##party")) {
             dont_hide_for_party = default_dont_hide_for_party;
         }
         ImGui::BeginChild("dont_block_for_party", ImVec2(0.0f, dont_hide_for_party.size() * 26.f));
@@ -759,17 +692,17 @@ void ItemDrops::DrawSettingsInternal()
         ImGui::EndChild();
         ImGui::Separator();
         bool submitted = false;
-        ImGui::Text("Add new item:");
+        ImGui::Text("添加新物品：");
         static int new_item_id_party;
         static char buf[50];
-        ImGui::InputText("Item Name##party", buf, 50);
-        ImGui::InputInt("Item Model ID##party", &new_item_id_party);
-        submitted |= ImGui::Button("Add");
+        ImGui::InputText("物品名称##party", buf, 50);
+        ImGui::InputInt("物品模型 ID##party", &new_item_id_party);
+        submitted |= ImGui::Button("添加");
         if (submitted && new_item_id_party > 0) {
             const auto new_id = static_cast<uint32_t>(new_item_id_party);
             if (!dont_hide_for_party.contains(new_id)) {
                 dont_hide_for_party[new_id] = std::string(buf);
-                Log::Flash("Added Item %s with ID (%d)", buf, new_id);
+                Log::Flash("已添加物品 %s（ID：%d）", buf, new_id);
                 std::ranges::fill(buf, '\0');
                 new_item_id_party = 0;
             }
@@ -779,13 +712,13 @@ void ItemDrops::DrawSettingsInternal()
     }
 
     ImGui::Separator();
-    ImGui::TextDisabled("Below, you can define items that should always be blocked by model id, regardless of rarity settings.");
+    ImGui::TextDisabled("下方可定义无论稀有度设置如何，始终按模型 ID 屏蔽的物品。");
 
     ImGui::Separator();
-    if (ImGui::CollapsingHeader("Always hide items for you with model ids")) {
+    if (ImGui::CollapsingHeader("按模型 ID 始终为您屏蔽物品")) {
         ImGui::PushID("AlwaysHidePlayerItems");
 
-        if (ImGui::Button("Clear all##always_player")) {
+        if (ImGui::Button("全部清除##always_player")) {
             always_hide_for_player.clear();
         }
         ImGui::BeginChild("always_hide_for_player", ImVec2(0.0f, always_hide_for_player.size() * 26.f));
@@ -803,17 +736,17 @@ void ItemDrops::DrawSettingsInternal()
         ImGui::EndChild();
         ImGui::Separator();
         bool submitted = false;
-        ImGui::Text("Add new item:");
+        ImGui::Text("添加新物品：");
         static int new_always_hide_player_id;
         static char always_hide_player_buf[50];
-        ImGui::InputText("Item Name##always_player", always_hide_player_buf, 50);
-        ImGui::InputInt("Item Model ID##always_player", &new_always_hide_player_id);
-        submitted |= ImGui::Button("Add##always_player");
+        ImGui::InputText("物品名称##always_player", always_hide_player_buf, 50);
+        ImGui::InputInt("物品模型 ID##always_player", &new_always_hide_player_id);
+        submitted |= ImGui::Button("添加##always_player");
         if (submitted && new_always_hide_player_id > 0) {
             const auto new_id = static_cast<uint32_t>(new_always_hide_player_id);
             if (!always_hide_for_player.contains(new_id)) {
                 always_hide_for_player[new_id] = std::string(always_hide_player_buf);
-                Log::Flash("Added Item %s with ID (%d)", always_hide_player_buf, new_id);
+                Log::Flash("已添加物品 %s（ID：%d）", always_hide_player_buf, new_id);
                 std::ranges::fill(always_hide_player_buf, '\0');
                 new_always_hide_player_id = 0;
             }
@@ -823,10 +756,10 @@ void ItemDrops::DrawSettingsInternal()
     }
 
     ImGui::Separator();
-    if (ImGui::CollapsingHeader("Always hide items for party members with model ids")) {
+    if (ImGui::CollapsingHeader("按模型 ID 始终为队伍成员屏蔽物品")) {
         ImGui::PushID("AlwaysHidePartyItems");
 
-        if (ImGui::Button("Clear all##always_party")) {
+        if (ImGui::Button("全部清除##always_party")) {
             always_hide_for_party.clear();
         }
         ImGui::BeginChild("always_hide_for_party", ImVec2(0.0f, always_hide_for_party.size() * 26.f));
@@ -844,17 +777,17 @@ void ItemDrops::DrawSettingsInternal()
         ImGui::EndChild();
         ImGui::Separator();
         bool submitted = false;
-        ImGui::Text("Add new item:");
+        ImGui::Text("添加新物品：");
         static int new_always_hide_party_id;
         static char always_hide_party_buf[50];
-        ImGui::InputText("Item Name##always_party", always_hide_party_buf, 50);
-        ImGui::InputInt("Item Model ID##always_party", &new_always_hide_party_id);
-        submitted |= ImGui::Button("Add##always_party");
+        ImGui::InputText("物品名称##always_party", always_hide_party_buf, 50);
+        ImGui::InputInt("物品模型 ID##always_party", &new_always_hide_party_id);
+        submitted |= ImGui::Button("添加##always_party");
         if (submitted && new_always_hide_party_id > 0) {
             const auto new_id = static_cast<uint32_t>(new_always_hide_party_id);
             if (!always_hide_for_party.contains(new_id)) {
                 always_hide_for_party[new_id] = std::string(always_hide_party_buf);
-                Log::Flash("Added Item %s with ID (%d)", always_hide_party_buf, new_id);
+                Log::Flash("已添加物品 %s（ID：%d）", always_hide_party_buf, new_id);
                 std::ranges::fill(always_hide_party_buf, '\0');
                 new_always_hide_party_id = 0;
             }
@@ -867,56 +800,15 @@ void ItemDrops::DrawSettingsInternal()
 
 int ItemDrops::GetTotalGoldValue()
 {
-    return static_cast<int>(session_total_gold_value);
-}
-
-uint64_t ItemDrops::GetSessionDropCount() const
-{
-    return session_drop_count;
-}
-
-const std::unordered_map<std::string, ItemDrops::DropTally>& ItemDrops::GetTallyByItemName() const { return tally_by_item_name; }
-const std::unordered_map<GW::Constants::MapID, ItemDrops::DropTally>& ItemDrops::GetTallyByMap() const { return tally_by_map; }
-const std::unordered_map<GW::Constants::Rarity, ItemDrops::DropTally>& ItemDrops::GetTallyByRarity() const { return tally_by_rarity; }
-const std::unordered_map<GW::Constants::ItemType, ItemDrops::DropTally>& ItemDrops::GetTallyByType() const { return tally_by_type; }
-const std::unordered_map<ItemDrops::WeaponKey, ItemDrops::DropTally, ItemDrops::WeaponKeyHash>& ItemDrops::GetTallyByWeapon() const { return tally_by_weapon; }
-
-bool ItemDrops::IsWeaponType(GW::Constants::ItemType type)
-{
-    using GW::Constants::ItemType;
-    switch (type) {
-        case ItemType::Axe:
-        case ItemType::Sword:
-        case ItemType::Shield:
-        case ItemType::Scythe:
-        case ItemType::Bow:
-        case ItemType::Wand:
-        case ItemType::Staff:
-        case ItemType::Offhand:
-        case ItemType::Daggers:
-        case ItemType::Hammer:
-        case ItemType::Spear:
-            return true;
-        default:
-            return false;
+    int value = 0;
+    for (auto drop : drop_history) {
+        if (drop->type == GW::Constants::ItemType::Gold_Coin) {
+            value += drop->value;
+        }else {
+            value += drop->value * drop->quantity;
+        }
     }
-}
-
-std::string ItemDrops::WeaponCategoryName(GW::Constants::ItemType type, GW::Constants::DamageType damage_type)
-{
-    if (!IsWeaponType(type)) {
-        return "Non-Weapon";
-    }
-    std::string category = GW::Items::GetItemTypeName(type);
-    if (damage_type != GW::Constants::DamageType::None) {
-        category += std::format(" ({})", GW::Items::GetDamageTypeName(damage_type));
-    }
-    return category;
-}
-
-std::filesystem::path ItemDrops::GetSessionCsvPath() const
-{
-    return GetItemDropCSVFilename();
+    return value;
 }
 
 std::vector<ItemDrops::PendingDrop*>& ItemDrops::GetDropHistory()
@@ -935,15 +827,6 @@ void ItemDrops::ClearDropHistory()
         delete drop;
     }
     drop_history.clear();
-
-    session_drop_count = 0;
-    session_total_gold_value = 0;
-    tally_by_item_name.clear();
-    tally_by_map.clear();
-    tally_by_rarity.clear();
-    tally_by_type.clear();
-    tally_by_weapon.clear();
-    session_csv_path.clear(); // next write picks a fresh timestamped file for the new session
 }
 
 bool ItemDrops::IsTrackingEnabled() const
@@ -960,18 +843,13 @@ ItemDrops::PendingDrop::PendingDrop(GW::Item* _item)
     type = item->type;
     rarity = GW::Items::GetRarity(item);
     model_file_id = item->model_file_id;
-    dye = item->dye;
-    is_composite_model = (item->interaction & 4) != 0;
     player_count = GW::PartyMgr::GetPartyPlayerCount() & 0xf;
     hero_count = GW::PartyMgr::GetPartyHeroCount() & 0xf;
     henchman_count = GW::PartyMgr::GetPartyHenchmanCount() & 0xf;
     hard_mode = GW::PartyMgr::GetIsPartyInHardMode();
     value = item->value;
     map_id = GW::Map::GetMapID();
-    {
-        const auto player = GW::Agents::GetControlledCharacter();
-        is_female_char = player && player->GetIsFemale();
-    }
+    icon = Resources::GetItemImage(item);
     Resources::GetMapName(map_id)->wstring();
 
     const wchar_t* item_name_pt = L"\x101";
@@ -1012,31 +890,16 @@ ItemDrops::PendingDrop::~PendingDrop() {
 
 const wchar_t* ItemDrops::PendingDrop::GetCSVHeader()
 {
-    return L"SystemTime,InstanceTime,Map,ItemName,Quantity,Value,"
-           L"ItemType,Rarity,DamageType,MinDamage,MaxDamage,"
-           L"RequirementAttribute,RequirementValue,"
-           L"PlayerCount,HeroCount,HenchmanCount,HardMode,"
-           L"ModelFileID";
+    return L"系统时间,实例时间,地图,物品名称,数量,价值,"
+           L"物品类型,稀有度,伤害类型,最小伤害,最大伤害,"
+           L"需求属性,需求等级,"
+           L"玩家数量,英雄数量,雇佣兵数量,困难模式,"
+           L"模型文件ID";
 }
 
 GuiUtils::EncString* ItemDrops::PendingDrop::GetItemName()
 {
     return ::GetItemName(item_name_enc);
-}
-
-IDirect3DTexture9** ItemDrops::PendingDrop::GetIcon()
-{
-    if (!model_file_id) {
-        return nullptr;
-    }
-    // Same packing Resources' internal ItemDyes() uses on a live GW::Item, replicated here from the
-    // stored GW::DyeInfo so this lands on the same GwDatModule cache key as any other consumer asking
-    // for this exact model+dye combo (e.g. inventory), instead of a redundant duplicate texture.
-    const uint32_t dyes = static_cast<uint32_t>(dye.dye1)
-        | (static_cast<uint32_t>(dye.dye2) << 8)
-        | (static_cast<uint32_t>(dye.dye3) << 16)
-        | (static_cast<uint32_t>(dye.dye4) << 24);
-    return Resources::GetItemImage(model_file_id, is_composite_model ? 4u : 0u, dyes, is_female_char);
 }
 
 void ItemDrops::AddPendingExport(std::string chosen_path)

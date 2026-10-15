@@ -55,7 +55,16 @@ fi
 
 if [ "${REBUILD_IMAGE}" -eq 1 ] || ! docker image inspect "${IMAGE_NAME}" >/dev/null 2>&1; then
     echo "[build-xwin] building docker image '${IMAGE_NAME}' (this downloads the MSVC + Windows SDK headers/libs and builds vkd3d; expect it to take a while the first time)..."
-    docker build "${REBUILD_IMAGE:+--no-cache}" -t "${IMAGE_NAME}" -f "${SCRIPT_DIR}/xwin/Dockerfile" "${SCRIPT_DIR}/xwin"
+    # --network=host: 让容器直接使用宿主机网络，容器内 127.0.0.1 就是宿主机
+    # --build-arg: 把宿主机的代理地址传给 Dockerfile 的 RUN 命令
+    docker build \
+        --network=host \
+        "${REBUILD_IMAGE:+--no-cache}" \
+        --build-arg http_proxy="${http_proxy:-}" \
+        --build-arg https_proxy="${https_proxy:-}" \
+        -t "${IMAGE_NAME}" \
+        -f "${SCRIPT_DIR}/xwin/Dockerfile" \
+        "${SCRIPT_DIR}/xwin"
 fi
 
 TTY_FLAGS=""
@@ -63,7 +72,13 @@ if [ -t 0 ] && [ -t 1 ]; then
     TTY_FLAGS="-it"
 fi
 
-RUN_ARGS=(--rm ${TTY_FLAGS} -v "${REPO_ROOT}:/src" -w /src -e CONFIG="${CONFIG}" -e TARGET="${TARGET}" -e CMAKE_ARGS="${CMAKE_ARGS}" -e JOBS="${JOBS}" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" "${IMAGE_NAME}")
+# --network=host: 运行容器时同样共享宿主机网络
+RUN_ARGS=(--rm ${TTY_FLAGS} --network=host \
+    -v "${REPO_ROOT}:/src" -w /src \
+    -e CONFIG="${CONFIG}" -e TARGET="${TARGET}" -e CMAKE_ARGS="${CMAKE_ARGS}" -e JOBS="${JOBS}" \
+    -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+    -e http_proxy="${http_proxy:-}" -e https_proxy="${https_proxy:-}" \
+    "${IMAGE_NAME}")
 
 if [ "${SHELL_ONLY}" -eq 1 ]; then
     exec docker run "${RUN_ARGS[@]}" bash

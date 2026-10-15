@@ -243,45 +243,39 @@ namespace FontLoader {
 
         constexpr float base_size = static_cast<float>(FontSize::text);
 
-        // 用于在异步任务间共享“系统字体是否已加载”的状态
-        auto system_font_loaded = std::make_shared<std::atomic<bool>>(false);
+        // 只有这一个异步任务：先尝试系统字体，成功则结束；失败才派发 worker
+        Resources::EnqueueDxTask([base_size](IDirect3DDevice9*) {
+        ImFontAtlas* atlas = ImGui::GetIO().Fonts;
 
-        // 第一阶段：在主线程尝试加载系统字体；成功则合并 FontAwesome 并结束；失败则加载默认字体
-        Resources::EnqueueDxTask([base_size, system_font_loaded](IDirect3DDevice9*) {
-            ImFontAtlas* atlas = ImGui::GetIO().Fonts;
-            if (auto* sysfont = TryLoadSystemFont(base_size, atlas)) {
-                loaded_font = sysfont;
-                ImGui::GetIO().FontDefault = sysfont;
+        // 1. 优先系统字体
+        if (auto* sysfont = TryLoadSystemFont(base_size, atlas)) {
+            loaded_font = sysfont;
+            ImGui::GetIO().FontDefault = sysfont;
 
-                // 合并 FontAwesome 图标
-                auto cfg = GetBaseFontConfig();
-                cfg.MergeMode = true;
-                cfg.GlyphExcludeRanges = nullptr;
-                atlas->AddFontFromMemoryCompressedTTF(fontawesome5_compressed_data, fontawesome5_compressed_size, base_size, &cfg, fontawesome5_glyph_ranges.data());
+            auto cfg = GetBaseFontConfig();
+            cfg.MergeMode = true;
+            cfg.GlyphExcludeRanges = nullptr;
+            atlas->AddFontFromMemoryCompressedTTF(
+                fontawesome5_compressed_data, fontawesome5_compressed_size,
+                base_size, &cfg, fontawesome5_glyph_ranges.data());
 
-                system_font_loaded->store(true);
-                fonts_loaded = true;
-                fonts_loading = false;
-                printf("[FontLoader] System font loaded, skipping disk fonts.\n");
-                return;
-            }
-            loaded_font = BuildDefaultFont(base_size);
-            printf("Loaded default font\n");
-        });
+            fonts_loaded = true;
+            fonts_loading = false;
+            printf("[FontLoader] System font loaded, done.\n");
+            return;
+        }
 
-        // 第二阶段：在工作线程读取磁盘字体（仅当系统字体未加载时）
-        Resources::EnqueueWorkerTask([base_size, system_font_loaded] {
-            if (system_font_loaded->load()) {
-                return; // 系统字体已处理完毕，跳过所有磁盘字体
-            }
+        // 2. 系统字体失败：先加载内置默认字体，再派发 worker 加载磁盘字体
+        loaded_font = BuildDefaultFont(base_size);
+        printf("[FontLoader] Fallback to default font; loading disk fonts...\n");
+
+        Resources::EnqueueWorkerTask([base_size] {
             for (auto& font : GetFontData()) {
                 std::ifstream file(font.path, std::ios::binary);
-                if (!file.is_open())
-                    continue;
+                if (!file.is_open()) continue;
                 file.seekg(0, std::ios::end);
                 const auto file_end = file.tellg();
-                if (file_end <= 0)
-                    continue;
+                if (file_end <= 0) continue;
                 const auto file_size = static_cast<size_t>(file_end);
                 font.data = ImGui::MemAlloc(file_size);
                 font.data_size = file_size;
@@ -294,7 +288,9 @@ namespace FontLoader {
                 Resources::EnqueueDxTask([base_size, &font](IDirect3DDevice9*) {
                     auto cfg = GetBaseFontConfig();
                     cfg.MergeMode = full_font != nullptr;
-                    full_font = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(font.data, static_cast<int>(font.data_size), base_size, &cfg, font.glyph_ranges.data());
+                    full_font = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(
+                        font.data, static_cast<int>(font.data_size),
+                        base_size, &cfg, font.glyph_ranges.data());
                     font.data = nullptr;
                 });
             }
@@ -303,17 +299,20 @@ namespace FontLoader {
                 auto cfg = GetBaseFontConfig();
                 cfg.MergeMode = true;
                 cfg.GlyphExcludeRanges = nullptr;
-                atlas->AddFontFromMemoryCompressedTTF(fontawesome5_compressed_data, fontawesome5_compressed_size, base_size, &cfg, fontawesome5_glyph_ranges.data());
+                atlas->AddFontFromMemoryCompressedTTF(
+                    fontawesome5_compressed_data, fontawesome5_compressed_size,
+                    base_size, &cfg, fontawesome5_glyph_ranges.data());
                 if (full_font) {
                     loaded_font = full_font;
                     ImGui::GetIO().FontDefault = loaded_font;
                 }
                 full_font = nullptr;
-                printf("Loaded all fonts\n");
+                printf("[FontLoader] Loaded all disk fonts.\n");
                 fonts_loaded = true;
                 fonts_loading = false;
             });
         });
+    });
     }
 
     void Terminate()

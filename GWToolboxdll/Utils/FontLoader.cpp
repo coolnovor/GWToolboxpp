@@ -6,6 +6,10 @@
 
 #include "fonts/fontawesome5.h"
 
+#include <atomic>
+#include <fstream>
+#include <memory>
+
 namespace {
     ImFont* loaded_font = nullptr;
     ImFont* full_font = nullptr;
@@ -181,7 +185,41 @@ namespace {
         return font;
     }
 
-}
+    // 尝试加载系统中文字体（微软雅黑）。成功返回字体指针，失败返回 nullptr。
+    ImFont* TryLoadSystemFont(const float size, ImFontAtlas* atlas)
+    {
+        const char* system_font_paths[] = {
+            "C:\\Windows\\Fonts\\msyh.ttc",   // Windows 10 微软雅黑
+            "C:\\Windows\\Fonts\\msyh.ttf",   // Windows 7 微软雅黑
+            "C:\\Windows\\Fonts\\msyhbd.ttc", // Windows 10 微软雅黑加粗
+            "C:\\Windows\\Fonts\\msyhbd.ttf", // Windows 7 微软雅黑加粗
+        };
+        static const ImWchar glyph_ranges[] = {
+            0x0020, 0x00FF,   // Basic Latin + Latin Supplement
+            0x2000, 0x206F,   // General Punctuation
+            0x3000, 0x30FF,   // CJK Symbols, Hiragana, Katakana
+            0x4e00, 0x9FAF,   // CJK Ideograms（简体中文在此范围内）
+            0xFF00, 0xFFEF,   // Half-width
+            0
+        };
+        for (const char* path : system_font_paths) {
+            size_t data_size = 0;
+            void* data = ImFileLoadToMemory(path, "rb", &data_size, 0);
+            if (!data) {
+                continue;
+            }
+            auto cfg = GetBaseFontConfig();
+            cfg.MergeMode = false;
+            auto* font = atlas->AddFontFromMemoryTTF(data, static_cast<int>(data_size), size, &cfg, glyph_ranges);
+            if (font) {
+                printf("[FontLoader] Loaded system font: %s\n", path);
+                return font;
+            }
+        }
+        return nullptr;
+    }
+
+} // namespace
 
 namespace FontLoader {
     bool FontsLoaded()
@@ -205,12 +243,37 @@ namespace FontLoader {
 
         constexpr float base_size = static_cast<float>(FontSize::text);
 
-        Resources::EnqueueDxTask([base_size](IDirect3DDevice9*) {
+        // 用于在异步任务间共享“系统字体是否已加载”的状态
+        auto system_font_loaded = std::make_shared<std::atomic<bool>>(false);
+
+        // 第一阶段：在主线程尝试加载系统字体；成功则合并 FontAwesome 并结束；失败则加载默认字体
+        Resources::EnqueueDxTask([base_size, system_font_loaded](IDirect3DDevice9*) {
+            ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+            if (auto* sysfont = TryLoadSystemFont(base_size, atlas)) {
+                loaded_font = sysfont;
+                ImGui::GetIO().FontDefault = sysfont;
+
+                // 合并 FontAwesome 图标
+                auto cfg = GetBaseFontConfig();
+                cfg.MergeMode = true;
+                cfg.GlyphExcludeRanges = nullptr;
+                atlas->AddFontFromMemoryCompressedTTF(fontawesome5_compressed_data, fontawesome5_compressed_size, base_size, &cfg, fontawesome5_glyph_ranges.data());
+
+                system_font_loaded->store(true);
+                fonts_loaded = true;
+                fonts_loading = false;
+                printf("[FontLoader] System font loaded, skipping disk fonts.\n");
+                return;
+            }
             loaded_font = BuildDefaultFont(base_size);
             printf("Loaded default font\n");
         });
 
-        Resources::EnqueueWorkerTask([base_size] {
+        // 第二阶段：在工作线程读取磁盘字体（仅当系统字体未加载时）
+        Resources::EnqueueWorkerTask([base_size, system_font_loaded] {
+            if (system_font_loaded->load()) {
+                return; // 系统字体已处理完毕，跳过所有磁盘字体
+            }
             for (auto& font : GetFontData()) {
                 std::ifstream file(font.path, std::ios::binary);
                 if (!file.is_open())
